@@ -1,0 +1,3 @@
+mips-linux-gnu-gcc test_mic_hp.c --static
+mips-linux-gnu-strip a.out
+scp92 a.out adb_halley/play

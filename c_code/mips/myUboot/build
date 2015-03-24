@@ -1,0 +1,9 @@
+mips-linux-gnu-gcc -c start.S main.c -lc
+mips-linux-gnu-ld start.o main.o -Ttext 0xf4000800 -T u-boot.lds 
+#cp a.out a.out.bk
+mips-linux-gnu-objdump -D a.out > a.out.hex
+mips-linux-gnu-objcopy -O binary a.out a.out
+gcc spi_checksum.c -o spi_checksum
+./spi_checksum a.out
+rm spi_checksum
+scp ./a.out user@192.168.3.92:/home/user/fshang/vb_share/imgs/test/

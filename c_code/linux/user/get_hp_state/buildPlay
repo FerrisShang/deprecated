@@ -1,0 +1,4 @@
+mips-linux-gnu-gcc get_hp_state.c --static
+mips-linux-gnu-strip a.out
+scp2adb a.out get_hp_state
+rm *.o *.out
