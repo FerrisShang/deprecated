@@ -1,3 +1,4 @@
+make clean
 mips-linux-gnu-gcc -c start.S main.c -lc
 mips-linux-gnu-ld start.o main.o -Ttext 0xf4000800 -T u-boot.lds 
 #cp a.out a.out.bk

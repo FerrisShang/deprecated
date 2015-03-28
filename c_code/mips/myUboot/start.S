@@ -8,7 +8,14 @@
 	.word 0
 	.globl _start
 _start:
-uart_init:
+	jal		main
+	nop
+	b		.
+	nop
+
+.type gpio_uart_init, @function
+.globl gpio_uart_init
+gpio_uart_init:
 #define UART_PORT_BASE	 0xb0010500
 #define UART_PIN		 (1<<4)
 	la      v0, UART_PORT_BASE
@@ -18,17 +25,12 @@ uart_init:
 	sw      t0, 0x24(v0)
 	sw      t0, 0x38(v0)
 	sw      t0, 0x44(v0)
-	li		a0, '@' 
-	jal		putchar
-	nop
-	jal		main
-	nop 
-	b		.
+	jr		ra
 	nop 
 
-.type putchar, @function
-.globl putchar
-putchar:
+.type gpio_uart_putc, @function
+.globl gpio_uart_putc
+gpio_uart_putc:
 	la      v0, UART_PORT_BASE
 	li      t0, UART_PIN
 	sw      t0, 0x48(v0)
