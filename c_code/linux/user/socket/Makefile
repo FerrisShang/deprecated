@@ -5,4 +5,4 @@ ALL:
 #ad push socket /sbin
 	scp2adb socket
 clean:
-	rm -f test
+	rm -f test socket
