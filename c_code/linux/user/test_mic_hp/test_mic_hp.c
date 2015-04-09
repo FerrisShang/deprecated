@@ -75,14 +75,20 @@ int main(int argc, char* argv[])
 	while(1){
 		if(fd_read < 0 && fd_write < 0)exit(1);
 		if(fd_read > 0){
-			int sum = 0;
-			printf("recording..\n");
+			long long sum = 0;
+			int tmp;
+			printf("recording..");
 			read(fd_read, buf, buf_size);
-			for(i=0;i<buf_size;i++){
-				sum += buf[i];
+			for(i=0;i<buf_size-1;i+=2){
+				tmp = (buf[i+1]<<8)+buf[i];
+				if(tmp<0)
+					tmp = -tmp;
+				sum += tmp;
 			}
-			if(sum = 0){
+			if(sum == 0){
 				printf("warning ======================> no sound detected.\n");
+			}else{
+				printf("record ave ======================> %d\n", (int)(sum*2/buf_size));
 			}
 		}
 		if(fd_write > 0){
