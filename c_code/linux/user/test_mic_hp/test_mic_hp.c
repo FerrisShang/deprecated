@@ -11,7 +11,8 @@
 #define RATE 16000
 #define SIZE 16
 #define CHANNELS 2
-#define AUDIO_DEV "/dev/jz-dmic"
+#define AUDIO_DEV_R "/dev/jz-dmic"
+#define AUDIO_DEV_W "/dev/snd/dsp"
 #define BUF_SIZE (int)(1.0*LENGTH*RATE*SIZE*CHANNELS/8.0)
 
 #define MIXER_DEV "/dev/snd/mixer"
@@ -20,20 +21,22 @@
 int main(int argc, char* argv[])
 {
 	char *buf;
-	char audio_dev[32];
+	char audio_dev_r[32];
+	char audio_dev_w[32];
 	char mixer_dev[32];
 	int rate, buf_size, vol_level;
 	int fd_read, fd_write, fd_vol;
 	int arg, i;
 
 	if(argc >= 2)
-		strcpy(audio_dev, argv[1]);
+		strcpy(audio_dev_r, argv[1]);
 	else
-		strcpy(audio_dev, AUDIO_DEV);
+		strcpy(audio_dev_r, AUDIO_DEV_R);
 	if(argc >= 3)
-		rate = atoi(argv[2]);
+		strcpy(audio_dev_w, argv[2]);
 	else
-		rate = RATE;
+		strcpy(audio_dev_w, AUDIO_DEV_W);
+	rate = RATE;
 	if(argc >= 5){
 		strcpy(mixer_dev, argv[3]);
 		vol_level = atoi(argv[4]);
@@ -55,7 +58,7 @@ int main(int argc, char* argv[])
 		perror("malloc failed");
 		exit(1);
 	}
-	if((fd_write = open(audio_dev,O_WRONLY)) < 0){
+	if((fd_write = open(audio_dev_w,O_WRONLY)) < 0){
 		perror("open dsp file for writing failed");
 	}else{
 		arg = SIZE;
@@ -65,7 +68,7 @@ int main(int argc, char* argv[])
 		arg = rate;
 		ioctl(fd_write , SOUND_PCM_WRITE_RATE, &arg);
 	}
-	if((fd_read = open(audio_dev,O_RDONLY)) < 0){
+	if((fd_read = open(audio_dev_r,O_RDONLY)) < 0){
 		perror("open dsp file for reading failed");
 		for(i=0;i<buf_size;i++){
 			buf[i] = rand();
