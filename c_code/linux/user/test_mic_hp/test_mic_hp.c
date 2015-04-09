@@ -32,14 +32,17 @@ int main(int argc, char* argv[])
 		strcpy(audio_dev_r, argv[1]);
 	else
 		strcpy(audio_dev_r, AUDIO_DEV_R);
+	printf("audio_dev_r : %s\n", audio_dev_r);
 	if(argc >= 3)
 		strcpy(audio_dev_w, argv[2]);
 	else
 		strcpy(audio_dev_w, AUDIO_DEV_W);
+	printf("audio_dev_w : %s\n", audio_dev_w);
 	rate = RATE;
 	if(argc >= 5){
 		strcpy(mixer_dev, argv[3]);
 		vol_level = atoi(argv[4]);
+		printf("mixer_dev : %s,vol=%d\n", mixer_dev, vol_level);
 	}else{
 		strcpy(mixer_dev, MIXER_DEV);
 		vol_level = VOL_LEVEL;
