@@ -1,7 +1,7 @@
 #define UDP_SEND_BUFFER_SIZE 1024
 #define UDP_RECV_BUFFER_SIZE 1024
-#define DSET_IP_ADDRESS  "192.168.3.93"
-#define DEST_PORT 4444
+#define DSET_IP_ADDRESS  "106.37.171.197"
+#define DEST_PORT 6000
 typedef enum{
 	udp_unconnect,
 	udp_connect,

@@ -4,7 +4,6 @@
 #include "led.h"
 #include "protocol.h"
 
-#define printf
 int main(int argc, char *argv[])
 {
 	int ret, len;
