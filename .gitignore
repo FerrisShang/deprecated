@@ -1,5 +1,6 @@
 # Object files
 *.o
+*.o.*
 
 # Libraries
 *.lib
@@ -9,7 +10,9 @@
 *.dll
 *.so
 *.so.*
+*.ko
 *.dylib
+*.mod.c
 
 # Executables
 *.exe
@@ -17,3 +20,6 @@
 *.app
 # svn tools
 *.svn
+# others
+tags
+.*.swp
