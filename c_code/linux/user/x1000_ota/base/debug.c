@@ -18,8 +18,8 @@ void dbg_print(int level, int forced, const char *fmt, ...)
 			default :
 				break;
 		}
+		va_start(args, fmt);
+		vprintf(fmt, args);
+		va_end(args);
 	}
-	va_start(args, fmt);
-	vprintf(fmt, args);
-	va_end(args);
 }

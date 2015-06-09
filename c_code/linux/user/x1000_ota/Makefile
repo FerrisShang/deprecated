@@ -5,7 +5,7 @@ srcExt = c
 srcDir = .
 objDir = obj
 binDir = .
-inc = . base encrypt para socket
+inc = . base encrypt para socket protocol
 
 CFlags = -Wall -O2
 LDFlags =
@@ -38,10 +38,10 @@ $(objDir)/%.o: %.$(srcExt)
 	@$(CC) $(CFlags) $< -o $@
 
 clean:
-	$(RM) -r $(objDir)
+	@$(RM) -r $(objDir)
 
 distclean: clean
-	$(RM) -r $(binDir)/$(app)
+	@$(RM) -r $(binDir)/$(app)
 
 buildrepo:
 	@$(call make-repo)

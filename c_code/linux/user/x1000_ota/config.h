@@ -9,6 +9,19 @@
  * 3 : DBG_WARNING
  * 4 : DBG_INFO
  */
-#define DEBUG_LEVEL 4
+#define DEBUG_LEVEL 2
+
+/* specify socket type
+ * 0 : UDP
+ * 1 : TCP
+ */
+#define SOCKET_TYPE 0
+
+
+/* protocol module debug force on */
+#define PRO_DBG           0
+#define SOCK_IF_DBG       0
+#define SOCK_UDP_DBG      0
+
 
 #endif /* __CONFIG_H__ */
