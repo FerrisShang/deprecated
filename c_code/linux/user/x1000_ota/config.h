@@ -9,13 +9,19 @@
  * 3 : DBG_WARNING
  * 4 : DBG_INFO
  */
-#define DEBUG_LEVEL 2
+#define DEBUG_LEVEL 4
 
 /* specify socket type
  * 0 : UDP
  * 1 : TCP
  */
 #define SOCKET_TYPE 0
+
+/* specify encrypt mode for communication
+ * 0 : none
+ * 1 : rsa/aes
+ */
+#define ENCRYPT_MODE 1
 
 
 /* protocol module debug force on */

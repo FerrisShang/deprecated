@@ -16,4 +16,6 @@
 void dbg_print(int level, int forced, const char *fmt, ...);
 #endif /* (DEBUG_LEVEL==DBG_CLOSE) */
 
+void dbg_hex(s8_t *msg, u8_t *buf, u32_t len);
+
 #endif /* __DEBUG_H__ */

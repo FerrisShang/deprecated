@@ -16,7 +16,7 @@ sUdp_t *udp_create(s8_t *ip, u32_t port)
 	udp_handle->sock_fd = socket(AF_INET,SOCK_DGRAM,0);
 	if(udp_handle->sock_fd){
 		udp_handle->addr_serv.sin_family = AF_INET;
-		udp_handle->addr_serv.sin_addr.s_addr = inet_addr((const char*)ip);
+		udp_handle->addr_serv.sin_addr.s_addr = inet_addr((const s8_t*)ip);
 		udp_handle->addr_serv.sin_port = htons(port);
 	}else{
 		dbg_print(DBG_ERROR, SOCK_UDP_DBG, "allocate socket failed.\n");

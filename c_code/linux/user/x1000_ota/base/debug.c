@@ -23,3 +23,15 @@ void dbg_print(int level, int forced, const char *fmt, ...)
 		va_end(args);
 	}
 }
+
+void dbg_hex(s8_t *msg, u8_t *buf, u32_t len)
+{
+	int i;
+	printf("%s(len=%d):", msg, len);
+	for(i=0;i<len;i++){
+		if((i%16)==0)
+			printf("\n   ");
+		printf("%02x ", (u8_t)buf[i]);
+	}
+	printf("\n");
+}

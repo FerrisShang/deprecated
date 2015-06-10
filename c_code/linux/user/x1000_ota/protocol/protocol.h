@@ -18,15 +18,8 @@ typedef enum{
 	TYPE_ENCRYPT_NULL = 0,
 	TYPE_ENCRYPT_RSA,
 	TYPE_ENCRYPT_AES,
-	TYPE_ENCRYPT_AUTO = 0xFF,//use for response
+	TYPE_ENCRYPT = 0xFF,//use for init
 }eEncrypt_t;
-
-typedef struct{
-	eEncrypt_t enc;
-	eOta_cmd_t cmd;
-	u16_t data_len;
-	void *data;
-}sPro_udata_t;
 
 typedef struct{
 	u8_t header[2];
@@ -47,16 +40,18 @@ typedef struct{
 }sComm_data_t;
 
 typedef struct{
-	sValid_data_t valid_data;
-	sComm_data_t comm_data;
+	eEncrypt_t mode;
+	u8_t *valid_dat_buf;
 	s32_t time_stamp_offset;
 }sProtocol_t;
 
-sProtocol_t* protocol_create(void);
+sProtocol_t* protocol_create(eEncrypt_t mode);
 void protocol_destory(sProtocol_t *pro);
 
-s32_t proto_package_data(sProtocol_t *pro, sPro_udata_t *usr_data, s8_t *buf);
-s32_t proto_parse_data(sProtocol_t *pro, sPro_udata_t *usr_data, s8_t *buf);
+s32_t pack_req_encrypt_comm(sProtocol_t *pro, u8_t *buf, u8_t *device_id);
+s32_t pack_req_new_key(sProtocol_t *pro, u8_t *buf, u8_t *device_id);
+s32_t pack_req_activition(sProtocol_t *pro, u8_t *buf, u8_t *device_id, u8_t *wifi_addr, u8_t *bt_addr);
+s32_t pack_req_new_version(sProtocol_t *pro, u8_t *buf, u8_t *device_id, u8_t *version);
 
 #define COMM_DATA_HEADER_POS     0
 #define COMM_DATA_TYPE_POS       1
@@ -65,10 +60,11 @@ s32_t proto_parse_data(sProtocol_t *pro, sPro_udata_t *usr_data, s8_t *buf);
 
 #define COMM_DATA_HEADER        "X"
 
+#define VALID_DATA_OFFSET         4
 #define VALID_DATA_HEADER_POS     0
 #define VALID_DATA_LEN_POS        2
 #define VALID_DATA_TIME_STAMP_POS 4
-#define VALID_DATA_INS_POS        8
+#define VALID_DATA_CMD_POS        8
 #define VALID_DATA_DATA_POS       10
 
 #define VALID_DATA_HEADER     "JZ"

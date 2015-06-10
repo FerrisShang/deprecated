@@ -11,7 +11,7 @@
 
 typedef struct{
 	s32_t sock_fd;
-	s32_t dest_len;
+	socklen_t dest_len;
 	struct sockaddr_in addr_serv;
 }sUdp_t;
 
