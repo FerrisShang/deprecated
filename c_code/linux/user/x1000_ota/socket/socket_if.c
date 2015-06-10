@@ -12,14 +12,14 @@ void socket_distory(sSocket_t *socket)
 	udp_distory(socket);
 }
 
-s32_t socket_send(sSocket_t *socket, s8_t *buf, u16_t len)
+s32_t socket_send(sSocket_t *socket, s8_t *buf, s32_t len)
 {
 	return udp_send(socket, buf, len);
 }
 
-s32_t socket_recv(sSocket_t *socket, s8_t *buf)
+s32_t socket_recv(sSocket_t *socket, s8_t *buf, s32_t len)
 {
-	return udp_recv(socket, buf);
+	return udp_recv(socket, buf, len);
 }
 
 #else /* TCP */

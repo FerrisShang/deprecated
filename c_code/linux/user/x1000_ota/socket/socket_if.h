@@ -17,7 +17,7 @@ typedef sTcp_t sSocket_t;
 
 sSocket_t *socket_create(s8_t *ip, u32_t port);
 void socket_distory(sSocket_t *socket);
-s32_t socket_send(sSocket_t *socket, s8_t *buf, u16_t len);
-s32_t socket_recv(sSocket_t *socket, s8_t *buf);
+s32_t socket_send(sSocket_t *socket, s8_t *buf, s32_t len);
+s32_t socket_recv(sSocket_t *socket, s8_t *buf, s32_t len);
 
 #endif /* __SOCKET_IF_H__ */

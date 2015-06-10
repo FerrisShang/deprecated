@@ -18,6 +18,6 @@ typedef struct{
 sUdp_t *udp_create(s8_t *ip, u32_t port);
 void udp_distory(sUdp_t *socket);
 s32_t udp_send(sUdp_t *socket, s8_t *buf, u16_t len);
-s32_t udp_recv(sUdp_t *socket, s8_t *buf);
+s32_t udp_recv(sUdp_t *socket, s8_t *buf, s32_t len);
 
 #endif /* __SOCKET_UDP_H__ */
