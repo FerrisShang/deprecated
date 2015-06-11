@@ -5,10 +5,11 @@
 #include "para_if.h"
 #include "enc_if.h"
 
-static s32_t pack_valid_data(u8_t *buf, u32_t time_offset, eOta_cmd_t cmd, u8_t *data, s32_t dat_len);
-static s32_t pack_comm_data(u8_t *buf, eEncrypt_t mode, u8_t *data, s32_t dat_len);
+static s32_t pack_valid_data(s8_t *buf, u32_t time_offset, eOta_cmd_t cmd, s8_t *data, s32_t dat_len);
+static s32_t pack_comm_data(s8_t *buf, eEncrypt_t mode, s8_t *data, s32_t dat_len);
+static s32_t check_value_data(s8_t *buf, s32_t len);
 
-static s32_t pack_valid_data(u8_t *buf, u32_t time_offset, eOta_cmd_t cmd, u8_t *data, s32_t dat_len)
+static s32_t pack_valid_data(s8_t *buf, u32_t time_offset, eOta_cmd_t cmd, s8_t *data, s32_t dat_len)
 {
 	s32_t total_len, i;
 	s32_t time_stamp;
@@ -38,13 +39,13 @@ static s32_t pack_valid_data(u8_t *buf, u32_t time_offset, eOta_cmd_t cmd, u8_t 
 	return VALID_DATA_DATA_POS+dat_len+1; //1 means check_sum
 }
 
-static s32_t pack_comm_data(u8_t *buf, eEncrypt_t mode, u8_t *data, s32_t dat_len)
+static s32_t pack_comm_data(s8_t *buf, eEncrypt_t mode, s8_t *data, s32_t dat_len)
 {
 	s32_t comm_dat_len;
 	//header
 	buf[COMM_DATA_HEADER_POS] = COMM_DATA_HEADER[0];
 	//encrypt mode
-	buf[COMM_DATA_TYPE_POS] = (u8_t)mode;
+	buf[COMM_DATA_TYPE_POS] = (s8_t)mode;
 	//valid data
 	if(mode == TYPE_ENCRYPT_NULL){
 		memcpy(&buf[COMM_DATA_VALID_DATA_POS], data, dat_len);
@@ -65,6 +66,19 @@ static s32_t pack_comm_data(u8_t *buf, eEncrypt_t mode, u8_t *data, s32_t dat_le
 	buf[COMM_DATA_LEN_POS] = (comm_dat_len >> 8) & 0xFF;
 	buf[COMM_DATA_LEN_POS+1] = comm_dat_len & 0xFF;
 	return COMM_DATA_VALID_DATA_POS + comm_dat_len;
+}
+
+static s32_t check_value_data(s8_t *buf, s32_t len)
+{
+	u32_t i;
+	s8_t check_sum = 0;
+	for(i=0;i<len-1;i++){
+		check_sum += buf[i];
+	}
+	if(check_sum == buf[len-1])
+		return 0;
+	else
+		return -1;
 }
 
 sProtocol_t* protocol_create(eEncrypt_t mode)
@@ -100,7 +114,7 @@ void protocol_destory(sProtocol_t *pro)
 	}
 }
 
-s32_t pack_req_encrypt_comm(sProtocol_t *pro, u8_t *buf, u8_t *device_id)
+s32_t pack_req_encrypt_comm(sProtocol_t *pro, s8_t *buf, s8_t *device_id)
 {
 	s32_t valid_dat_len;
 	s32_t comm_dat_len;
@@ -111,7 +125,7 @@ s32_t pack_req_encrypt_comm(sProtocol_t *pro, u8_t *buf, u8_t *device_id)
 	return comm_dat_len;
 }
 
-s32_t pack_req_new_key(sProtocol_t *pro, u8_t *buf, u8_t *device_id)
+s32_t pack_req_new_key(sProtocol_t *pro, s8_t *buf, s8_t *device_id)
 {
 	s32_t valid_dat_len;
 	s32_t comm_dat_len;
@@ -122,11 +136,11 @@ s32_t pack_req_new_key(sProtocol_t *pro, u8_t *buf, u8_t *device_id)
 	return comm_dat_len;
 }
 
-s32_t pack_req_activition(sProtocol_t *pro, u8_t *buf, u8_t *device_id, u8_t *wifi_addr, u8_t *bt_addr)
+s32_t pack_req_activition(sProtocol_t *pro, s8_t *buf, s8_t *device_id, s8_t *wifi_addr, s8_t *bt_addr)
 {
 	s32_t valid_dat_len;
 	s32_t comm_dat_len;
-	u8_t *data_buf, *p;
+	s8_t *data_buf, *p;
 	data_buf = mem_malloc(VALID_DATA_MAX_LEN);
 	if(data_buf == NULL){
 		dbg_print(DBG_ERROR, PRO_DBG, "not enough memory.\n");
@@ -151,11 +165,11 @@ s32_t pack_req_activition(sProtocol_t *pro, u8_t *buf, u8_t *device_id, u8_t *wi
 	return comm_dat_len;
 }
 
-s32_t pack_req_new_version(sProtocol_t *pro, u8_t *buf, u8_t *device_id, u8_t *version)
+s32_t pack_req_new_version(sProtocol_t *pro, s8_t *buf, s8_t *device_id, s8_t *version)
 {
 	s32_t valid_dat_len;
 	s32_t comm_dat_len;
-	u8_t *data_buf, *p;
+	s8_t *data_buf, *p;
 	data_buf = mem_malloc(VALID_DATA_MAX_LEN);
 	if(data_buf == NULL){
 		dbg_print(DBG_ERROR, PRO_DBG, "not enough memory.\n");
@@ -178,14 +192,77 @@ s32_t pack_req_new_version(sProtocol_t *pro, u8_t *buf, u8_t *device_id, u8_t *v
 	return comm_dat_len;
 }
 
-/*
-s32_t proto_parse_data(sProtocol_t *pro, sPro_udata_t *usr_data, u8_t *buf)
+s32_t parse_package(sProtocol_t *pro, s8_t *buf, s32_t buf_len,
+						 eOta_cmd_t *cmd, s8_t *data, s32_t *data_len)
 {
-	return 0;
+	s8_t *data_buf, *p = 0;
+	s32_t valid_data_len;
+	s32_t time_stamp;
+	data_buf = mem_malloc(VALID_DATA_MAX_LEN);
+	if(data_buf == NULL){
+		dbg_print(DBG_ERROR, PRO_DBG, "not enough memory.\n");
+		return PARSE_OTHER_ERROR;
+	}
+	if(buf[COMM_DATA_HEADER_POS] != COMM_DATA_HEADER[0]){
+		dbg_print(DBG_WARNING, PRO_DBG, "parse package error(header:\"0x%02X\" error,not \"0x%02X\").\n",
+				(u8_t)buf[COMM_DATA_HEADER_POS], COMM_DATA_HEADER[0]);
+		mem_free(data_buf);
+		return PARSE_STYLE_ERROR;
+	}
+	valid_data_len = (buf[COMM_DATA_LEN_POS]<<8)+buf[COMM_DATA_LEN_POS+1];
+	if(valid_data_len+COMM_DATA_VALID_DATA_POS != buf_len){
+		dbg_print(DBG_WARNING, PRO_DBG, "parse package error(comm data length is wrong).\n");
+		mem_free(data_buf);
+		return PARSE_STYLE_ERROR;
+	}
+	//get value data
+	if(buf[COMM_DATA_TYPE_POS] == TYPE_ENCRYPT_NULL){
+		p = &buf[COMM_DATA_VALID_DATA_POS];
+	}else if(buf[COMM_DATA_TYPE_POS] == TYPE_ENCRYPT_RSA){
+		valid_data_len = decrypt_rsa(&buf[COMM_DATA_VALID_DATA_POS], valid_data_len, data_buf);
+		if(valid_data_len <= 0){
+			mem_free(data_buf);
+			return PARSE_DECRYPT_ERROR;
+		}
+		p = data_buf;
+	}else if(buf[COMM_DATA_TYPE_POS] == TYPE_ENCRYPT_AES){
+		valid_data_len = decrypt_aes(&buf[COMM_DATA_VALID_DATA_POS], valid_data_len, data_buf);
+		if(valid_data_len <= 0){
+			mem_free(data_buf);
+			return PARSE_DECRYPT_ERROR;
+		}
+		p = data_buf;
+	}else{
+		dbg_print(DBG_WARNING, PRO_DBG, "unsupport encrypt type\n");
+		mem_free(data_buf);
+		return PARSE_DECRYPT_ERROR;
+	}
+	//check valid data
+	if(valid_data_len < VALID_DATA_TIME_STAMP_POS || //length check
+			p[VALID_DATA_HEADER_POS] != VALID_DATA_HEADER[0] || //header check
+			p[VALID_DATA_HEADER_POS+1] != VALID_DATA_HEADER[1] ||
+			//data length check
+			(p[VALID_DATA_LEN_POS]<<8)+(p[VALID_DATA_LEN_POS+1])+VALID_DATA_TIME_STAMP_POS != valid_data_len){
+		mem_free(data_buf);
+		dbg_print(DBG_INFO, PRO_DBG, "valid data format error.header=\"%c%c\"\n",
+					p[VALID_DATA_HEADER_POS], p[VALID_DATA_HEADER_POS+1]);
+		return PARSE_STYLE_ERROR;
+	}
+	if(check_value_data(p, valid_data_len) != 0){
+		mem_free(data_buf);
+		dbg_print(DBG_INFO, PRO_DBG, "valid data checksum error.\n");
+		return PARSE_CHECKSUM_ERROR;
+	}
+	//parse valid data
+	//time_stamp_offset
+	time_stamp = (p[VALID_DATA_TIME_STAMP_POS]<<24)+(p[VALID_DATA_TIME_STAMP_POS]<<16)+
+					(p[VALID_DATA_TIME_STAMP_POS]<<8)+(p[VALID_DATA_TIME_STAMP_POS]);
+	pro->time_stamp_offset = time_stamp - time(0);
+	//command
+	*cmd = (eOta_cmd_t)((p[VALID_DATA_CMD_POS]<<8) + p[VALID_DATA_CMD_POS+1]);
+	//data
+	*data_len = valid_data_len - VALID_DATA_DATA_POS - 1;
+	memcpy(data, &p[VALID_DATA_DATA_POS], *data_len);
+	mem_free(data_buf);
+	return PARSE_SUCCESS;
 }
-   s32_t proto_package_data(sProtocol_t *pro, sPro_udata_t *usr_data, u8_t *buf)
-   {
-   pack_valid_data();
-   return 0;
-   }
-*/

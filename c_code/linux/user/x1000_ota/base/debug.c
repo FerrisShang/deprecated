@@ -24,7 +24,7 @@ void dbg_print(int level, int forced, const char *fmt, ...)
 	}
 }
 
-void dbg_hex(s8_t *msg, u8_t *buf, u32_t len)
+void dbg_hex(s8_t *msg, s8_t *buf, u32_t len)
 {
 	int i;
 	printf("%s(len=%d):", msg, len);

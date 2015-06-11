@@ -28,6 +28,8 @@
 #define PRO_DBG           0
 #define SOCK_IF_DBG       0
 #define SOCK_UDP_DBG      0
+#define ENC_IF_DBG        0
+#define PARA_DBG          0
 
 
 #endif /* __CONFIG_H__ */

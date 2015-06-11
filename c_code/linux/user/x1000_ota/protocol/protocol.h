@@ -22,17 +22,17 @@ typedef enum{
 }eEncrypt_t;
 
 typedef struct{
-	u8_t header[2];
+	s8_t header[2];
 	u16_t len;
 	u32_t time_stamp;
 	eOta_cmd_t cmd;
 	void *data;
 	u16_t data_len;
-	u8_t check_sum;
+	s8_t check_sum;
 }sValid_data_t;
 
 typedef struct{
-	u8_t header[2];
+	s8_t header[2];
 	eEncrypt_t enc;
 	u16_t len;
 	void *data;
@@ -41,24 +41,24 @@ typedef struct{
 
 typedef struct{
 	eEncrypt_t mode;
-	u8_t *valid_dat_buf;
+	s8_t *valid_dat_buf;
 	s32_t time_stamp_offset;
 }sProtocol_t;
 
 sProtocol_t* protocol_create(eEncrypt_t mode);
 void protocol_destory(sProtocol_t *pro);
 
-s32_t pack_req_encrypt_comm(sProtocol_t *pro, u8_t *buf, u8_t *device_id);
-s32_t pack_req_new_key(sProtocol_t *pro, u8_t *buf, u8_t *device_id);
-s32_t pack_req_activition(sProtocol_t *pro, u8_t *buf, u8_t *device_id, u8_t *wifi_addr, u8_t *bt_addr);
-s32_t pack_req_new_version(sProtocol_t *pro, u8_t *buf, u8_t *device_id, u8_t *version);
+s32_t pack_req_encrypt_comm(sProtocol_t *pro, s8_t *buf, s8_t *device_id);
+s32_t pack_req_new_key(sProtocol_t *pro, s8_t *buf, s8_t *device_id);
+s32_t pack_req_activition(sProtocol_t *pro, s8_t *buf, s8_t *device_id, s8_t *wifi_addr, s8_t *bt_addr);
+s32_t pack_req_new_version(sProtocol_t *pro, s8_t *buf, s8_t *device_id, s8_t *version);
+s32_t parse_package(sProtocol_t *pro, s8_t *buf, s32_t buf_len, eOta_cmd_t *cmd, s8_t *data, s32_t *data_len);
 
 #define COMM_DATA_HEADER_POS     0
 #define COMM_DATA_TYPE_POS       1
 #define COMM_DATA_LEN_POS        2
 #define COMM_DATA_VALID_DATA_POS 4
-
-#define COMM_DATA_HEADER        "X"
+#define COMM_DATA_HEADER         "X"
 
 #define VALID_DATA_OFFSET         4
 #define VALID_DATA_HEADER_POS     0
@@ -66,8 +66,13 @@ s32_t pack_req_new_version(sProtocol_t *pro, u8_t *buf, u8_t *device_id, u8_t *v
 #define VALID_DATA_TIME_STAMP_POS 4
 #define VALID_DATA_CMD_POS        8
 #define VALID_DATA_DATA_POS       10
+#define VALID_DATA_HEADER         "JZ"
 
-#define VALID_DATA_HEADER     "JZ"
+#define PARSE_SUCCESS            0
+#define PARSE_STYLE_ERROR       -1
+#define PARSE_CHECKSUM_ERROR    -2
+#define PARSE_DECRYPT_ERROR     -3
+#define PARSE_OTHER_ERROR       -4
 
 #define COMM_DATA_MAX_LEN     512
 #define VALID_DATA_MAX_LEN    512

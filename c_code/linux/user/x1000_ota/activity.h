@@ -6,4 +6,7 @@
 
 s32_t activity_device(sProtocol_t *pro, sSocket_t *sock);
 
+#define ACTIVITY_SUCCESS   0
+#define ACTIVITY_ERROR    -1
+
 #endif /* __ACTIVITY_H__ */
