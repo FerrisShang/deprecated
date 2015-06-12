@@ -1,15 +1,18 @@
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 #include "base.h"
 #include "protocol.h"
 #include "para_if.h"
 #include "enc_if.h"
 
-static s32_t pack_valid_data(s8_t *buf, u32_t time_offset, eOta_cmd_t cmd, s8_t *data, s32_t dat_len);
-static s32_t pack_comm_data(s8_t *buf, eEncrypt_t mode, s8_t *data, s32_t dat_len);
+static s32_t pack_valid_data(sEncrypt_t *enc, s8_t *buf, u32_t time_offset,
+							eOta_cmd_t cmd, s8_t *data, s32_t dat_len);
+static s32_t pack_comm_data(sEncrypt_t *enc, s8_t *buf, eEncrypt_t mode, s8_t *data, s32_t dat_len);
 static s32_t check_value_data(s8_t *buf, s32_t len);
 
-static s32_t pack_valid_data(s8_t *buf, u32_t time_offset, eOta_cmd_t cmd, s8_t *data, s32_t dat_len)
+static s32_t pack_valid_data(sEncrypt_t *enc, s8_t *buf, u32_t time_offset,
+							  eOta_cmd_t cmd, s8_t *data, s32_t dat_len)
 {
 	s32_t total_len, i;
 	s32_t time_stamp;
@@ -39,7 +42,7 @@ static s32_t pack_valid_data(s8_t *buf, u32_t time_offset, eOta_cmd_t cmd, s8_t 
 	return VALID_DATA_DATA_POS+dat_len+1; //1 means check_sum
 }
 
-static s32_t pack_comm_data(s8_t *buf, eEncrypt_t mode, s8_t *data, s32_t dat_len)
+static s32_t pack_comm_data(sEncrypt_t *enc, s8_t *buf, eEncrypt_t mode, s8_t *data, s32_t dat_len)
 {
 	s32_t comm_dat_len;
 	//header
@@ -51,9 +54,9 @@ static s32_t pack_comm_data(s8_t *buf, eEncrypt_t mode, s8_t *data, s32_t dat_le
 		memcpy(&buf[COMM_DATA_VALID_DATA_POS], data, dat_len);
 		comm_dat_len = dat_len;
 	}else if(mode == TYPE_ENCRYPT_RSA){
-		comm_dat_len = encrypt_rsa(data, dat_len, &buf[COMM_DATA_VALID_DATA_POS]);
+		comm_dat_len = encrypt_rsa(enc, data, dat_len, &buf[COMM_DATA_VALID_DATA_POS]);
 	}else if(mode == TYPE_ENCRYPT_AES){
-		comm_dat_len = encrypt_aes(data, dat_len, &buf[COMM_DATA_VALID_DATA_POS]);
+		comm_dat_len = encrypt_aes(enc, data, dat_len, &buf[COMM_DATA_VALID_DATA_POS]);
 	}else{
 		dbg_print(DBG_ERROR, PRO_DBG, "unsupport encrypt mode.\n");
 		return 0;
@@ -87,20 +90,30 @@ sProtocol_t* protocol_create(eEncrypt_t mode)
 	pro = (sProtocol_t*)mem_malloc(sizeof(sProtocol_t));
 	if(pro == NULL){
 		dbg_print(DBG_ERROR, PRO_DBG, "not enough memory.\n");
-		return pro;
+		goto alloc_pro_error;
 	}
 	memset(pro, 0,sizeof(sProtocol_t));
-
 	pro->valid_dat_buf = mem_malloc(VALID_DATA_MAX_LEN);
 	if(pro->valid_dat_buf == NULL){
 		dbg_print(DBG_ERROR, PRO_DBG, "allocate buffer failed. not enough memory.\n");
-		mem_free(pro);
-		return 0;
+		goto alloc_data_buf_error;
 	}
 	memset(pro->valid_dat_buf, 0, VALID_DATA_MAX_LEN);
-
 	pro->mode = mode;
+	if(mode != TYPE_ENCRYPT_NULL){
+		if(init_encrypt(&pro->enc)<0){
+			dbg_print(DBG_ERROR, PRO_DBG, "open encrypt device error.\n");
+			goto open_dev_error;
+		}
+	}
 	return pro;
+
+open_dev_error:
+	mem_free(pro->valid_dat_buf);
+alloc_data_buf_error:
+	mem_free(pro);
+alloc_pro_error:
+	return NULL;
 }
 
 void protocol_destory(sProtocol_t *pro)
@@ -108,8 +121,14 @@ void protocol_destory(sProtocol_t *pro)
 	if(pro == NULL){
 		dbg_print(DBG_WARNING, PRO_DBG, "attempt to free zero pointer.\n");
 	}else{
-		if(pro->valid_dat_buf)
+		if(pro->valid_dat_buf){
 			mem_free(pro->valid_dat_buf);
+		}
+		if(pro->mode != TYPE_ENCRYPT_NULL){
+			if(pro->enc.fd){
+				close(pro->enc.fd);
+			}
+		}
 		mem_free(pro);
 	}
 }
@@ -119,9 +138,9 @@ s32_t pack_req_encrypt_comm(sProtocol_t *pro, s8_t *buf, s8_t *device_id)
 	s32_t valid_dat_len;
 	s32_t comm_dat_len;
 
-	valid_dat_len = pack_valid_data(pro->valid_dat_buf, pro->time_stamp_offset, CMD_REQ_ENCRYPT_COMM,
+	valid_dat_len = pack_valid_data(&pro->enc, pro->valid_dat_buf, pro->time_stamp_offset, CMD_REQ_ENCRYPT_COMM,
 			device_id, PARA_DEVICE_ID_LEN);
-	comm_dat_len = pack_comm_data(buf, TYPE_ENCRYPT_RSA, pro->valid_dat_buf, valid_dat_len);
+	comm_dat_len = pack_comm_data(&pro->enc, buf, TYPE_ENCRYPT_RSA, pro->valid_dat_buf, valid_dat_len);
 	return comm_dat_len;
 }
 
@@ -130,9 +149,9 @@ s32_t pack_req_new_key(sProtocol_t *pro, s8_t *buf, s8_t *device_id)
 	s32_t valid_dat_len;
 	s32_t comm_dat_len;
 
-	valid_dat_len = pack_valid_data(pro->valid_dat_buf, pro->time_stamp_offset, CMD_REQ_NEW_KEY,
+	valid_dat_len = pack_valid_data(&pro->enc, pro->valid_dat_buf, pro->time_stamp_offset, CMD_REQ_NEW_KEY,
 			device_id, PARA_DEVICE_ID_LEN);
-	comm_dat_len = pack_comm_data(buf, TYPE_ENCRYPT_RSA, pro->valid_dat_buf, valid_dat_len);
+	comm_dat_len = pack_comm_data(&pro->enc, buf, TYPE_ENCRYPT_RSA, pro->valid_dat_buf, valid_dat_len);
 	return comm_dat_len;
 }
 
@@ -154,12 +173,12 @@ s32_t pack_req_activition(sProtocol_t *pro, s8_t *buf, s8_t *device_id, s8_t *wi
 	memcpy(p, bt_addr, PARA_BT_ADDR_LEN);
 	p += PARA_BT_ADDR_LEN;
 
-	valid_dat_len = pack_valid_data(pro->valid_dat_buf, pro->time_stamp_offset, CMD_REQ_ACTIVITION,
+	valid_dat_len = pack_valid_data(&pro->enc, pro->valid_dat_buf, pro->time_stamp_offset, CMD_REQ_ACTIVITION,
 			data_buf, p-data_buf);
 	if(pro->mode == TYPE_ENCRYPT_NULL){
-		comm_dat_len = pack_comm_data(buf, TYPE_ENCRYPT_NULL, pro->valid_dat_buf, valid_dat_len);
+		comm_dat_len = pack_comm_data(&pro->enc, buf, TYPE_ENCRYPT_NULL, pro->valid_dat_buf, valid_dat_len);
 	}else{
-		comm_dat_len = pack_comm_data(buf, TYPE_ENCRYPT_AES, pro->valid_dat_buf, valid_dat_len);
+		comm_dat_len = pack_comm_data(&pro->enc, buf, TYPE_ENCRYPT_AES, pro->valid_dat_buf, valid_dat_len);
 	}
 	mem_free(data_buf);
 	return comm_dat_len;
@@ -181,12 +200,12 @@ s32_t pack_req_new_version(sProtocol_t *pro, s8_t *buf, s8_t *device_id, s8_t *v
 	memcpy(p, version, PARA_WIFI_ADDR_LEN);
 	p += PARA_VERSION_LEN;
 
-	valid_dat_len = pack_valid_data(pro->valid_dat_buf, pro->time_stamp_offset, CMD_REQ_NEW_VERSION,
+	valid_dat_len = pack_valid_data(&pro->enc, pro->valid_dat_buf, pro->time_stamp_offset, CMD_REQ_NEW_VERSION,
 			data_buf, p-data_buf);
 	if(pro->mode == TYPE_ENCRYPT_NULL){
-		comm_dat_len = pack_comm_data(buf, TYPE_ENCRYPT_NULL, pro->valid_dat_buf, valid_dat_len);
+		comm_dat_len = pack_comm_data(&pro->enc, buf, TYPE_ENCRYPT_NULL, pro->valid_dat_buf, valid_dat_len);
 	}else{
-		comm_dat_len = pack_comm_data(buf, TYPE_ENCRYPT_AES, pro->valid_dat_buf, valid_dat_len);
+		comm_dat_len = pack_comm_data(&pro->enc, buf, TYPE_ENCRYPT_AES, pro->valid_dat_buf, valid_dat_len);
 	}
 	mem_free(data_buf);
 	return comm_dat_len;
@@ -219,14 +238,14 @@ s32_t parse_package(sProtocol_t *pro, s8_t *buf, s32_t buf_len,
 	if(buf[COMM_DATA_TYPE_POS] == TYPE_ENCRYPT_NULL){
 		p = &buf[COMM_DATA_VALID_DATA_POS];
 	}else if(buf[COMM_DATA_TYPE_POS] == TYPE_ENCRYPT_RSA){
-		valid_data_len = decrypt_rsa(&buf[COMM_DATA_VALID_DATA_POS], valid_data_len, data_buf);
+		valid_data_len = decrypt_rsa(&pro->enc, &buf[COMM_DATA_VALID_DATA_POS], valid_data_len, data_buf);
 		if(valid_data_len <= 0){
 			mem_free(data_buf);
 			return PARSE_DECRYPT_ERROR;
 		}
 		p = data_buf;
 	}else if(buf[COMM_DATA_TYPE_POS] == TYPE_ENCRYPT_AES){
-		valid_data_len = decrypt_aes(&buf[COMM_DATA_VALID_DATA_POS], valid_data_len, data_buf);
+		valid_data_len = decrypt_aes(&pro->enc, &buf[COMM_DATA_VALID_DATA_POS], valid_data_len, data_buf);
 		if(valid_data_len <= 0){
 			mem_free(data_buf);
 			return PARSE_DECRYPT_ERROR;

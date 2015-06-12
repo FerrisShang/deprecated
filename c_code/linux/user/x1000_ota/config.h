@@ -30,6 +30,8 @@
 #define SOCK_UDP_DBG      0
 #define ENC_IF_DBG        0
 #define PARA_DBG          0
+#define ACTIVE_DBG        0
+#define CHK_VERSION_DBG   0
 
 
 #endif /* __CONFIG_H__ */

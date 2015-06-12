@@ -1,6 +1,7 @@
 #ifndef __PROTOCOL_H__
 #define __PROTOCOL_H__
 #include "base.h"
+#include "enc_if.h"
 
 typedef enum{
 	CMD_REQ_ENCRYPT_COMM = 0x0001,
@@ -13,13 +14,6 @@ typedef enum{
 	CMD_REQ_NEW_VERSION,
 	CMD_ACK_NEW_VERSION,
 }eOta_cmd_t;
-
-typedef enum{
-	TYPE_ENCRYPT_NULL = 0,
-	TYPE_ENCRYPT_RSA,
-	TYPE_ENCRYPT_AES,
-	TYPE_ENCRYPT = 0xFF,//use for init
-}eEncrypt_t;
 
 typedef struct{
 	s8_t header[2];
@@ -41,6 +35,7 @@ typedef struct{
 
 typedef struct{
 	eEncrypt_t mode;
+	sEncrypt_t enc;
 	s8_t *valid_dat_buf;
 	s32_t time_stamp_offset;
 }sProtocol_t;
