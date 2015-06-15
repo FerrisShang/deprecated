@@ -32,6 +32,7 @@
 #define PARA_DBG          0
 #define ACTIVE_DBG        0
 #define CHK_VERSION_DBG   0
+#define INIT_ENC_DBG      0
 
 
 #endif /* __CONFIG_H__ */

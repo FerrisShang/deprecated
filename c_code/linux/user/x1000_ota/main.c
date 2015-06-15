@@ -5,6 +5,7 @@
 #include "base.h"
 #include "protocol.h"
 #include "socket_if.h"
+#include "init_enc.h"
 #include "activity.h"
 #include "chk_version.h"
 
@@ -29,13 +30,18 @@ int main(int argc, char *argv[])
 			exit(1);
 		}
 		if(pro->mode != TYPE_ENCRYPT_NULL){//init encrypt communication
-			;
+			res = req_enc_conn(pro, socket, &ota_para);
+			if(res == INIT_ENC_ERROR){
+				printf("req enc conn failed.\n");
+			}
 		}
-		res = activity_device(pro, socket, &ota_para);
-		if(res == ACTIVITY_SUCCESS){
-			res = check_version(pro, socket, &ota_para);
-			if(res == CHK_VERSION_HAVE_NEW){
-				//save boot select & reboot
+		if(!(pro->mode != TYPE_ENCRYPT_NULL && res != INIT_ENC_SUCCESS)){
+			res = activity_device(pro, socket, &ota_para);
+			if(res == ACTIVITY_SUCCESS){
+				res = check_version(pro, socket, &ota_para);
+				if(res == CHK_VERSION_HAVE_NEW){
+					//save boot select & reboot
+				}
 			}
 		}
 		sleep(1);

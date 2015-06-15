@@ -13,7 +13,7 @@ s32_t activity_device(sProtocol_t *pro, sSocket_t *socket, sOta_para_t *ota_para
 		if(socket_send(socket, buf, len)<0){
 			return ACTIVITY_ERROR;
 		}
-		for(i=0;i<ACT_RECV_TIMEOUT_S*1000000/10000;i++){
+		for(i=0;i<ACT_RECV_TIMEOUT_S*(1000000/10000);i++){
 			usleep(10000);
 			len = socket_recv(socket, buf,1024);
 			if(len>0){
