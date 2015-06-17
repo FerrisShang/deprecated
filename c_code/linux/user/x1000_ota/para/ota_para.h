@@ -6,9 +6,11 @@
 
 typedef struct{
 	s8_t device_id[PARA_DEVICE_ID_LEN];
+	s8_t chip_id[PARA_CHIP_ID_LEN];
 	s8_t wifi_addr[PARA_WIFI_ADDR_LEN];
 	s8_t bt_addr[PARA_BT_ADDR_LEN];
-	s8_t version[PARA_VERSION_LEN];
+	s8_t uboot_version[PARA_UBOOT_VERSION_LEN];
+	s8_t kernel_version[PARA_KERNEL_VERSION_LEN];
 	s8_t act_state;
 }sOta_para_t;
 

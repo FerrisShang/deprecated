@@ -6,7 +6,7 @@ s32_t activity_device(sProtocol_t *pro, sSocket_t *socket, sOta_para_t *ota_para
 	s8_t buf[1024];
 	s32_t len, i;
 	if(ota_para->act_state == ACTIVITY_STATE_NOT_ACT){
-		len = pack_req_activition(pro, buf, ota_para->device_id, ota_para->wifi_addr, ota_para->bt_addr);
+		len = pack_req_activition(pro, buf, ota_para->device_id, ota_para->chip_id, ota_para->wifi_addr, ota_para->bt_addr);
 		if(len <=0){
 			return ACTIVITY_ERROR;
 		}

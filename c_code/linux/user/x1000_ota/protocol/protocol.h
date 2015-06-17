@@ -45,8 +45,9 @@ void protocol_destory(sProtocol_t *pro);
 
 s32_t pack_req_encrypt_comm(sProtocol_t *pro, s8_t *buf, s8_t *device_id);
 s32_t pack_req_new_key(sProtocol_t *pro, s8_t *buf, s8_t *device_id);
-s32_t pack_req_activition(sProtocol_t *pro, s8_t *buf, s8_t *device_id, s8_t *wifi_addr, s8_t *bt_addr);
-s32_t pack_req_new_version(sProtocol_t *pro, s8_t *buf, s8_t *device_id, s8_t *version);
+s32_t pack_req_activition(sProtocol_t *pro, s8_t *buf, s8_t *device_id,
+							s8_t *chip_id, s8_t *wifi_addr, s8_t *bt_addr);
+s32_t pack_req_new_version(sProtocol_t *pro, s8_t *buf, s8_t *device_id, s8_t *uboot_version, s8_t *kernel_version);
 s32_t parse_package(sProtocol_t *pro, s8_t *buf, s32_t buf_len, eOta_cmd_t *cmd, s8_t *data, s32_t *data_len);
 
 #define COMM_DATA_HEADER_POS     0

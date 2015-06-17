@@ -9,7 +9,7 @@
 #include "activity.h"
 #include "chk_version.h"
 
-s8_t *remoteIP = "192.168.3.93";
+s8_t *remoteIP = "192.168.1.200";
 s8_t *msg = "X1000 online.\n";
 int main(int argc, char *argv[])
 {
@@ -24,11 +24,13 @@ int main(int argc, char *argv[])
 			printf("protocol create failed.\n");
 			exit(1);
 		}
-		socket = socket_create(remoteIP, 1000);
+		socket = socket_create(remoteIP, 6000);
 		if(socket == 0){
 			printf("socket create failed.\n");
 			exit(1);
 		}
+
+		res = INIT_ENC_SUCCESS;
 		if(pro->mode != TYPE_ENCRYPT_NULL){//init encrypt communication
 			res = req_enc_conn(pro, socket, &ota_para);
 			if(res == INIT_ENC_ERROR){

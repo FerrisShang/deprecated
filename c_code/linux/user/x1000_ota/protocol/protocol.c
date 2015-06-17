@@ -155,7 +155,7 @@ s32_t pack_req_new_key(sProtocol_t *pro, s8_t *buf, s8_t *device_id)
 	return comm_dat_len;
 }
 
-s32_t pack_req_activition(sProtocol_t *pro, s8_t *buf, s8_t *device_id, s8_t *wifi_addr, s8_t *bt_addr)
+s32_t pack_req_activition(sProtocol_t *pro, s8_t *buf, s8_t *device_id, s8_t *chip_id, s8_t *wifi_addr, s8_t *bt_addr)
 {
 	s32_t valid_dat_len;
 	s32_t comm_dat_len;
@@ -168,6 +168,8 @@ s32_t pack_req_activition(sProtocol_t *pro, s8_t *buf, s8_t *device_id, s8_t *wi
 	p = data_buf;
 	memcpy(p, device_id, PARA_DEVICE_ID_LEN);
 	p += PARA_DEVICE_ID_LEN;
+	memcpy(p, chip_id, PARA_CHIP_ID_LEN);
+	p += PARA_CHIP_ID_LEN;
 	memcpy(p, wifi_addr, PARA_WIFI_ADDR_LEN);
 	p += PARA_WIFI_ADDR_LEN;
 	memcpy(p, bt_addr, PARA_BT_ADDR_LEN);
@@ -184,7 +186,7 @@ s32_t pack_req_activition(sProtocol_t *pro, s8_t *buf, s8_t *device_id, s8_t *wi
 	return comm_dat_len;
 }
 
-s32_t pack_req_new_version(sProtocol_t *pro, s8_t *buf, s8_t *device_id, s8_t *version)
+s32_t pack_req_new_version(sProtocol_t *pro, s8_t *buf, s8_t *device_id, s8_t *uboot_version, s8_t *kernel_version)
 {
 	s32_t valid_dat_len;
 	s32_t comm_dat_len;
@@ -197,8 +199,10 @@ s32_t pack_req_new_version(sProtocol_t *pro, s8_t *buf, s8_t *device_id, s8_t *v
 	p = data_buf;
 	memcpy(p, device_id, PARA_DEVICE_ID_LEN);
 	p += PARA_DEVICE_ID_LEN;
-	memcpy(p, version, PARA_WIFI_ADDR_LEN);
-	p += PARA_VERSION_LEN;
+	memcpy(p, uboot_version, PARA_UBOOT_VERSION_LEN);
+	p += PARA_UBOOT_VERSION_LEN;
+	memcpy(p, kernel_version, PARA_KERNEL_VERSION_LEN);
+	p += PARA_KERNEL_VERSION_LEN;
 
 	valid_dat_len = pack_valid_data(&pro->enc, pro->valid_dat_buf, pro->time_stamp_offset, CMD_REQ_NEW_VERSION,
 			data_buf, p-data_buf);
@@ -214,7 +218,8 @@ s32_t pack_req_new_version(sProtocol_t *pro, s8_t *buf, s8_t *device_id, s8_t *v
 s32_t parse_package(sProtocol_t *pro, s8_t *buf, s32_t buf_len,
 						 eOta_cmd_t *cmd, s8_t *data, s32_t *data_len)
 {
-	s8_t *data_buf, *p = 0;
+	s8_t *data_buf;
+	u8_t *p = 0;
 	s32_t valid_data_len;
 	s32_t time_stamp;
 	data_buf = mem_malloc(VALID_DATA_MAX_LEN);
@@ -228,7 +233,7 @@ s32_t parse_package(sProtocol_t *pro, s8_t *buf, s32_t buf_len,
 		mem_free(data_buf);
 		return PARSE_STYLE_ERROR;
 	}
-	valid_data_len = (buf[COMM_DATA_LEN_POS]<<8)+buf[COMM_DATA_LEN_POS+1];
+	valid_data_len = (((u8_t)buf[COMM_DATA_LEN_POS])<<8)+(u8_t)buf[COMM_DATA_LEN_POS+1];
 	if(valid_data_len+COMM_DATA_VALID_DATA_POS != buf_len){
 		dbg_print(DBG_WARNING, PRO_DBG, "parse package error(comm data length is wrong).\n");
 		mem_free(data_buf);
@@ -236,21 +241,21 @@ s32_t parse_package(sProtocol_t *pro, s8_t *buf, s32_t buf_len,
 	}
 	//get value data
 	if(buf[COMM_DATA_TYPE_POS] == TYPE_ENCRYPT_NULL){
-		p = &buf[COMM_DATA_VALID_DATA_POS];
+		p = (u8_t*)&buf[COMM_DATA_VALID_DATA_POS];
 	}else if(buf[COMM_DATA_TYPE_POS] == TYPE_ENCRYPT_RSA){
 		valid_data_len = decrypt_rsa(&pro->enc, &buf[COMM_DATA_VALID_DATA_POS], valid_data_len, data_buf);
 		if(valid_data_len <= 0){
 			mem_free(data_buf);
 			return PARSE_DECRYPT_ERROR;
 		}
-		p = data_buf;
+		p = (u8_t*)data_buf;
 	}else if(buf[COMM_DATA_TYPE_POS] == TYPE_ENCRYPT_AES){
 		valid_data_len = decrypt_aes(&pro->enc, &buf[COMM_DATA_VALID_DATA_POS], valid_data_len, data_buf);
 		if(valid_data_len <= 0){
 			mem_free(data_buf);
 			return PARSE_DECRYPT_ERROR;
 		}
-		p = data_buf;
+		p = (u8_t*)data_buf;
 	}else{
 		dbg_print(DBG_WARNING, PRO_DBG, "unsupport encrypt type\n");
 		mem_free(data_buf);
@@ -267,15 +272,15 @@ s32_t parse_package(sProtocol_t *pro, s8_t *buf, s32_t buf_len,
 					p[VALID_DATA_HEADER_POS], p[VALID_DATA_HEADER_POS+1]);
 		return PARSE_STYLE_ERROR;
 	}
-	if(check_value_data(p, valid_data_len) != 0){
+	if(check_value_data((s8_t*)p, valid_data_len) != 0){
 		mem_free(data_buf);
 		dbg_print(DBG_INFO, PRO_DBG, "valid data checksum error.\n");
 		return PARSE_CHECKSUM_ERROR;
 	}
 	//parse valid data
 	//time_stamp_offset
-	time_stamp = (p[VALID_DATA_TIME_STAMP_POS]<<24)+(p[VALID_DATA_TIME_STAMP_POS]<<16)+
-					(p[VALID_DATA_TIME_STAMP_POS]<<8)+(p[VALID_DATA_TIME_STAMP_POS]);
+	time_stamp = (p[VALID_DATA_TIME_STAMP_POS]<<24)+(p[VALID_DATA_TIME_STAMP_POS+1]<<16)+
+					(p[VALID_DATA_TIME_STAMP_POS+2]<<8)+(p[VALID_DATA_TIME_STAMP_POS+3]);
 	pro->time_stamp_offset = time_stamp - time(0);
 	//command
 	*cmd = (eOta_cmd_t)((p[VALID_DATA_CMD_POS]<<8) + p[VALID_DATA_CMD_POS+1]);

@@ -14,12 +14,18 @@ void socket_distory(sSocket_t *socket)
 
 s32_t socket_send(sSocket_t *socket, s8_t *buf, s32_t len)
 {
-	return udp_send(socket, buf, len);
+	s32_t res_len = udp_send(socket, buf, len);
+	if(res_len>0)
+		dbg_hex("send", buf, res_len);
+	return res_len;
 }
 
 s32_t socket_recv(sSocket_t *socket, s8_t *buf, s32_t len)
 {
-	return udp_recv(socket, buf, len);
+	s32_t res_len = udp_recv(socket, buf, len);
+	if(res_len>0)
+		dbg_hex("recv", buf, res_len);
+	return res_len;
 }
 
 #else /* TCP */
