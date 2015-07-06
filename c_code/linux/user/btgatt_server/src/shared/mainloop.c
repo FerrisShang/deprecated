@@ -116,7 +116,6 @@ static void signal_callback(int fd, uint32_t events, void *user_data)
 	result = read(fd, &si, sizeof(si));
 	if (result != sizeof(si))
 		return;
-
 	if (data->callback)
 		data->callback(si.ssi_signo, data->user_data);
 }

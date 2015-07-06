@@ -73,7 +73,7 @@
 
 static const char test_device_name[] = "Very Long Test Device Name For Testing "
 				"ATT Protocol Operations On GATT Server";
-static bool verbose = false;
+static bool verbose = true;
 
 struct server {
 	int fd;
@@ -620,22 +620,6 @@ static void server_destroy(struct server *server)
 	gatt_db_unref(server->db);
 }
 
-static void usage(void)
-{
-	printf("btgatt-server\n");
-	printf("Usage:\n\tbtgatt-server [options]\n");
-
-	printf("Options:\n"
-		"\t-i, --index <id>\t\tSpecify adapter index, e.g. hci0\n"
-		"\t-m, --mtu <mtu>\t\t\tThe ATT MTU to use\n"
-		"\t-s, --security-level <sec>\tSet security level (low|"
-								"medium|high)\n"
-		"\t-t, --type [random|public] \t The source address type\n"
-		"\t-v, --verbose\t\t\tEnable extra logging\n"
-		"\t-r, --heart-rate\t\tEnable Heart Rate service\n"
-		"\t-h, --help\t\t\tDisplay help\n");
-}
-
 static struct option main_options[] = {
 	{ "index",		1, 0, 'i' },
 	{ "mtu",		1, 0, 'm' },
@@ -746,120 +730,11 @@ static void conf_cb(void *user_data)
 	PRLOG("Received confirmation\n");
 }
 
-static void cmd_notify(struct server *server, char *cmd_str)
-{
-	int opt, i;
-	char *argvbuf[516];
-	char **argv = argvbuf;
-	int argc = 1;
-	uint16_t handle;
-	char *endptr = NULL;
-	int length;
-	uint8_t *value = NULL;
-	bool indicate = false;
-
-	if (!parse_args(cmd_str, 514, argv + 1, &argc)) {
-		printf("Too many arguments\n");
-		notify_usage();
-		return;
-	}
-
-	optind = 0;
-	argv[0] = "notify";
-	while ((opt = getopt_long(argc, argv, "+i", notify_options,
-								NULL)) != -1) {
-		switch (opt) {
-		case 'i':
-			indicate = true;
-			break;
-		default:
-			notify_usage();
-			return;
-		}
-	}
-
-	argc -= optind;
-	argv += optind;
-
-	if (argc < 1) {
-		notify_usage();
-		return;
-	}
-
-	handle = strtol(argv[0], &endptr, 16);
-	if (!endptr || *endptr != '\0' || !handle) {
-		printf("Invalid handle: %s\n", argv[0]);
-		return;
-	}
-
-	length = argc - 1;
-
-	if (length > 0) {
-		if (length > UINT16_MAX) {
-			printf("Value too long\n");
-			return;
-		}
-
-		value = malloc(length);
-		if (!value) {
-			printf("Failed to construct value\n");
-			return;
-		}
-
-		for (i = 1; i < argc; i++) {
-			if (strlen(argv[i]) != 2) {
-				printf("Invalid value byte: %s\n",
-								argv[i]);
-				goto done;
-			}
-
-			value[i-1] = strtol(argv[i], &endptr, 16);
-			if (endptr == argv[i] || *endptr != '\0'
-							|| errno == ERANGE) {
-				printf("Invalid value byte: %s\n",
-								argv[i]);
-				goto done;
-			}
-		}
-	}
-
-	if (indicate) {
-		if (!bt_gatt_server_send_indication(server->gatt, handle,
-							value, length,
-							conf_cb, NULL, NULL))
-			printf("Failed to initiate indication\n");
-	} else if (!bt_gatt_server_send_notification(server->gatt, handle,
-								value, length))
-		printf("Failed to initiate notification\n");
-
-done:
-	free(value);
-}
-
-static void heart_rate_usage(void)
-{
-	printf("Usage: heart-rate on|off\n");
-}
-
 static void cmd_heart_rate(struct server *server, char *cmd_str)
 {
 	bool enable;
 	uint8_t pdu[4];
 	struct gatt_db_attribute *attr;
-
-	if (!cmd_str) {
-		heart_rate_usage();
-		return;
-	}
-
-	if (strcmp(cmd_str, "on") == 0)
-		enable = true;
-	else if (strcmp(cmd_str, "off") == 0)
-		enable = false;
-	else {
-		heart_rate_usage();
-		return;
-	}
 
 	if (enable == server->hr_visible) {
 		printf("Heart Rate Service already %s\n",
@@ -1038,8 +913,6 @@ static void cmd_set_sign_key(struct server *server, char *cmd_str)
 		set_sign_key_usage();
 }
 
-static void cmd_help(struct server *server, char *cmd_str);
-
 typedef void (*command_func_t)(struct server *server, char *cmd_str);
 
 static struct {
@@ -1047,23 +920,12 @@ static struct {
 	command_func_t func;
 	char *doc;
 } command[] = {
-	{ "help", cmd_help, "\tDisplay help message" },
-	{ "notify", cmd_notify, "\tSend handle-value notification" },
 	{ "heart-rate", cmd_heart_rate, "\tHide/Unhide Heart Rate Service" },
 	{ "services", cmd_services, "\tEnumerate all services" },
 	{ "set-sign-key", cmd_set_sign_key,
 			"\tSet remote signing key for signed write command"},
 	{ }
 };
-
-static void cmd_help(struct server *server, char *cmd_str)
-{
-	int i;
-
-	printf("Commands:\n");
-	for (i = 0; command[i].cmd; i++)
-		printf("\t%-15s\t%s\n", command[i].cmd, command[i].doc);
-}
 
 static void prompt_read_cb(int fd, uint32_t events, void *user_data)
 {
@@ -1082,12 +944,6 @@ static void prompt_read_cb(int fd, uint32_t events, void *user_data)
 	read = getline(&line, &len, stdin);
 	if (read < 0)
 		return;
-
-	if (read <= 1) {
-		cmd_help(server, NULL);
-		print_prompt();
-		return;
-	}
 
 	line[read-1] = '\0';
 	args = line;
@@ -1127,94 +983,83 @@ static void signal_cb(int signum, void *user_data)
 	}
 }
 
+static void cmd_le_adv(int hdev)
+{
+	struct hci_request rq;
+	le_set_advertise_enable_cp advertise_cp;
+	le_set_advertising_parameters_cp adv_params_cp;
+	uint8_t status;
+	int dd, ret;
+
+	if (hdev < 0)
+		hdev = hci_get_route(NULL);
+
+	dd = hci_open_dev(hdev);
+	if (dd < 0) {
+		perror("Could not open device");
+		exit(1);
+	}
+
+	memset(&adv_params_cp, 0, sizeof(adv_params_cp));
+	adv_params_cp.min_interval = htobs(0x0800);
+	adv_params_cp.max_interval = htobs(0x0800);
+	adv_params_cp.chan_map = 7;
+	adv_params_cp.advtype = 0;
+	adv_params_cp.direct_bdaddr_type = 0;
+
+	memset(&rq, 0, sizeof(rq));
+	rq.ogf = OGF_LE_CTL;
+	rq.ocf = OCF_LE_SET_ADVERTISING_PARAMETERS;
+	rq.cparam = &adv_params_cp;
+	rq.clen = LE_SET_ADVERTISING_PARAMETERS_CP_SIZE;
+	rq.rparam = &status;
+	rq.rlen = 1;
+
+	ret = hci_send_req(dd, &rq, 1000);
+	if (ret < 0)
+		goto done;
+
+	memset(&advertise_cp, 0, sizeof(advertise_cp));
+	advertise_cp.enable = 0x01;
+
+	memset(&rq, 0, sizeof(rq));
+	rq.ogf = OGF_LE_CTL;
+	rq.ocf = OCF_LE_SET_ADVERTISE_ENABLE;
+	rq.cparam = &advertise_cp;
+	rq.clen = LE_SET_ADVERTISE_ENABLE_CP_SIZE;
+	rq.rparam = &status;
+	rq.rlen = 1;
+
+	ret = hci_send_req(dd, &rq, 1000);
+
+done:
+	hci_close_dev(dd);
+
+	if (ret < 0) {
+		fprintf(stderr, "Can't set advertise mode on hci%d: %s (%d)\n",
+						hdev, strerror(errno), errno);
+		exit(1);
+	}
+
+	if (status) {
+		fprintf(stderr,
+			"LE set advertise enable on hci%d returned status %d\n",
+								hdev, status);
+		exit(1);
+	}
+}
 int main(int argc, char *argv[])
 {
 	int opt;
 	bdaddr_t src_addr;
 	int dev_id = -1;
 	int fd;
-	int sec = BT_SECURITY_LOW;
-	uint8_t src_type = BDADDR_LE_PUBLIC;
+	int sec = BT_SECURITY_HIGH;
+	uint8_t src_type = BDADDR_LE_RANDOM;
 	uint16_t mtu = 0;
 	sigset_t mask;
-	bool hr_visible = false;
+	bool hr_visible = true;
 	struct server *server;
-
-	while ((opt = getopt_long(argc, argv, "+hvrs:t:m:i:",
-						main_options, NULL)) != -1) {
-		switch (opt) {
-		case 'h':
-			usage();
-			return EXIT_SUCCESS;
-		case 'v':
-			verbose = true;
-			break;
-		case 'r':
-			hr_visible = true;
-			break;
-		case 's':
-			if (strcmp(optarg, "low") == 0)
-				sec = BT_SECURITY_LOW;
-			else if (strcmp(optarg, "medium") == 0)
-				sec = BT_SECURITY_MEDIUM;
-			else if (strcmp(optarg, "high") == 0)
-				sec = BT_SECURITY_HIGH;
-			else {
-				fprintf(stderr, "Invalid security level\n");
-				return EXIT_FAILURE;
-			}
-			break;
-		case 't':
-			if (strcmp(optarg, "random") == 0)
-				src_type = BDADDR_LE_RANDOM;
-			else if (strcmp(optarg, "public") == 0)
-				src_type = BDADDR_LE_PUBLIC;
-			else {
-				fprintf(stderr,
-					"Allowed types: random, public\n");
-				return EXIT_FAILURE;
-			}
-			break;
-		case 'm': {
-			int arg;
-
-			arg = atoi(optarg);
-			if (arg <= 0) {
-				fprintf(stderr, "Invalid MTU: %d\n", arg);
-				return EXIT_FAILURE;
-			}
-
-			if (arg > UINT16_MAX) {
-				fprintf(stderr, "MTU too large: %d\n", arg);
-				return EXIT_FAILURE;
-			}
-
-			mtu = (uint16_t) arg;
-			break;
-		}
-		case 'i':
-			dev_id = hci_devid(optarg);
-			if (dev_id < 0) {
-				perror("Invalid adapter");
-				return EXIT_FAILURE;
-			}
-
-			break;
-		default:
-			fprintf(stderr, "Invalid option: %c\n", opt);
-			return EXIT_FAILURE;
-		}
-	}
-
-	argc -= optind;
-	argv -= optind;
-	optind = 0;
-
-	if (argc) {
-		usage();
-		return EXIT_SUCCESS;
-	}
-
 	if (dev_id == -1)
 		bacpy(&src_addr, BDADDR_ANY);
 	else if (hci_devba(dev_id, &src_addr) < 0) {
@@ -1222,6 +1067,7 @@ int main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 
+	cmd_le_adv(0);
 	fd = l2cap_le_att_listen_and_accept(&src_addr, sec, src_type);
 	if (fd < 0) {
 		fprintf(stderr, "Failed to accept L2CAP ATT connection\n");
