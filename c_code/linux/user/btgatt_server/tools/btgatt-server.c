@@ -292,9 +292,10 @@ static bool hr_msrmt_cb(void *user_data)
 	uint16_t len = 2;
 	uint8_t pdu[4];
 	uint32_t cur_ee;
+	static int heartbeat;
 
 	pdu[0] = 0x06;
-	pdu[1] = 90 + (rand() % 40);
+	pdu[1] = 0x40+(0x1F&heartbeat++);
 
 	if (expended_present) {
 		pdu[0] |= 0x08;
@@ -983,7 +984,7 @@ static void signal_cb(int signum, void *user_data)
 	}
 }
 
-static void cmd_le_adv(int hdev)
+static void le_adv(int hdev)
 {
 	struct hci_request rq;
 	le_set_advertise_enable_cp advertise_cp;
@@ -1005,7 +1006,7 @@ static void cmd_le_adv(int hdev)
 	adv_params_cp.max_interval = htobs(0x0800);
 	adv_params_cp.chan_map = 7;
 	adv_params_cp.advtype = 0;
-	adv_params_cp.direct_bdaddr_type = 0;
+	adv_params_cp.own_bdaddr_type = LE_RANDOM_ADDRESS;
 
 	memset(&rq, 0, sizeof(rq));
 	rq.ogf = OGF_LE_CTL;
@@ -1045,9 +1046,51 @@ done:
 		fprintf(stderr,
 			"LE set advertise enable on hci%d returned status %d\n",
 								hdev, status);
-		exit(1);
+		return;
 	}
 }
+
+static void le_addr(int hdev)
+{
+	struct hci_request rq;
+	le_set_random_address_cp cp;
+	uint8_t status;
+	int dd, err, ret;
+
+	dd = hci_open_dev(hdev);
+	if (dd < 0) {
+		err = -errno;
+		fprintf(stderr, "Could not open device: %s(%d)\n",
+							strerror(-err), -err);
+		exit(1);
+	}
+
+	/* Random seed for generating fake random address */
+	srand(time(NULL));
+	memset(&cp, 0, sizeof(cp));
+	cp.bdaddr.b[0] = 0xF5;        cp.bdaddr.b[1] = 0x1+rand()%254;
+	cp.bdaddr.b[2] = rand()&0xFF; cp.bdaddr.b[3] = rand()&0xFF;
+	cp.bdaddr.b[4] = rand()&0xFF; cp.bdaddr.b[5] = rand()&0xFF;
+
+	memset(&rq, 0, sizeof(rq));
+	rq.ogf = OGF_LE_CTL;
+	rq.ocf = OCF_LE_SET_RANDOM_ADDRESS;
+	rq.cparam = &cp;
+	rq.clen = LE_SET_RANDOM_ADDRESS_CP_SIZE;
+	rq.rparam = &status;
+	rq.rlen = 1;
+
+	ret = hci_send_req(dd, &rq, 1000);
+	if (status || ret < 0) {
+		err = -errno;
+		fprintf(stderr, "Can't set random address for hci%d: "
+				"%s (%d)\n", hdev, strerror(-err), -err);
+		exit(1);
+	}
+
+	hci_close_dev(dd);
+}
+
 int main(int argc, char *argv[])
 {
 	int opt;
@@ -1067,7 +1110,8 @@ int main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 
-	cmd_le_adv(0);
+	le_addr(0);
+	le_adv(0);
 	fd = l2cap_le_att_listen_and_accept(&src_addr, sec, src_type);
 	if (fd < 0) {
 		fprintf(stderr, "Failed to accept L2CAP ATT connection\n");
