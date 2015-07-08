@@ -32,5 +32,5 @@ SRC="tools/btgatt-server.c \
 	 "
 $COMPILE_CROSS-gcc $CFLAG $LDFLAG $INC $LIBS $SRC -o $OUTPUT_NAME
 $COMPILE_CROSS-strip $OUTPUT_NAME
-#adb push $OUTPUT_NAME /
+adb push $OUTPUT_NAME /
 #scp $OUTPUT_NAME user@192.168.3.92:~/fshang/adb_halley/bt_tool/
