@@ -1,9 +1,8 @@
-OUTPUT_NAME=bluetoothd
+OUTPUT_NAME=gatttool
 COMPILE_CROSS=mips-linux-gnu
 CURRENT=`pwd`
-PREFIX=/home/fshang/code/bluez5.31/output/app/usr
+PREFIX=/home/fshang/f/bluez/output/app/usr
 CFLAG="-DHAVE_CONFIG_H \
-	   -DBLUETOOTH_PLUGIN_BUILTIN
 	   -DPLUGINDIR=\"/etc/bluetooth/plugins\" \
 	   -I. \
 	   -I./lib \
@@ -15,10 +14,8 @@ CFLAG="-DHAVE_CONFIG_H \
 	   -I$PREFIX/include/readline \
 	   -I$PREFIX/lib/glib-2.0/include \
 	   -I$PREFIX/lib/dbus-1.0/include \
-	   -ffunction-sections -fdata-sections \
 	   "
 LDFLAG="-L$PREFIX/lib \
-		-Wl,--gc-sections \
 		"
 LIBS="-ldbus-1 \
 	  -lrt \
@@ -26,10 +23,9 @@ LIBS="-ldbus-1 \
 	  -lglib-2.0 \
 	  -lreadline \
 	  -lncurses \
-	  -lical \
-	  -ldl \
 	  "
 SRC="src/adapter.c \
+	 attrib/gatttool.c \
 	 src/advertising.c \
 	 src/agent.c \
 	 src/attrib-server.c \
@@ -95,10 +91,6 @@ SRC="src/adapter.c \
 	 lib/uuid.c \
 	 lib/hci.c \
 	 lib/sdp.c \
-	 src/plugin.c \
-	 plugins/autopair.c \
-	 profiles/heartrate/heartrate.c \
 	 "
 $COMPILE_CROSS-gcc $CFLAG $LDFLAG $INC $LIBS $SRC -o $OUTPUT_NAME
-#$COMPILE_CROSS-strip $OUTPUT_NAME
-#删除了src/bluitin.h 中的某些未加进编译的plugin,在attrib/gatt.c中 增加 static bswap_128函数
+#编译时需要删除src/main.c中的 main函数

@@ -1295,6 +1295,14 @@ static bool local_counter(uint32_t *sign_cnt, void *user_data)
 	return true;
 }
 
+static void cmd_pair(struct client *cli, char *cmd_str)
+{
+	printf("cmd_pair\n");
+	bt_gatt_client_write_without_response(cli->gatt, handle, signed_write, value, length);
+	bt_gatt_client_write_value(cli->gatt, handle, value, length, write_cb, NULL, NULL);
+
+}
+
 static void cmd_set_sign_key(struct client *cli, char *cmd_str)
 {
 	char *argv[3];
@@ -1354,6 +1362,8 @@ static struct {
 				"\tGet security level on le connection"},
 	{ "set-sign-key", cmd_set_sign_key,
 				"\tSet signing key for signed write command"},
+	{ "pair", cmd_pair,
+				"\ttest pair"},
 	{ }
 };
 
@@ -1945,7 +1955,7 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "Failed to accept L2CAP ATT connection\n");
 		return EXIT_FAILURE;
 	}
-	//close(fd);
+	close(fd);
 	char buf[1024];
 	int bytes_read;
 	bytes_read = read(fd, buf, sizeof(buf));
@@ -1961,10 +1971,10 @@ int main(int argc, char *argv[])
 	bacpy(&src_addr, BDADDR_ANY);
 
 
-	/*
 	fd = l2cap_le_att_connect(&src_addr, &dst_addr, dst_type, sec);
 	if (fd < 0)
 		return EXIT_FAILURE;
+	/*
 	else
 	*/
 ///////////////////////////////////////////////////////////////////////////////
