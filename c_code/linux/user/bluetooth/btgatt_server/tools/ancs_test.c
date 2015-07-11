@@ -1298,8 +1298,6 @@ static bool local_counter(uint32_t *sign_cnt, void *user_data)
 static void cmd_pair(struct client *cli, char *cmd_str)
 {
 	printf("cmd_pair\n");
-	bt_gatt_client_write_without_response(cli->gatt, handle, signed_write, value, length);
-	bt_gatt_client_write_value(cli->gatt, handle, value, length, write_cb, NULL, NULL);
 
 }
 
