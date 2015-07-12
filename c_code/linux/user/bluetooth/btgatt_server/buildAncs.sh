@@ -1,4 +1,4 @@
-cp Makefile.gatt Makefile
+cp Makefile.ancs Makefile
 make
 mips-linux-gnu-strip ancs_test
 
