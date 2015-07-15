@@ -3,7 +3,7 @@
 #include <time.h>
 #include <sys/time.h>
 
-#define TIMEDIFF (0x00E03AB44A676000LL - 0x00035cfa86a6fd58LL)
+#define TIMEDIFF (0x00E03AB44A676000LL - 0x00035D013B441D58LL)
 #define bswap(dat) _bswap((char*)&dat, sizeof(dat))
 static void _bswap(char *dat,int len)
 {
@@ -21,7 +21,7 @@ static long long* current_timestamp(void)
 	static long long milliseconds;
 	struct timeval te; 
 	gettimeofday(&te, NULL);
-	milliseconds = time(0)*1000000LL + te.tv_usec + TIMEDIFF;
+	milliseconds = te.tv_sec*1000000LL + te.tv_usec + TIMEDIFF;
 	bswap(milliseconds);
 	return &milliseconds;
 }
