@@ -1,0 +1,167 @@
+app = bluetoothd
+
+PREFIX=/home/fshang/f/halley_linux3.10/sources/network/apps/output/app/usr
+CC = mips-linux-gnu-gcc
+srcExt = c
+objDir = obj
+binDir = .
+
+CFLAGS = -Wall -O2 -fdata-sections -ffunction-sections \
+		  -DHAVE_CONFIG_H \
+		  -DSDP_DEBUG \
+		  -DBLUETOOTH_PLUGIN_BUILTIN \
+		  -DPLUGINDIR=\"/etc/bluetooth/plugins\" \
+		  -ffunction-sections -fdata-sections \
+
+LDFLAGS = -Wl,--gc-sections $(PREFIX)/lib/libglib-2.0.a \
+		  -DSDP_DEBUG \
+
+inc = . \
+	  gdbus btio attrib src \
+	  $(PREFIX)/include \
+	  $(PREFIX)/include/dbus-1.0 \
+	  $(PREFIX)/include/glib-2.0 \
+	  $(PREFIX)/include/libical \
+	  $(PREFIX)/include/bluetooth \
+	  $(PREFIX)/include/readline \
+	  $(PREFIX)/lib/glib-2.0/include \
+	  $(PREFIX)/lib/dbus-1.0/include \
+
+libDir = $(PREFIX)/lib \
+
+LIBS = rt \
+	   pthread \
+	   dbus-1 \
+	   dl \
+#	   glib-2.0 \
+
+SOURCES = src/error.c \
+		  src/dbus-common.c \
+		  src/storage.c \
+		  src/textfile.c \
+		  src/sdpd-service.c \
+		  src/attrib-server.c \
+		  src/sdpd-server.c \
+		  src/main.c \
+		  src/eir.c \
+		  src/sdpd-database.c \
+		  src/device.c \
+		  src/oui.c \
+		  src/sdp-client.c \
+		  src/sdpd-request.c \
+		  src/plugin.c \
+		  src/manager.c \
+		  src/event.c \
+		  src/oob.c \
+		  src/adapter.c \
+		  src/rfkill.c \
+		  src/log.c \
+		  src/glib-helper.c \
+		  src/sdp-xml.c \
+		  src/agent.c \
+		  lib/hci.c \
+		  lib/bluetooth.c \
+		  lib/sdp.c \
+		  lib/uuid.c \
+		  gdbus/mainloop.c \
+		  gdbus/object.c \
+		  gdbus/watch.c \
+		  gdbus/polkit.c \
+		  attrib/gatt-service.c \
+		  attrib/gattrib.c \
+		  attrib/att.c \
+		  attrib/client.c \
+		  attrib/interactive.c \
+		  attrib/gatt.c \
+		  attrib/utils.c \
+		  btio/btio.c \
+		  plugins/storage.c \
+		  plugins/hciops.c \
+		  plugins/adaptername.c \
+		  plugins/hal.c \
+		  plugins/maemo6.c \
+		  plugins/pnat.c \
+		  plugins/dbusoob.c \
+		  plugins/external-dummy.c \
+		  plugins/wiimote.c \
+		  plugins/formfactor.c \
+		  plugins/gatt-example.c \
+		  plugins/service.c \
+		  plugins/mgmtops.c \
+		  thermometer/main.c \
+		  thermometer/manager.c \
+		  thermometer/thermometer.c \
+		  health/mcap_sync.c \
+		  health/mcap.c \
+		  health/hdp_manager.c \
+		  health/hdp_util.c \
+		  health/hdp.c \
+		  health/hdp_main.c \
+		  alert/main.c \
+		  alert/server.c \
+		  time/main.c \
+		  time/server.c \
+		  proximity/main.c \
+		  proximity/reporter.c \
+		  proximity/linkloss.c \
+		  proximity/manager.c \
+		  proximity/monitor.c \
+		  proximity/immalert.c \
+		  deviceinfo/main.c \
+		  deviceinfo/manager.c \
+		  deviceinfo/deviceinfo.c \
+
+
+
+#************************ DO NOT EDIT BELOW THIS LINE! ************************
+
+inc := $(addprefix -I,$(inc))
+LIBS := $(addprefix -l,$(LIBS))
+libDir := $(addprefix -L,$(libDir))
+CFLAGS += -c $(inc) $(libDir) $(LIBS)
+LDFLAGS += $(libDir) $(LIBS)
+srcDirs := $(shell find . -name '*.$(srcExt)' -exec dirname {} \; | uniq)
+objects := $(patsubst %.$(srcExt),$(objDir)/%.o,$(SOURCES))
+
+.phony: all clean distclean
+
+all: $(binDir)/$(app)
+
+$(binDir)/$(app): buildrepo $(objects)
+	@mkdir -p `dirname $@`
+	@echo "Linking $@..."
+	@$(CC) $(objects) $(LDFLAGS) -o $@
+
+sinclude $(SOURCES:%.$(srcExt)=$(objDir)/%.d)
+$(objDir)/%.o: %.$(srcExt)
+#	@echo "Generating dependencies for $<..."
+	@$(call make-depend,$<,$@,$(subst .o,.d,$@))
+	@echo "Compiling $<..."
+	@$(CC) $(CFLAGS) $< -o $@
+
+clean:
+	@$(RM) -r $(objDir)
+
+distclean: clean
+	@$(RM) -r $(binDir)/$(app)
+
+buildrepo:
+	@$(call make-repo)
+
+define make-repo
+   for dir in $(srcDirs); \
+   do \
+	mkdir -p $(objDir)/$$dir; \
+   done
+endef
+
+
+# usage: $(call make-depend,source-file,object-file,depend-file)
+define make-depend
+  $(CC) -MM       \
+        -MF $3    \
+        -MP       \
+        -MT $2    \
+        $(CFLAGS) \
+        $1
+endef

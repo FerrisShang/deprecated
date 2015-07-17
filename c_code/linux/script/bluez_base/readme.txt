@@ -1,1 +1,0 @@
-脚本用于编译bluetoothd、hciconfig和hcitool，代码基于bluez 5.3
