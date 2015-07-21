@@ -15,6 +15,7 @@ void study(void *para)//return handle not implementation yet
 	struct tcplink* tcplink = 0;
 	struct http_handle *hhttp = 0;
 	struct study_para *sty_para = para;
+	int i,j,cn,vn;
 
 	tcplink = InitLink(SERVER_IP, SERVER_PORT);
 	if(tcplink == NULL){
@@ -39,10 +40,24 @@ void study(void *para)//return handle not implementation yet
 		puts("lession_sel_courses done");////////////////////////////////////////
 	lession_get_lessionID(hhttp, tcplink);
 		puts("get lession id done");////////////////////////////////////////
+	for(i=0;i<hhttp->lession.courseNum;i++){
+		lession_get_video(hhttp, tcplink, i);
+	}
+		puts("get video done");////////////////////////////////////////
+	cn = hhttp->lession.courseNum;
+	for(i=0;i<cn;i++){
+		vn = hhttp->lession.course[i].videoNum;
+		for(j=0;j<vn;j++){
+			lession_study_video(hhttp, tcplink, hhttp->lession.course[i].video[j].name);
+		}
+	}
+		puts("study video done");////////////////////////////////////////
+	for(i=0;i<hhttp->lession.courseNum;i++){
+		lession_get_exer(hhttp, tcplink, i);
+	}
+		puts("get exercise done");////////////////////////////////////////
 
 	//puts(tcplink->recv_buf);////////////////////
-
-
 	//return success
 	sty_para->ret_value = 1;
 	return;

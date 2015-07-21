@@ -258,3 +258,55 @@ int parse_lession_name(struct http_handle *hhttp, char *buf, int buf_len)
 		}
 	}while(1);
 }
+
+int parse_video_name(struct http_handle *hhttp, char *buf, int buf_len, int course_idx)
+{
+	const char lession_str[] = "onclick=\"toStudy('";
+	char *pbuf = buf;
+	char *s, *e, exFlag;
+	int vn, i;
+	do{
+		s = strstr(pbuf, lession_str);
+		if(s){
+			s += strlen(lession_str);
+			if(s - buf >= buf_len)return 1;
+			e = strstr(s, "'");
+			if(e == NULL || e-s>8)
+				return 1;
+			*e = 0;
+			vn = hhttp->lession.course[course_idx].videoNum;
+			exFlag = 0;
+			for(i=0;i<vn;i++){
+				if(!strcmp(hhttp->lession.course[course_idx].video[i].name, s)){
+					exFlag = 1;
+					break;
+				}
+			}
+			if(exFlag == 0){
+				printf("course(%s)-video(%s)\n", 
+						hhttp->lession.course[course_idx].name,s);//////////////////////
+				strcpy(hhttp->lession.course[course_idx].video[vn].name, s);
+				hhttp->lession.course[course_idx].videoNum++;
+			}
+			pbuf = e + 1;
+			if(pbuf - buf >= buf_len)return 1;
+		}else{
+			return 1;
+		}
+	}while(1);
+}
+
+int isStudyVideoDone(struct http_handle *hhttp, char *buf, int buf_len)
+{
+	const char suc1[] = "HTTP/1.1 200 OK";
+	if(strstr(buf, suc1) != NULL){
+		return 1;
+	}else{
+		return -1;
+	};
+}
+
+int parse_exer_name(struct http_handle *hhttp, char *buf, int buf_len, int course_idx)
+{
+	return 1;
+}

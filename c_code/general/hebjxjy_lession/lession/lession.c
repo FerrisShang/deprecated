@@ -1,5 +1,27 @@
 #include "lession.h"
 
+#ifdef __LINUX__
+#include <time.h>
+static void get_gmt_time(char *time_buf)
+{
+	char *m[] = {"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct"};
+	char *w[] = {"Sun","Mon","Tue","Wed","Thu","Fri","Sat"};
+	time_t timep;
+	struct tm *p;
+	time(&timep);
+	p=localtime(&timep); /*取得当地时间*/
+	sprintf(time_buf, "%d %s %s %d %d:%d:%d %s", 
+			p->tm_mday, m[p->tm_mon], w[p->tm_wday],
+			1900+p->tm_year,
+			p->tm_hour, p->tm_min, p->tm_sec,
+			"%20GMT+0800%20(%E4%B8%AD%E5%9B%BD%E6%A0%87%E5%87%86%E6%97%B6%E9%97%B4)"
+		   );
+}
+#else
+#error get time function not implement
+#endif
+
+
 //Init cookie
 int lession_init_cookie(struct http_handle *hhttp, struct tcplink *tcplink)
 {
@@ -182,10 +204,128 @@ int lession_get_lessionID(struct http_handle *hhttp, struct tcplink *tcplink)
 		return -1;
 	}
 	res = parse_lession_name(hhttp, tcplink->recv_buf, tcplink->recv_len);
-	printf("get %d lessions, ", hhttp->lession.courseNum);
 	if(res <= 0){
 		printf("get lessionID failed\n");
 		return -1;
 	}
+	printf("get %d lessions, ", hhttp->lession.courseNum);
+	return 1;
+}
+
+//get video
+int lession_get_video(struct http_handle *hhttp, struct tcplink *tcplink, int course_idx)
+{
+	int res;
+	char get_buf[256];
+	char ref_buf[256];
+	char *les_name;
+	if(hhttp == NULL || tcplink == NULL)
+		return -1;
+	les_name = hhttp->lession.course[course_idx].name;
+	sprintf(get_buf, "/jxjy/user/plan/userChapter.do?userCourseId=%s&userPlanType=2", les_name);
+	sprintf(ref_buf, "http://"SERVER_IP"/jxjy/user/right.do");
+	create_http_str(hhttp,
+			get_buf,
+			SERVER_IP,
+			"*/*",
+			AGENT_ARR,
+			ref_buf,
+			"",
+			"zh-CN,zh;q=0.8,en;q=0.6",
+			hhttp->cookie,
+			"", "", "", "", "");
+	res = tcp_comm(tcplink, hhttp->buf, hhttp->buf_len, is_http_recv_done);
+	if(res <= 0){
+		printf("get video respones failed\n");
+		return -1;
+	}
+	res = parse_video_name(hhttp, tcplink->recv_buf, tcplink->recv_len, course_idx);
+	if(res <= 0){
+		printf("lession:%s - get video failed\n", les_name);
+		return -1;
+	}
+	printf("lession:%s - get %d video\n", les_name, hhttp->lession.course[course_idx].videoNum);
+	return 1;
+}
+
+//study video
+int lession_study_video(struct http_handle *hhttp, struct tcplink *tcplink, char *video_id)
+{
+	int res;
+	char post_buf[256];
+	char ref_buf[256];
+	char len_str[8];
+	char text_buf[256];
+	char time_buf[256];
+	if(hhttp == NULL || tcplink == NULL)
+		return -1;
+	get_gmt_time(time_buf);
+	puts(time_buf);
+	sprintf(post_buf, "/jxjy/user/plan/saveUserStudy.do?%s", time_buf);
+	sprintf(len_str, "%d", (int)strlen(post_buf));
+	sprintf(ref_buf, "http://"SERVER_IP"/jxjy/user/plan/toStudy.do");
+	sprintf(text_buf, "studyTime=%d&userChapterId=%s&isCompleted=%s", 
+			(rand()%30)+10, video_id, "1"/*????*/);
+	create_http_str(hhttp,
+			"",
+			SERVER_IP,
+			"*/*",
+			AGENT_ARR,
+			ref_buf,
+			"",
+			"zh-CN,zh;q=0.8,en;q=0.6",
+			hhttp->cookie,
+			post_buf, 
+			len_str,
+			"http://"SERVER_IP,
+			"XMLHttpRequest", 
+			text_buf);
+
+	res = tcp_comm(tcplink, hhttp->buf, hhttp->buf_len, is_http_recv_done);
+	if(res <= 0){
+		printf("get video study respones failed\n");
+		return -1;
+	}
+	res = isStudyVideoDone(hhttp, tcplink->recv_buf, tcplink->recv_len);
+	if(res <= 0){
+		printf("video:%s - study video failed\n", video_id);
+		return -1;
+	}
+	return 1;
+}
+
+//get exercise
+int lession_get_exer(struct http_handle *hhttp, struct tcplink *tcplink, int course_idx)
+{
+	int res;
+	char get_buf[256];
+	char ref_buf[256];
+	if(hhttp == NULL || tcplink == NULL)
+		return -1;
+	sprintf(get_buf, "/jxjy/user/plan/userChapter.do?userCourseId=%s&userPlanType=2",
+		   hhttp->lession.course[course_idx].name);
+	sprintf(ref_buf, "http://115.28.82.250/jxjy/user/plan/userPlanInfo.do?userPlanId=%s",
+			hhttp->userPlanID);
+	create_http_str(hhttp,
+			get_buf,
+			SERVER_IP,
+			"*/*",
+			AGENT_ARR,
+			ref_buf,
+			"",
+			"zh-CN,zh;q=0.8,en;q=0.6",
+			hhttp->cookie,
+			"", "", "", "", "");
+	res = tcp_comm(tcplink, hhttp->buf, hhttp->buf_len, is_http_recv_done);
+	if(res <= 0){
+		printf("get video respones failed\n");
+		return -1;
+	}
+	res = parse_exer_name(hhttp, tcplink->recv_buf, tcplink->recv_len, course_idx);
+	if(res <= 0){
+		printf("lession:%s - get exercise failed\n", hhttp->lession.course[course_idx].name);
+		return -1;
+	}
+	//printf("lession:%s - get %d exercise\n", les_name, hhttp->lession.course[course_idx].videoNum);
 	return 1;
 }

@@ -49,6 +49,7 @@ int tcp_comm(struct tcplink* tcplink, char *send_buf, int send_len,
 		if(ret == 0){
 			close(tcplink->sockfd);
 			tcplink->recv_len = p - tcplink->recv_buf;
+			*p = 0;
 			return tcplink->recv_len;
 		}else if(ret > 0){
 			p += ret;
@@ -61,6 +62,7 @@ int tcp_comm(struct tcplink* tcplink, char *send_buf, int send_len,
 				(func != NULL && func(tcplink->recv_buf, tcplink->recv_len)==1)){
 				close(tcplink->sockfd);
 				tcplink->recv_len = p - tcplink->recv_buf;
+				*p = 0;
 				return tcplink->recv_len;
 			}
 			puts("waiting for timeout");///////////////////////////////////////

@@ -55,5 +55,8 @@ int is_login_suc(struct http_handle *hhttp, char *buf, int buf_len);
 int searchUserPlanId(struct http_handle *hhttp, char *buf, int buf_len);
 int setCourseDone(struct http_handle *hhttp, char *buf, int buf_len);
 int parse_lession_name(struct http_handle *hhttp, char *buf, int buf_len);
+int parse_video_name(struct http_handle *hhttp, char *buf, int buf_len, int course_idx);
+int isStudyVideoDone(struct http_handle *hhttp, char *buf, int buf_len);
+int parse_exer_name(struct http_handle *hhttp, char *buf, int buf_len, int course_idx);
 
 #endif /* __HTTP_UTIL_H__ */

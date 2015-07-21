@@ -30,9 +30,6 @@ libDir = $(PREFIX)/lib \
 LIBS = rt \
 	   pthread \
 	   dbus-1 \
-	   readline \
-	   ncurses \
-	   ical \
 	   dl \
 #	   glib-2.0 \
 
