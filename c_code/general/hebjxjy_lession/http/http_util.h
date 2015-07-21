@@ -9,10 +9,24 @@
 #define SERVER_IP "115.28.82.250"
 #define SERVER_PORT 80
 
+struct video{
+	char name[16];
+};
+struct courses{
+	char name[16];
+	int videoNum;
+	struct video video[20];
+};
+struct lession{
+	int courseNum;
+	struct courses course[20];
+};
 struct http_handle{
 	char *buf;
 	char cookie[COOKIE_LEN+1];
 	char check_code[5];
+	char userPlanID[12];
+	struct lession lession;
 	int buf_len;
 };
 
@@ -37,5 +51,9 @@ int create_http_str(struct http_handle *hhttp,
 int is_http_recv_done(char *buf, int buf_len);
 char *set_cookie(struct http_handle *hhttp, char *buf);
 char *get_check_code(struct http_handle *hhttp, char *buf, int buf_len);
+int is_login_suc(struct http_handle *hhttp, char *buf, int buf_len);
+int searchUserPlanId(struct http_handle *hhttp, char *buf, int buf_len);
+int setCourseDone(struct http_handle *hhttp, char *buf, int buf_len);
+int parse_lession_name(struct http_handle *hhttp, char *buf, int buf_len);
 
 #endif /* __HTTP_UTIL_H__ */

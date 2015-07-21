@@ -28,7 +28,20 @@ void study(void *para)//return handle not implementation yet
 	}
 	//not add err judge function yet
 	lession_init_cookie(hhttp, tcplink);
+		puts("lession_init_cookie done.");////////////////////////////////////////
 	lession_get_check_code(hhttp, tcplink);
+		puts("lession_get_check_code done");////////////////////////////////////////
+	lession_login(hhttp, tcplink, sty_para->name, sty_para->pass);
+		puts("lession_login done");////////////////////////////////////////
+	lession_get_userPlanID(hhttp, tcplink);
+		puts("lession_get_userPlanID done");////////////////////////////////////////
+	lession_sel_courses(hhttp, tcplink, sty_para->sel_courses);
+		puts("lession_sel_courses done");////////////////////////////////////////
+	lession_get_lessionID(hhttp, tcplink);
+		puts("get lession id done");////////////////////////////////////////
+
+	//puts(tcplink->recv_buf);////////////////////
+
 
 	//return success
 	sty_para->ret_value = 1;

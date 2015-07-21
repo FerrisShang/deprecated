@@ -82,10 +82,17 @@ static int hex2num_1(char hex)
 
 int is_http_recv_done(char *buf, int buf_len)
 {
+	const char noContent[] = "Content-Length: 0";
 	const char len_str[] = "Content-Length: ";
-	const char test_str[] = "Content-Type: text/html";
+	const char text_str[] = "Content-Type: text/html";
 	const char jpeg_str[] = "Content-Type: image/jpeg";
-	if(strstr(buf, test_str) != NULL){
+	const char html_end[] = "</html>";
+
+	if(strstr(buf, html_end) != NULL){
+		return 1;
+	}else if(strstr(buf, noContent) != NULL){
+		return 1;
+	}else if(strstr(buf, text_str) != NULL){
 		int text_len = 0;
 		char *p;
 		int i;
@@ -184,8 +191,70 @@ char *get_check_code(struct http_handle *hhttp, char *buf, int buf_len)
 		return NULL;
 	}
 	free(img_buf);
-	printf("code:%s\n", hhttp->check_code);//////////////////////////////
 	return hhttp->check_code;
 }
 
+int is_login_suc(struct http_handle *hhttp, char *buf, int buf_len)
+{
+	const char suc1[] = "302 Found";
+	const char suc2[] = "/jxjy/user/index.do";
+	if(strstr(buf, suc1) != NULL && strstr(buf, suc2) != NULL){
+		return 1;
+	}else{
+		return -1;
+	};
+}
 
+int searchUserPlanId(struct http_handle *hhttp, char *buf, int buf_len)
+{
+	const char userPlanID_str[] =  "<td><a href=\"/jxjy/user/plan/userPlanInfo.do?userPlanId=";
+	char *s, *e;
+	s = strstr(buf, userPlanID_str);
+	if(s){
+		s += strlen(userPlanID_str);
+		e = strstr(s, "\"");
+		if(e == NULL || e-s>8)
+			return -1;
+		memcpy(hhttp->userPlanID, s, e-s);
+		return 1;
+	}else{
+		return -1;
+	}
+}
+
+int setCourseDone(struct http_handle *hhttp, char *buf, int buf_len)
+{
+	const char suc1[] = "302 Found";
+	const char suc2[] = "/userCourse.do";
+	if(strstr(buf, suc1) != NULL && strstr(buf, suc2) != NULL){
+		return 1;
+	}else{
+		return -1;
+	};
+}
+
+int parse_lession_name(struct http_handle *hhttp, char *buf, int buf_len)
+{
+	const char lession_str[] = "onclick=\"toStudy('";
+	char *pbuf = buf;
+	char *s, *e;
+	int cn;
+	do{
+		s = strstr(pbuf, lession_str);
+		if(s){
+			s += strlen(lession_str);
+			if(s - buf >= buf_len)return 1;
+			e = strstr(s, "'");
+			if(e == NULL || e-s>8)
+				return 1;
+			*e = 0;
+			cn = hhttp->lession.courseNum;
+			strcpy(hhttp->lession.course[cn].name, s);
+			hhttp->lession.courseNum++;
+			pbuf = e + 1;
+			if(pbuf - buf >= buf_len)return 1;
+		}else{
+			return 1;
+		}
+	}while(1);
+}

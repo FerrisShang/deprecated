@@ -11,7 +11,7 @@
 
 #define TCP_RECV_LEN (1024*1024)
 #define TCP_RECV_TIME_INTV_MS 100
-#define TCP_RECV_TIME_OUT_S 2
+#define TCP_RECV_TIME_OUT_S 16
 
 struct tcplink{
 	int sockfd;
