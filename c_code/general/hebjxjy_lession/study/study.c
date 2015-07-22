@@ -74,11 +74,13 @@ void study(void *para)//return handle not implementation yet
 		}
 	}
 	RUN_FUCN(A_ST_ERR_GET_SCORE, lession_get_score,hhttp, tcplink, account->score, &isOK);
-	if(isOK)
-		account->a_st = A_ST_OK;
-	else
+	if(isOK){
+		if(atof(account->score) < 19.99)
+			account->a_st = A_ST_ERR_SCORE;
+		else
+			account->a_st = A_ST_OK;
+	}else{
 		account->a_st = A_ST_ERR_COURSE;
-	if(atof(account->score) < 19.99)
-		account->a_st = A_ST_ERR_SCORE;
+	}
 	return;
 }

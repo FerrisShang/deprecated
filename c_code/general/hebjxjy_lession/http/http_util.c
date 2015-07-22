@@ -422,8 +422,12 @@ int isSubmitSuc(struct http_handle *hhttp, char *buf, int buf_len)
 int parse_score(struct http_handle *hhttp, char *buf, int buf_len, char *score, char *isOK)
 {
 	char *s;
-	*isOK = 0;
-	s = searchStr32(buf, buf_len, "所选课程已符","考核要求", score);
+	s = strstr(buf, "所选课程不符合考核要求");
+	if(s != NULL){
+		*isOK = 0;
+		return 1;
+	}
+	s = strstr(buf, "所选课程已符合考核要求");
 	if(s == NULL)
 		return -1;
 	*isOK = 1;
