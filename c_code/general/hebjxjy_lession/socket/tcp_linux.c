@@ -65,7 +65,6 @@ int tcp_comm(struct tcplink* tcplink, char *send_buf, int send_len,
 				*p = 0;
 				return tcplink->recv_len;
 			}
-			puts("waiting for timeout");///////////////////////////////////////
 		}
 		usleep(TCP_RECV_TIME_INTV_MS*1000);
 	}

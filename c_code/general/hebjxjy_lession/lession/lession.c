@@ -4,18 +4,17 @@
 #include <time.h>
 static void get_gmt_time(char *time_buf)
 {
+	//temp:  Wed%20Jul%2022%202015%2005:24:18%20GMT+0800%20(CST)
 	char *m[] = {"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct"};
 	char *w[] = {"Sun","Mon","Tue","Wed","Thu","Fri","Sat"};
 	time_t timep;
 	struct tm *p;
 	time(&timep);
 	p=localtime(&timep); /*取得当地时间*/
-	sprintf(time_buf, "%d %s %s %d %d:%d:%d %s", 
-			p->tm_mday, m[p->tm_mon], w[p->tm_wday],
+	sprintf(time_buf, "%s%%20%s%%20%02d%%20%d%%20%02d:%02d:%02d%%20GMT+0800%%20(CST)", 
+			w[p->tm_wday], m[p->tm_mon], p->tm_mday,
 			1900+p->tm_year,
-			p->tm_hour, p->tm_min, p->tm_sec,
-			"%20GMT+0800%20(%E4%B8%AD%E5%9B%BD%E6%A0%87%E5%87%86%E6%97%B6%E9%97%B4)"
-		   );
+			p->tm_hour, p->tm_min, p->tm_sec);
 }
 #else
 #error get time function not implement
@@ -260,12 +259,11 @@ int lession_study_video(struct http_handle *hhttp, struct tcplink *tcplink, char
 	if(hhttp == NULL || tcplink == NULL)
 		return -1;
 	get_gmt_time(time_buf);
-	puts(time_buf);
 	sprintf(post_buf, "/jxjy/user/plan/saveUserStudy.do?%s", time_buf);
-	sprintf(len_str, "%d", (int)strlen(post_buf));
 	sprintf(ref_buf, "http://"SERVER_IP"/jxjy/user/plan/toStudy.do");
 	sprintf(text_buf, "studyTime=%d&userChapterId=%s&isCompleted=%s", 
-			(rand()%30)+10, video_id, "1"/*????*/);
+			(rand()%30)+10, video_id, "1");
+	sprintf(len_str, "%d", (int)strlen(text_buf));
 	create_http_str(hhttp,
 			"",
 			SERVER_IP,
@@ -280,7 +278,6 @@ int lession_study_video(struct http_handle *hhttp, struct tcplink *tcplink, char
 			"http://"SERVER_IP,
 			"XMLHttpRequest", 
 			text_buf);
-
 	res = tcp_comm(tcplink, hhttp->buf, hhttp->buf_len, is_http_recv_done);
 	if(res <= 0){
 		printf("get video study respones failed\n");
@@ -295,15 +292,16 @@ int lession_study_video(struct http_handle *hhttp, struct tcplink *tcplink, char
 }
 
 //get exercise
-int lession_get_exer(struct http_handle *hhttp, struct tcplink *tcplink, int course_idx)
+int lession_get_exerID(struct http_handle *hhttp, struct tcplink *tcplink, int course_idx)
 {
 	int res;
 	char get_buf[256];
 	char ref_buf[256];
+	char *les_name;
 	if(hhttp == NULL || tcplink == NULL)
 		return -1;
-	sprintf(get_buf, "/jxjy/user/plan/userChapter.do?userCourseId=%s&userPlanType=2",
-		   hhttp->lession.course[course_idx].name);
+	les_name = hhttp->lession.course[course_idx].name;
+	sprintf(get_buf, "/jxjy/user/plan/userChapter.do?userCourseId=%s&userPlanType=2", les_name);
 	sprintf(ref_buf, "http://115.28.82.250/jxjy/user/plan/userPlanInfo.do?userPlanId=%s",
 			hhttp->userPlanID);
 	create_http_str(hhttp,
@@ -323,9 +321,117 @@ int lession_get_exer(struct http_handle *hhttp, struct tcplink *tcplink, int cou
 	}
 	res = parse_exer_name(hhttp, tcplink->recv_buf, tcplink->recv_len, course_idx);
 	if(res <= 0){
-		printf("lession:%s - get exercise failed\n", hhttp->lession.course[course_idx].name);
+		printf("lession:%s - get exercise failed\n", les_name);
 		return -1;
 	}
-	//printf("lession:%s - get %d exercise\n", les_name, hhttp->lession.course[course_idx].videoNum);
+	printf("lession:%s - get %d exercise\n", les_name, hhttp->lession.course[course_idx].videoNum);
 	return 1;
 }
+
+int lession_get_exer(struct http_handle *hhttp, struct tcplink *tcplink, 
+		char* course_ID, char *exer_ID, char *post, char *text)
+{
+	int res;
+	char get_buf[256];
+	char ref_buf[256];
+	if(hhttp == NULL || tcplink == NULL)
+		return -1;
+	sprintf(get_buf, "/jxjy/user/courseExercise/exercise.do?ucId=%s", exer_ID);
+	sprintf(ref_buf, "http://"SERVER_IP"/jxjy/user/plan/userChapter.do?userCourseId=%s&userPlanType=2", course_ID);
+	create_http_str(hhttp,
+			get_buf,
+			SERVER_IP,
+			"*/*",
+			AGENT_ARR,
+			ref_buf,
+			"",
+			"zh-CN,zh;q=0.8,en;q=0.6",
+			hhttp->cookie,
+			"", "", "", "", "");
+	res = tcp_comm(tcplink, hhttp->buf, hhttp->buf_len, is_http_recv_done);
+	if(res <= 0){
+		printf("get exercise failed\n");
+		return -1;
+	}
+	res = parse_exer_ans(hhttp, tcplink->recv_buf, tcplink->recv_len, post, text);
+	if(res <= 0){
+		printf("lession:%s - get answer failed\n", course_ID);
+		return -1;
+	}
+	return 1;
+}
+
+int lession_submit_exer(struct http_handle *hhttp, struct tcplink *tcplink, 
+		char* course_ID, char *exer_ID, char *post, char *text)
+{
+	int res;
+	char ref_buf[256];
+	char post_buf[512];
+	char len_str[8];
+	if(hhttp == NULL || tcplink == NULL)
+		return -1;
+	sprintf(post_buf, "/jxjy/user/courseExercise/saveUserCourseExercise.do?%s", post);
+	sprintf(ref_buf, "http://"SERVER_IP"/jxjy/user/courseExercise/exercise.do?ucId=%s",exer_ID);
+	sprintf(len_str, "%d", (int)strlen(text));
+	create_http_str(hhttp,
+			"",
+			SERVER_IP,
+			"*/*",
+			AGENT_ARR,
+			ref_buf,
+			"",
+			"zh-CN,zh;q=0.8,en;q=0.6",
+			hhttp->cookie,
+			post_buf, 
+			len_str,
+			"http://"SERVER_IP,
+			"XMLHttpRequest",
+			text
+			);
+	res = tcp_comm(tcplink, hhttp->buf, hhttp->buf_len, is_http_recv_done);
+	if(res <= 0){
+		printf("get submit failed\n");
+		return -1;
+	}
+	res = isSubmitSuc(hhttp, tcplink->recv_buf, tcplink->recv_len);
+	if(res <= 0){
+		printf("exercise:%s - submit failed\n", exer_ID);
+		return -1;
+	}
+	return 1;
+}
+
+int lession_get_score(struct http_handle *hhttp, struct tcplink *tcplink, char *score, char *isOK)
+{
+	int res;
+	char get_buf[256];
+	char ref_buf[256];
+	if(hhttp == NULL || tcplink == NULL)
+		return -1;
+	sprintf(get_buf, "/jxjy/user/plan/userPlanInfo.do?userPlanId=%s",hhttp->userPlanID);
+	sprintf(ref_buf, "http://"SERVER_IP"/jxjy/user/right.do");
+	create_http_str(hhttp,
+			get_buf,
+			SERVER_IP,
+			"*/*",
+			AGENT_ARR,
+			ref_buf,
+			"",
+			"zh-CN,zh;q=0.8,en;q=0.6",
+			hhttp->cookie,
+			"", "", "", "", "");
+	res = tcp_comm(tcplink, hhttp->buf, hhttp->buf_len, is_http_recv_done);
+	if(res <= 0){
+		printf("get score respones failed\n");
+		return -1;
+	}
+
+	res = parse_score(hhttp, tcplink->recv_buf, tcplink->recv_len, score, isOK);
+	if(res <= 0){
+		printf("get score failed\n");
+		return -1;
+	}
+	return 1;
+}
+
+

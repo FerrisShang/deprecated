@@ -43,7 +43,7 @@ int create_http_str(struct http_handle *hhttp, char *get, char *host,
 		hhttp->buf_len = -1;
 		return hhttp->buf_len;
 	}
-	sprintf(p, "%sHost: %s"RETURN_STR, p, post);
+	sprintf(p, "%sHost: %s"RETURN_STR, p, host);
 	strcat(p, "Connection: keep-alive"RETURN_STR);
 	if(strlen(len)>0)
 		sprintf(p, "%sContent-Length: %s"RETURN_STR"Cache-Control: max-age=0"RETURN_STR, p, len);
@@ -67,6 +67,25 @@ int create_http_str(struct http_handle *hhttp, char *get, char *host,
 		strcat(p, text);
 	hhttp->buf_len = strlen(p);
 	return hhttp->buf_len;
+}
+
+char* searchStr32(char *buf, int buf_len, const char *prefix, char *suffix, char *str_buf)
+{
+	char *s,*e;
+	s = strstr(buf, prefix);
+	if(s){
+		s += strlen(prefix);
+		if(s - buf >= buf_len)
+			return NULL;
+		e = strstr(s, suffix);
+		if(e == NULL || e-s>32)
+			return NULL;
+		memcpy(str_buf, s, e-s);
+		str_buf[e-s] = '\0';
+		return e;
+	}else{
+		return NULL;
+	}
 }
 
 static int hex2num_1(char hex)
@@ -308,5 +327,111 @@ int isStudyVideoDone(struct http_handle *hhttp, char *buf, int buf_len)
 
 int parse_exer_name(struct http_handle *hhttp, char *buf, int buf_len, int course_idx)
 {
+	const char exer_str[] = "onclick=\"toExercise('";
+	char *pbuf = buf;
+	char *s, *e;
+	int en;
+	do{
+		s = strstr(pbuf, exer_str);
+		if(s){
+			s += strlen(exer_str);
+			if(s - buf >= buf_len)return 1;
+			e = strstr(s, "'");
+			if(e == NULL || e-s>8)
+				return 1;
+			*e = 0;
+			en = hhttp->lession.course[course_idx].exerID_Num;
+			printf("course(%s)-exercise(%s)\n", hhttp->lession.course[course_idx].name,s);//////////////////////
+			strcpy(hhttp->lession.course[course_idx].exerID[en].name, s);
+			hhttp->lession.course[course_idx].exerID_Num++;
+			pbuf = e + 1;
+			if(pbuf - buf >= buf_len)return 1;
+		}else{
+			return 1;
+		}
+	}while(1);
+}
+
+
+static char* findNum(char *buf, char *num)
+{
+	char *ret = num;
+	num[0] = '\0';
+	while(*buf){
+		if(*buf>='0'&&*buf<='9'){
+			*num = *buf;
+			num++;
+			buf++;
+		}else{
+			break;
+		}
+	}
+	*num = '\0';
+	return ret;
+}
+int parse_exer_ans(struct http_handle *hhttp, char *buf, int buf_len, char *post, char *text)
+{
+	const char chapterId_Header[] = "input type=\"hidden\" name=\"chapterId\" id=\"chapterId\" value=\"";
+	const char userCourseId_Header[] = "input type=\"hidden\" name=\"userCourseId\" id=\"userCourseId\" value=\"";
+	const char userPlanId_Header[] = "input type=\"hidden\" name=\"userPlanId\" id=\"userPlanId\" value=\"";
+	const char ceId_Header[] = "input type='hidden' name='ceId' id='ceId' value='";
+	const char question_Header[] = "<input  type='hidden'  name='";
+	const char value_Header[] = "  value='";
+	char chapterId[16]={0};
+	char userCourseId[16]={0};
+	char userPlanId[16]={0};
+	char ceId[16]={0};
+	char *s, *e, *cur;
+	s = searchStr32(buf, buf_len, chapterId_Header, "\"", chapterId);
+	if(s == NULL)return -1;
+	s = searchStr32(buf, buf_len, userCourseId_Header, "\"", userCourseId);
+	if(s == NULL)return -1;
+	s = searchStr32(buf, buf_len, userPlanId_Header, "\"", userPlanId);
+	if(s == NULL)return -1;
+	sprintf(post,"chapterId=%s&userCourseId=%s&userPlanId=%s",chapterId,userCourseId,userPlanId);
+	s = searchStr32(buf, buf_len, ceId_Header, "'", ceId);
+	if(s == NULL)return -1;
+	sprintf(text, "ceId=%s", ceId);
+	cur = buf;
+	while(1){
+		char result[32]={0}, result_val[32]={0}, show[32]={0}, show_val[32]={0}, num[32]={0};
+		e = searchStr32(cur, buf_len-(cur-buf), question_Header, "'", result);
+		if(e == NULL)return 1;
+		cur = e;
+		e = searchStr32(cur, buf_len-(cur-buf), value_Header, "'", result_val);
+		if(e == NULL)return -1;
+		cur = e;
+		e = searchStr32(cur, buf_len-(cur-buf), question_Header, "'", show);
+		if(e == NULL)return -1;
+		cur = e;
+		e = searchStr32(cur, buf_len-(cur-buf), value_Header, "'", show_val);
+		if(e == NULL)return -1;
+		cur = e;
+		sprintf(text, "%s&%s=%s&%s=%s&%s=%s",
+				text, result, result_val, show, show_val,findNum(result, num), result_val);
+	}
+	return 1;
+}
+
+int isSubmitSuc(struct http_handle *hhttp, char *buf, int buf_len)
+{
+	const char suc1[] = "HTTP/1.1 200 OK";
+	if(strstr(buf, suc1) != NULL){
+		return 1;
+	}else{
+		return -1;
+	};
+}
+int parse_score(struct http_handle *hhttp, char *buf, int buf_len, char *score, char *isOK)
+{
+	char *s;
+	*isOK = 0;
+	s = searchStr32(buf, buf_len, "所选课程已符","考核要求", score);
+	if(s == NULL)
+		return -1;
+	*isOK = 1;
+	s = searchStr32(buf, buf_len, "当前已完成:<b class=\"lanse\">【","个学时", score);
+	if(s == NULL)
+		return -1;
 	return 1;
 }

@@ -12,10 +12,15 @@
 struct video{
 	char name[16];
 };
+struct exerID{
+	char name[16];
+};
 struct courses{
 	char name[16];
 	int videoNum;
 	struct video video[20];
+	int exerID_Num;
+	struct exerID exerID[20];
 };
 struct lession{
 	int courseNum;
@@ -48,6 +53,7 @@ int create_http_str(struct http_handle *hhttp,
 		char *text
 		);
 
+char* searchStr32(char *buf, int buf_len, const char *prefix, char *suffix, char *str_buf);
 int is_http_recv_done(char *buf, int buf_len);
 char *set_cookie(struct http_handle *hhttp, char *buf);
 char *get_check_code(struct http_handle *hhttp, char *buf, int buf_len);
@@ -58,5 +64,8 @@ int parse_lession_name(struct http_handle *hhttp, char *buf, int buf_len);
 int parse_video_name(struct http_handle *hhttp, char *buf, int buf_len, int course_idx);
 int isStudyVideoDone(struct http_handle *hhttp, char *buf, int buf_len);
 int parse_exer_name(struct http_handle *hhttp, char *buf, int buf_len, int course_idx);
+int parse_exer_ans(struct http_handle *hhttp, char *buf, int buf_len, char *post, char *text);
+int isSubmitSuc(struct http_handle *hhttp, char *buf, int buf_len);
+int parse_score(struct http_handle *hhttp, char *buf, int buf_len, char *score, char *isOK);
 
 #endif /* __HTTP_UTIL_H__ */
