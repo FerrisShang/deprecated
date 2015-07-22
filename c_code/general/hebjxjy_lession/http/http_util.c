@@ -302,8 +302,6 @@ int parse_video_name(struct http_handle *hhttp, char *buf, int buf_len, int cour
 				}
 			}
 			if(exFlag == 0){
-				printf("course(%s)-video(%s)\n", 
-						hhttp->lession.course[course_idx].name,s);//////////////////////
 				strcpy(hhttp->lession.course[course_idx].video[vn].name, s);
 				hhttp->lession.course[course_idx].videoNum++;
 			}
@@ -341,7 +339,6 @@ int parse_exer_name(struct http_handle *hhttp, char *buf, int buf_len, int cours
 				return 1;
 			*e = 0;
 			en = hhttp->lession.course[course_idx].exerID_Num;
-			printf("course(%s)-exercise(%s)\n", hhttp->lession.course[course_idx].name,s);//////////////////////
 			strcpy(hhttp->lession.course[course_idx].exerID[en].name, s);
 			hhttp->lession.course[course_idx].exerID_Num++;
 			pbuf = e + 1;

@@ -2,6 +2,7 @@
 
 #ifdef __LINUX__
 #include <time.h>
+#define printf(...)
 static void get_gmt_time(char *time_buf)
 {
 	//temp:  Wed%20Jul%2022%202015%2005:24:18%20GMT+0800%20(CST)

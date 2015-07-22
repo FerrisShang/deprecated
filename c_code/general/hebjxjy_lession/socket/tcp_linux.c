@@ -43,7 +43,7 @@ int tcp_comm(struct tcplink* tcplink, char *send_buf, int send_len,
 	int sock_state;
 	sock_state = fcntl(tcplink->sockfd, F_GETFL, 0);
 	fcntl(tcplink->sockfd, F_SETFL, sock_state | O_NONBLOCK);
-	write(tcplink->sockfd, send_buf, send_len); 
+	if(write(tcplink->sockfd, send_buf, send_len));//use return value for avoid warning
 	while(1){
 		ret = read(tcplink->sockfd, p, tcplink->recv_max);
 		if(ret == 0){

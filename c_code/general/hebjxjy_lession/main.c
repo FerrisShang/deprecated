@@ -1,19 +1,47 @@
 #include <stdio.h>
+#include <unistd.h>
 #include "study.h"
+#include "file_read.h"
 
-
+#define CONFIG_FILE_NAME "config.ini"
+#define ACCOUNT_FILE_NAME "account.txt"
 int main(int argc, char *argv[]) {
-	struct study_para std_para;
-	strcpy(std_para.name, "130302197211203941");
-	strcpy(std_para.pass, "203941");
-	strcpy(std_para.sel_courses, "id=72&id=73&id=74&id=76&id=78&id=79&id=123&id=94");
-
-	study((void*)&std_para);
-	if(std_para.ret_value > 0){
-		printf("study done.\n");
-	}else{
-		printf("study error.\n");
+	struct account *account;
+	char config_buf[128];
+	int account_file_line;
+	int account_num, i;
+	if(NULL == read_config(CONFIG_FILE_NAME, config_buf)){
+		printf("read config failed\n");
+		return 0;
 	}
+	account_file_line = read_line_num(ACCOUNT_FILE_NAME);
+	if(account_file_line <= 0){
+		printf("read accounts failed\n");
+		return 0;
+	}
+	account = malloc(sizeof(struct account) * account_file_line);
+	if(account == NULL){
+		printf("not enough memory\n");
+		return 0;
+	}
+	account_num = init_account(ACCOUNT_FILE_NAME, account, config_buf);
+	if(account_num <= 0){
+		printf("parse account error\n");
+	}else{
+		printf("read %d accounts\n", account_num);
+	}
+
+	for(i=0;i<account_num;i++){
+		study((void*)&account[i]);
+		printf("(%d/%d)\t%s\t%s\tscore: %s\n",
+				i+1, account_num,
+				account[i].id,
+				status_str[(int)account[i].a_st],
+				account[i].score);
+	}
+	free(account);
+	printf("全部完成..\n");
 	//system("pause");
+	while(1) usleep(10000000);
 	return 0;
 }
