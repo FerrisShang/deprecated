@@ -1,6 +1,5 @@
 #include "lession.h"
 
-#ifdef __LINUX__
 #include <time.h>
 #define printf(...)
 static void get_gmt_time(char *time_buf)
@@ -17,9 +16,6 @@ static void get_gmt_time(char *time_buf)
 			1900+p->tm_year,
 			p->tm_hour, p->tm_min, p->tm_sec);
 }
-#else
-#error get time function not implement
-#endif
 
 
 //Init cookie
