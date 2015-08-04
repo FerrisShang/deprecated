@@ -14,11 +14,11 @@ do{ \
 #define RUN_FUCN(err,func, ...) \
 { \
 	int relay_, res_; \
-	for(relay_=0;relay_<5;relay_++){ \
+	for(relay_=0;relay_<8;relay_++){ \
 		res_ = func(__VA_ARGS__); \
 		if(res_ > 0) \
 			break; \
-		usleep(3000000); \
+		usleep(1000000); \
 	} \
 	if(res_ <= 0){ \
 		return_err(err); \
@@ -32,6 +32,7 @@ void study(void *para)
 	struct account *account = para;
 	int i,j,cn,vn,en;
 	char isOK;
+	account->a_st = A_ST_RUN;
 	tcplink = InitLink(SERVER_IP, SERVER_PORT);
 	if(tcplink == NULL){
 		printf("init link failed.\n");
