@@ -19,6 +19,13 @@ struct tcplink* InitLink(char *Ip, int port)
 	   return NULL;
 	   }
 	   */
+	tcplink->recv_max = TCP_RECV_LEN;
+	tcplink->recv_buf = malloc(tcplink->recv_max);
+	if(tcplink->recv_buf == NULL){
+		closesocket(tcplink->sclient);
+		free(tcplink);
+		return NULL;
+	}
 	return tcplink;
 }
 
@@ -54,13 +61,13 @@ int tcp_comm(struct tcplink* tcplink, char *send_buf, int send_len,
 			time_out = 0;
 		}else{
 			time_out++;
-			if(time_out > TCP_RECV_TIME_OUT_S*500/TCP_RECV_TIME_INTV_MS ||
-					(func != NULL && func(tcplink->recv_buf, tcplink->recv_len)==1)){
-				closesocket(tcplink->sclient);
-				tcplink->recv_len = p - tcplink->recv_buf;
-				*p = 0;
-				return tcplink->recv_len;
-			}
+		}
+		if(time_out > TCP_RECV_TIME_OUT_S*500/TCP_RECV_TIME_INTV_MS ||
+				(func != NULL && func(tcplink->recv_buf, tcplink->recv_len)==1)){
+			closesocket(tcplink->sclient);
+			tcplink->recv_len = p - tcplink->recv_buf;
+			*p = 0;
+			return tcplink->recv_len;
 		}
 	}
 }

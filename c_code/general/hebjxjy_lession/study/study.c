@@ -14,7 +14,7 @@ do{ \
 #define RUN_FUCN(err,func, ...) \
 { \
 	int relay_, res_; \
-	for(relay_=0;relay_<3;relay_++){ \
+	for(relay_=0;relay_<5;relay_++){ \
 		res_ = func(__VA_ARGS__); \
 		if(res_ > 0) \
 			break; \
@@ -25,7 +25,7 @@ do{ \
 	} \
 }
 
-void study(void *para)//return handle not implementation yet
+void study(void *para)
 {
 	struct tcplink* tcplink = 0;
 	struct http_handle *hhttp = 0;
@@ -46,6 +46,13 @@ void study(void *para)//return handle not implementation yet
 	RUN_FUCN(A_ST_ERR_CODE, lession_get_check_code,hhttp, tcplink);
 	RUN_FUCN(A_ST_ERR_LOGIN, lession_login,hhttp, tcplink, account->id, account->pass);
 	RUN_FUCN(A_ST_ERR_GET_UID, lession_get_userPlanID,hhttp, tcplink);
+
+	RUN_FUCN(A_ST_ERR_GET_SCORE, lession_get_score,hhttp, tcplink, account->score, &isOK);
+	if(isOK && atof(account->score) > 19.99){
+		account->a_st = A_ST_OK;
+		return;
+	}
+
 	RUN_FUCN(A_ST_ERR_SEL_COURSE, lession_sel_courses,hhttp, tcplink, account->sel_courses);
 	RUN_FUCN(A_ST_ERR_SET_LES_ID, lession_get_lessionID,hhttp, tcplink);
 	for(i=0;i<hhttp->lession.courseNum;i++){

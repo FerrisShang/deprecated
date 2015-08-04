@@ -12,7 +12,7 @@ int main(int argc, char *argv[]) {
 	int account_file_line;
 	int account_num, i;
 	char account_file_name[32] = ACCOUNT_FILE_NAME;
-	char log_file_name[64] = "log";
+	char log_file_name[64] = "log.txt";
 	char str_buf[256];
 	FILE *fp;
 	if(argc > 1){
@@ -54,10 +54,12 @@ int main(int argc, char *argv[]) {
 				account[i].score);
 		fputs(str_buf, fp);
 		fflush(fp);
+		printf(str_buf);
 	}
 	free(account);
-	fputs("鍏ㄩ儴瀹屾垚..\n", fp);
-	printf("%s 鍏ㄩ儴瀹屾垚..\n", log_file_name);
+	fputs("学习完毕..\n", fp);
+	printf("信息已输出到文件：%s （按任意键关闭）\n", log_file_name);
 	fclose(fp);
+	getchar();
 	return 0;
 }
