@@ -101,6 +101,8 @@ int main(int argc, char *argv[]) {
 	curr_num = 0;
 	finish_num = 0;
 	for(i=0;i<PTHREAD_NUM;i++){
+		if(curr_num == total_num)
+			break;
 		pthread_create(&thread[i],NULL,pthread_study,(void*)account);
 		sleep(2);
 	}

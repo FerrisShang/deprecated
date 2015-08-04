@@ -3,6 +3,7 @@
 #include "lession.h"
 #include "file_read.h"
 
+#define TRY_TIME 8
 #define return_err(err) \
 do{ \
 	destory_http(hhttp); \
@@ -14,7 +15,7 @@ do{ \
 #define RUN_FUCN(err,func, ...) \
 { \
 	int relay_, res_; \
-	for(relay_=0;relay_<8;relay_++){ \
+	for(relay_=0;relay_<TRY_TIME;relay_++){ \
 		res_ = func(__VA_ARGS__); \
 		if(res_ > 0) \
 			break; \
@@ -30,7 +31,7 @@ void study(void *para)
 	struct tcplink* tcplink = 0;
 	struct http_handle *hhttp = 0;
 	struct account *account = para;
-	int i,j,cn,vn,en;
+	int i,j,cn,vn,en,login_num,res;
 	char isOK;
 	account->a_st = A_ST_RUN;
 	tcplink = InitLink(SERVER_IP, SERVER_PORT);
@@ -43,15 +44,23 @@ void study(void *para)
 		CloseLink(tcplink);
 		return_err(A_ST_ERR_NET);
 	}
+	login_num = 0;
+relogin:
 	RUN_FUCN(A_ST_ERR_COOKIE, lession_init_cookie,hhttp, tcplink);
 	RUN_FUCN(A_ST_ERR_CODE, lession_get_check_code,hhttp, tcplink);
-	RUN_FUCN(A_ST_ERR_LOGIN, lession_login,hhttp, tcplink, account->id, account->pass);
+	res = lession_login(hhttp, tcplink, account->id, account->pass);
+	if(res <= 0){
+		if(!(login_num++ == TRY_TIME)){
+			goto relogin;
+		}else{
+			return_err(A_ST_ERR_LOGIN);
+		}
+	}
 	RUN_FUCN(A_ST_ERR_GET_UID, lession_get_userPlanID,hhttp, tcplink);
 
 	RUN_FUCN(A_ST_ERR_GET_SCORE, lession_get_score,hhttp, tcplink, account->score, &isOK);
 	if(isOK && atof(account->score) > 19.99){
-		account->a_st = A_ST_OK;
-		return;
+		return_err(A_ST_OK);
 	}
 
 	RUN_FUCN(A_ST_ERR_SEL_COURSE, lession_sel_courses,hhttp, tcplink, account->sel_courses);
@@ -90,5 +99,7 @@ void study(void *para)
 	}else{
 		account->a_st = A_ST_ERR_COURSE;
 	}
+	destory_http(hhttp);
+	CloseLink(tcplink);
 	return;
 }

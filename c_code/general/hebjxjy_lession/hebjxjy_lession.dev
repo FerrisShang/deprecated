@@ -25,28 +25,28 @@ UseCustomMakefile=0
 CustomMakefile=
 CommandLine=
 Folders=code_reg,djpeg,djpeg/src,file_ops,http,lession,socket,study
-IncludeVersionInfo=0
+IncludeVersionInfo=1
 SupportXPThemes=0
-CompilerSet=4
-CompilerSettings=0000000100000000001000000
+CompilerSet=3
+CompilerSettings=0000000100000000000000000
 UnitCount=56
 
 [VersionInfo]
 Major=1
 Minor=0
-Release=0
+Release=2
 Build=0
 LanguageID=1033
 CharsetID=1252
 CompanyName=
-FileVersion=1.0.0.0
-FileDescription=Developed using the Dev-C++ IDE
+FileVersion=1.0.2.0
+FileDescription=hebjxjy study
 InternalName=
 LegalCopyright=
 LegalTrademarks=
 OriginalFilename=
 ProductName=
-ProductVersion=1.0.0.0
+ProductVersion=1.0.2.0
 AutoIncBuildNr=0
 SyncProduct=1
 
