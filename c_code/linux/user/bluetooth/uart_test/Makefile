@@ -5,7 +5,7 @@ srcExt = c
 srcDir = .
 objDir = obj
 binDir = .
-inc = . base bluetooth uart
+inc = .  $(shell find -exec dirname {} \; | uniq)
 
 CFlags = -Wall -O2 -fdata-sections -ffunction-sections
 LDFlags = -Wl,--gc-sections -lpthread

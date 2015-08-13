@@ -13,6 +13,6 @@
 
 /* protocol module debug force on */
 #define UART_HCI_DBG       0
-#define BLUETOOTH_DBG      0
+#define BT_PROC_DBG        0
 
 #endif /* __CONFIG_H__ */
