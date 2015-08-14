@@ -1,0 +1,87 @@
+#ifndef __HCI_H__
+#define __HCI_H__
+
+/* HCI Packet types */
+#define HCI_COMMAND_PKT		0x01
+#define HCI_ACLDATA_PKT		0x02
+#define HCI_SCODATA_PKT		0x03
+#define HCI_EVENT_PKT		0x04
+#define HCI_VENDOR_PKT		0xff
+
+#define EVENT_INQUIRY_COMPLETE                                    0x01
+#define EVENT_INQUIRY_RESULT                                      0x02
+#define EVENT_CONNECTION_COMPLETE                                 0x03
+#define EVENT_CONNECTION_REQUEST                                  0x04
+#define EVENT_DISCONNECTION_COMPLETE                              0x05
+#define EVENT_AUTHENTICATION_COMPLETE                             0x06
+#define EVENT_REMOTE_NAME_REQUEST_COMPLETE                        0x07
+#define EVENT_ENCRYPTION_CHANGE                                   0x08
+#define EVENT_CHANGE_CONNECTION_LINK_KEY_COMPLETE                 0x09
+#define EVENT_MASTER_LINK_KEY_COMPLETE                            0x0a
+#define EVENT_READ_REMOTE_SUPPORTED_FEATURES_COMPLETE             0x0b
+#define EVENT_READ_REMOTE_VERSION_INFORMATION_COMPLETE            0x0c
+#define EVENT_QOS_SETUP_COMPLETE                                  0x0d
+#define EVENT_COMMAND_COMPLETE                                    0x0e
+#define EVENT_COMMAND_STATUS                                      0x0f
+#define EVENT_HARDWARE_ERROR                                      0x10
+#define EVENT_FLUSH_OCCURRED                                      0x11
+#define EVENT_ROLE_CHANGE                                         0x12
+#define EVENT_NUMBER_OF_COMPLETED_PACKETS                         0x13
+#define EVENT_MODE_CHANGE                                         0x14
+#define EVENT_RETURN_LINK_KEYS                                    0x15
+#define EVENT_PIN_CODE_REQUEST                                    0x16
+#define EVENT_LINK_KEY_REQUEST                                    0x17
+#define EVENT_LINK_KEY_NOTIFICATION                               0x18
+#define EVENT_LOOPBACK_COMMAND                                    0x19
+#define EVENT_DATA_BUFFER_OVERFLOW                                0x1a
+#define EVENT_MAX_SLOTS_CHANGE                                    0x1b
+#define EVENT_READ_CLOCK_OFFSET_COMPLETE                          0x1c
+#define EVENT_CONNECTION_PACKET_TYPE_CHANGED                      0x1d
+#define EVENT_QOS_VIOLATION                                       0x1e
+#define EVENT_PAGE_SCAN_REPETITION_MODE_CHANGE                    0x20
+#define EVENT_FLOW_SPECIFICATION_COMPLETE                         0x21
+#define EVENT_INQUIRY_RESULT_WITH_RSSI                            0x22
+#define EVENT_READ_REMOTE_EXTENDED_FEATURES_COMPLETE              0x23
+#define EVENT_SYNCHRONOUS_CONNECTION_COMPLETE                     0x2c
+#define EVENT_SYNCHRONOUS_CONNECTION_CHANGED                      0x2d
+#define EVENT_SNIFF_SUBRATING                                     0x2e
+#define EVENT_EXTENDED_INQUIRY_RESULT                             0x2f
+#define EVENT_ENCRYPTION_KEY_REFRESH_COMPLETE                     0x30
+#define EVENT_IO_CAPABILITY_REQUEST                               0x31
+#define EVENT_IO_CAPABILITY_RESPONSE                              0x32
+#define EVENT_USER_CONFIRMATION_REQUEST                           0x33
+#define EVENT_USER_PASSKEY_REQUEST                                0x34
+#define EVENT_REMOTE_OOB_DATA_REQUEST                             0x35
+#define EVENT_SIMPLE_PAIRING_COMPLETE                             0x36
+#define EVENT_LINK_SUPERVISION_TIMEOUT_CHANGED                    0x38
+#define EVENT_ENHANCED_FLUSH_COMPLETE                             0x39
+#define EVENT_USER_PASSKEY_NOTIFICATION                           0x3b
+#define EVENT_KEYPRESS_NOTIFICATION                               0x3c
+#define EVENT_REMOTE_HOST_SUPPORTED_FEATURES_NOTIFICATION         0x3d
+#define EVENT_PHYSICAL_LINK_COMPLETE                              0x40
+#define EVENT_CHANNEL_SELECTED                                    0x41
+#define EVENT_DISCONNECTION_PHYSICAL_LINK_COMPLETE                0x42
+#define EVENT_PHYSICAL_LINK_LOSS_EARLY_WARNING                    0x43
+#define EVENT_PHYSICAL_LINK_RECOVERY                              0x44
+#define EVENT_LOGICAL_LINK_COMPLETE                               0x45
+#define EVENT_DISCONNECTION_LOGICAL_LINK_COMPLETE                 0x46
+#define EVENT_FLOW_SPEC_MODIFY_COMPLETE                           0x47
+#define EVENT_NUMBER_OF_COMPLETED_DATA_BLOCKS                     0x48
+#define EVENT_SHORT_RANGE_MODE_CHANGE_COMPLETE                    0x4c
+#define EVENT_AMP_STATUS_CHANGE                                   0x4d
+#define EVENT_AMP_START_TEST                                      0x49
+#define EVENT_AMP_TEST_END                                        0x4a
+#define EVENT_AMP_RECEIVER_REPORT                                 0x4b
+#define EVENT_LE_META                                             0x3e
+#define EVENT_TRIGGERED_CLOCK_CAPTURE                             0x4e
+#define EVENT_SYNCHRONIZATION_TRAIN_COMPLETE                      0x4f
+#define EVENT_SYNCHRONIZATION_TRAIN_RECEIVED                      0x50
+#define EVENT_CONNECTIONLESS_SLAVE_BROADCAST_RECEIVE              0x51
+#define EVENT_CONNECTIONLESS_SLAVE_BROADCAST_TIMEOUT              0x52
+#define EVENT_TRUNCATED_PAGE_COMPLETE                             0x53
+#define EVENT_SLAVE_PAGE_RESPONSE_TIMEOUT                         0x54
+#define EVENT_CONNECTIONLESS_SLAVE_BROADCAST_CHANNEL_MAP_CHANGE   0x55
+#define EVENT_INQUIRY_RESPONSE_NOTIFICATION                       0x56
+#define EVENT_AUTHENTICATED_PAYLOAD_TIMEOUT_EXPIRED               0x57
+
+#endif /* __HCI_H__ */

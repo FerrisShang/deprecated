@@ -1,0 +1,5 @@
+unsupport feature
+	 one package, multi hci instructions
+	 add semaphore when waiting for receiving package
+	 support multithread process hci commagd
+	 hci command auto block

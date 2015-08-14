@@ -7,6 +7,7 @@
 #include "uart_hci.h"
 
 static void uart_recv_callback(void *para);
+static void hci_dump(char dir, char *buf, int len);
 
 struct uart_hci *create_uart(char *port, int baud,
 		int (*recv_callback)(char *buf, int len))
@@ -50,6 +51,7 @@ err_malloc_uhci:
 
 int write_hci(struct uart_hci *uhci, char *buf, int len)
 {
+	hci_dump(1, buf, len);
 	return write(uhci->fd, buf, len);
 }
 
@@ -74,9 +76,26 @@ static void uart_recv_callback(void *para)
 		len = read(uhci->fd, buf, UART_RECV_BUF_SIZE);
 		if(len > 0){
 			uhci->recv_callback(buf, len);
+			hci_dump(0, buf, len);
 		}else{
 			dbg_print(DBG_ERROR, UART_HCI_DBG, "read uart data error.\n");
 			pthread_exit(0);
 		}
 	}
+}
+
+static void hci_dump(char dir, char *buf, int len)
+{
+	int i;
+	if(dir != 0)
+		printf("<<< ");
+	else
+		printf(">>> ");
+	for(i=1;i<=len;i++){
+		if((i%16)==0)
+			printf("\n\t");
+		printf("%02x ", (unsigned char)buf[i-1]);
+	}
+	if((i%16)!=0)
+		printf("\n");
 }

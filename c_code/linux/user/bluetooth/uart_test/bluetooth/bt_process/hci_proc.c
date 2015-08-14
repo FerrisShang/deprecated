@@ -1,62 +1,59 @@
 #include <stdio.h>
 #include "proc_common.h"
 #include "hci_proc.h"
+#include "hci_event_proc.h"
 
-static int hci_proc(struct bt_msg *bt_msg);
-
-struct bt_msg_proc_node proc_node = {
+static int hci_proc(struct bt_pkg *bt_pkg, void *pdata);
+static struct bt_pkg_proc_node proc_node = {
 	hci_proc,
-	BT_MSG_CB_MULTI,
+	NULL,
 };
-
-static struct bt_msg_proc_list bt_msg_proc_list = {
+static struct bt_pkg_proc_list bt_pkg_proc_list = {
 	NULL,
 	&proc_node,
 };
+static struct bt_pkg_proc_list bt_pkg_proc_list_head = {
+	&bt_pkg_proc_list,
+	NULL,
+};
 
-static struct bt_msg_proc_list *bt_msg_proc_list_head = &bt_msg_proc_list;
-
-int bt_hci_process(struct bt_msg *bt_msg)
+int bt_hci_process(struct bt_pkg *bt_pkg)
 {
-	struct bt_msg_proc_list *proc_list;
-	int ret = -1;
+	return bt_pkg_process(&bt_pkg_proc_list_head, bt_pkg);
+}
 
-	proc_list = bt_msg_proc_list_head;
-	do{
-		if(proc_list->proc_node->func != NULL){
-			ret = proc_list->proc_node->func(bt_msg);
-			if(ret == 0){
-				if(proc_list->proc_node->func_type == BT_MSG_CB_ONCE){
-					bt_hci_proc_unreg(proc_list->proc_node);
-				}
-				break;
-			}
-		}
-		if(proc_list->next == NULL){
+int bt_hci_proc_reg(struct bt_pkg_proc_node *node)
+{
+	return bt_pkg_proc_node_reg(&bt_pkg_proc_list_head, node);
+}
+
+int bt_hci_proc_unreg(struct bt_pkg_proc_node *node)
+{
+	return bt_pkg_proc_node_unreg(&bt_pkg_proc_list_head, node);
+}
+
+static int hci_proc(struct bt_pkg *bt_pkg, void *pdata)
+{
+	char bt_pkg_type = bt_pkg->pbuf[0];
+	int ret;
+	bt_pkg->pbuf += HCI_HEADER_LEN;
+	bt_pkg->buf_len -= HCI_HEADER_LEN;
+	switch(bt_pkg_type){
+		case HCI_PKT_TYPE_ACL:
+			dbg_print(DBG_WARNING, BT_PROC_DBG, "ACL package processing not implement\n");
+			ret = BT_PKG_CB_RET_FAIL;
 			break;
-		}else{
-			proc_list = proc_list->next;
-		}
-	}while(ret != 0);
-	//proc_node maybe already free, we cannot access it below
-	if(ret != 0){
-		dbg_print(DBG_WARNING, BT_PROC_DBG, "process hci message failed\n");
+		case HCI_PKT_TYPE_SYNC:
+			dbg_print(DBG_WARNING, BT_PROC_DBG, "Sync data package processing not implement\n");
+			ret = BT_PKG_CB_RET_FAIL;
+			break;
+		case HCI_PKT_TYPE_EVENT:
+			ret = bt_hci_event_process(bt_pkg);
+			break;
+		default:
+			dbg_print(DBG_WARNING, BT_PROC_DBG, "unknown package type found\n");
+			ret = BT_PKG_CB_RET_FAIL;
+			break;
 	}
 	return ret;
-}
-
-int bt_hci_proc_reg(struct bt_msg_proc_node *node)
-{
-	return bt_msg_proc_node_reg(&bt_msg_proc_list_head, node);
-}
-
-int bt_hci_proc_unreg(struct bt_msg_proc_node *node)
-{
-	return bt_msg_proc_node_unreg(&bt_msg_proc_list_head, node);
-}
-
-static int hci_proc(struct bt_msg *bt_msg)
-{
-	printf("hci received, buflen = %d\n", bt_msg->buf_len);
-	return 0;
 }

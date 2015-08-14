@@ -6,17 +6,22 @@
 //struct bt_proc_node 
 int uart_process(char *buf, int len)
 {
-	struct bt_msg bt_msg;
+	struct bt_pkg bt_pkg;
 	char *pbuf;
-	memset(&bt_msg, 0, sizeof(bt_msg));
+	int ret;
+	memset(&bt_pkg, 0, sizeof(bt_pkg));
 	pbuf = mem_malloc(len);
 	if(pbuf == NULL){
 		dbg_print(DBG_ERROR, BT_PROC_DBG, "malloc error\n");
 	}
-	bt_msg.pbuf = pbuf;
-	bt_msg.buf_len = len;
-	bt_msg.type = BT_MSG_TYPE_HCI;
-	bt_hci_process(&bt_msg);
+	memcpy(pbuf, buf, len);
+	bt_pkg.pbuf = pbuf;
+	bt_pkg.buf_len = len;
+	bt_pkg.type = BT_PKG_TYPE_HCI;
+	ret = bt_hci_process(&bt_pkg);
+	if(ret == BT_PKG_CB_RET_FAIL){
+		dbg_print(DBG_WARNING, BT_PROC_DBG, "Process bt package failed\n");
+	}
 	mem_free(pbuf);
 	return 0;
 }
