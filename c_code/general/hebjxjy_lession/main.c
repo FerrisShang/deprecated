@@ -14,7 +14,7 @@ pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 int total_num;
 int curr_num;
 int finish_num;
-#define PTHREAD_NUM 15
+#define PTHREAD_NUM 3
 
 char account_file_name[32] = ACCOUNT_FILE_NAME;
 char log_file_name[64] = "log.txt";
