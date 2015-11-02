@@ -1,4 +1,5 @@
 #include "strHandle.h"
+#include "string.h"
 
 struct keyWord keyWord[] = {
 	{"auto",		0, 1},
@@ -41,7 +42,7 @@ int keyWordInx(char* word)
 {
 	 int i;
 	 for(i=0;i<keyWordNum;i++){
-		  if(0 == strcmp((keyWord[i].word,word))){
+		  if(0 == strcmp(keyWord[i].word,word)){
 			   return i;
 		  }
 	 }

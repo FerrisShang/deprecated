@@ -21,6 +21,11 @@ char isVisChar(char ch)
 	if(ch > ' ' && ch <= '~') return 1;
 	return 0;
 }
+char isRet(char ch)
+{
+	if(ch == '\r' || ch == '\n') return 1;
+	return 0;
+}
 
 char *strbVis(char *str, int len)
 {
