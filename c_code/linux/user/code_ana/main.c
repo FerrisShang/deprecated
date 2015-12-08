@@ -38,17 +38,21 @@ void prepro(const char* file, int size, struct char_status *cState)
 			if(file[tNum] == ENTER){
 				state.isMark_one = 0;
 			}
+			preChar = file[tNum];
 			continue;
 		}else if(state.isMark_multi == 1){
 			if(file[tNum] == '/' && preChar == '*'){
 				state.isMark_multi = 0;
 			}
+			preChar = file[tNum];
 			continue;
 		}else if(file[tNum] == '*' && preChar == '/'){
 			state.isMark_multi = 1;
+			preChar = file[tNum];
 			continue;
 		}else if(file[tNum] == '/' && preChar == '/'){
 			state.isMark_one = 1;
+			preChar = file[tNum];
 			continue;
 		}
 
@@ -112,7 +116,13 @@ int fileProcess(const char* file, int size)
 				0 == pChStatus[i].isMacro &&
 				0 == pChStatus[i].isQuotes
 				){
-			printf("!!!==========\n");
+			char *p = (char*)&file[i];
+			while(*--p != '(');
+			*p = '\0';
+			while(!isVarChar(*--p));
+			while(isVarChar(*--p));
+			p++;
+			puts(p);
 		}
 		//putchar(pChStatus[i].lastPrtChar);
 	}
