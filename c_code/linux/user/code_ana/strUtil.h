@@ -4,7 +4,7 @@
 char* strnSpace(char *str);
 char* strnValueChar(char *str);
 char* strEnter(char *str);
-char isVarClar(char ch);
+char isVarChar(char ch);
 char isPrtChar(char ch);
 char isVisChar(char ch);
 char isRet(char ch);

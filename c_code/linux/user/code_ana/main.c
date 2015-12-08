@@ -13,8 +13,10 @@ struct char_status{
 	char isMark_multi;
 	char isMacro;
 	char isQuotes;
+	char issQuotes;
 	char isStartOfLine;
 	char isStartOfCom;
+	char lastPrtChar;
 	char parent_lev;
 	char brack_lev;
 };
@@ -29,6 +31,9 @@ void prepro(const char* file, int size, struct char_status *cState)
 	state.isStartOfLine = 1;
 
 	for(tNum=0;tNum<size;tNum++){
+		if(isPrtChar(file[tNum])){
+			state.lastPrtChar = file[tNum];
+		}
 		if(state.isMark_one == 1){
 			if(file[tNum] == ENTER){
 				state.isMark_one = 0;
@@ -64,16 +69,21 @@ void prepro(const char* file, int size, struct char_status *cState)
 			state.isMacro = 1;
 		}
 
-		if(file[tNum] == '{'){
-			state.brack_lev++;
-		}else if(file[tNum] == '}'){
-			state.brack_lev--;
-		}else if(file[tNum] == '('){
-			state.parent_lev++;
-		}else if(file[tNum] == ')'){
-			state.parent_lev--;
+		if(file[tNum] == '\'' && preChar != '\\'){
+			state.issQuotes = !state.issQuotes;
 		}else if(file[tNum] == '\"' && preChar != '\\'){
 			state.isQuotes = !state.isQuotes;
+		}
+		if(tNum >0 && state.isQuotes == 0 && state.issQuotes == 0){
+			if(file[tNum] == '{'){
+				state.brack_lev++;
+			}else if(file[tNum] == '}'){
+				state.brack_lev--;
+			}else if(file[tNum] == '('){
+				state.parent_lev++;
+			}else if(file[tNum] == ')'){
+				state.parent_lev--;
+			}
 		}
 #if 0
 		if(file[tNum] == ';' && parent_lev == 0 &&
@@ -86,8 +96,27 @@ void prepro(const char* file, int size, struct char_status *cState)
 	}
 }
 
-int findFunc(const char* file, int size)
+int fileProcess(const char* file, int size)
 {
+	struct char_status *pChStatus;
+	int i;
+	pChStatus = (struct char_status *)malloc(size * sizeof(struct char_status));
+	prepro(file, size, pChStatus);
+	for(i=1;i<size;i++){
+		if(pChStatus[i].lastPrtChar == '{' &&
+				pChStatus[i-1].lastPrtChar == ')' &&
+				0 == pChStatus[i].parent_lev &&
+				1 == pChStatus[i].brack_lev &&
+				0 == pChStatus[i].isMark_one &&
+				0 == pChStatus[i].isMark_multi &&
+				0 == pChStatus[i].isMacro &&
+				0 == pChStatus[i].isQuotes
+				){
+			printf("!!!==========\n");
+		}
+		//putchar(pChStatus[i].lastPrtChar);
+	}
+	free(pChStatus);
 	return 0;
 }
 
@@ -129,7 +158,7 @@ int fileFunc(const char* path,void *para)
 			if(fread(fileBuf,fileSize,1,fp)==0){
 				return 0;
 			}
-			findFunc(fileBuf,fileSize);
+			fileProcess(fileBuf,fileSize);
 			fclose(fp);
 		}
 	}
