@@ -100,13 +100,11 @@ void prepro(const char* file, int size, struct char_status *cState)
 	}
 }
 
-int fileProcess(const char* file, int size)
+int findfunc(const struct char_status *pChStatus, int statusSize, int *buf, int bufSize)
 {
-	struct char_status *pChStatus;
 	int i;
-	pChStatus = (struct char_status *)malloc(size * sizeof(struct char_status));
-	prepro(file, size, pChStatus);
-	for(i=1;i<size;i++){
+	int funcNum = 0;
+	for(i=1;i<statusSize;i++){
 		if(pChStatus[i].lastPrtChar == '{' &&
 				pChStatus[i-1].lastPrtChar == ')' &&
 				0 == pChStatus[i].parent_lev &&
@@ -116,16 +114,50 @@ int fileProcess(const char* file, int size)
 				0 == pChStatus[i].isMacro &&
 				0 == pChStatus[i].isQuotes
 				){
-			char *p = (char*)&file[i];
-			while(*--p != '(');
-			*p = '\0';
-			while(!isVarChar(*--p));
-			while(isVarChar(*--p));
-			p++;
-			puts(p);
+			buf[funcNum] = i;
+			funcNum++;
+			if(funcNum == bufSize){
+				return funcNum;
+			}
 		}
-		//putchar(pChStatus[i].lastPrtChar);
 	}
+	return funcNum;
+}
+
+void prt_func(const char *file, int size, int *funcBuf, int funcBufNum)
+{
+	int i;
+	for(i=0;i<funcBufNum;i++){
+		char *p = (char*)&file[funcBuf[i]];
+		while(*--p != '(');
+		*p = '\0';
+		while(!isVarChar(*--p));
+		while(isVarChar(*--p));
+		p++;
+		puts(p);
+	}
+}
+void addPrt(const char *filePath, const char *file, int size, int *funcBuf, int funcNum)
+{
+	char strBuf[80];
+	int ret;
+	sprintf(strBuf, "mv %s %s.bk", filePath, filePath);
+	ret = system(strBuf);
+	if(ret != 0){
+		printf("process command failed. ret = %d", ret);
+	}
+}
+
+int fileProcess(const char *filePath, const char *file, int size)
+{
+#define FUNC_BUF_SIZE 1000
+	struct char_status *pChStatus;
+	int funcNum, funcBuf[FUNC_BUF_SIZE];
+	pChStatus = (struct char_status *)malloc(size * sizeof(struct char_status));
+	prepro(file, size, pChStatus);
+	funcNum = findfunc(pChStatus, size, funcBuf, FUNC_BUF_SIZE);
+	prt_func(file, size, funcBuf, funcNum);
+	addPrt(filePath, file, size, funcBuf, funcNum);
 	free(pChStatus);
 	return 0;
 }
@@ -168,7 +200,7 @@ int fileFunc(const char* path,void *para)
 			if(fread(fileBuf,fileSize,1,fp)==0){
 				return 0;
 			}
-			fileProcess(fileBuf,fileSize);
+			fileProcess(path, fileBuf,fileSize);
 			fclose(fp);
 		}
 	}
