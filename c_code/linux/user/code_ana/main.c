@@ -8,6 +8,12 @@
 #define COM_SYMBOL "list"
 #define ENTER 0x0a
 
+char *addString = "\nALOGD(\"fsDbg:%s,%s,%d\",__FILE__,__func__,__LINE__);";
+//char *addString = "\nFSHANG_FOR_DEBUG(__FILE__,__func__,__LINE__);";
+//char *addString = "LogMsg(0,\"fsDbg: %%s,%%s,%%d\",__FILE__,__func__,__LINE__);\n";
+//char *addStringAtHeader = "#include \"fshang.h\"\n";
+char *addStringAtHeader = "";
+
 struct char_status{
 	char isMark_one;
 	char isMark_multi;
@@ -31,7 +37,7 @@ void prepro(const char* file, int size, struct char_status *cState)
 	state.isStartOfLine = 1;
 
 	for(tNum=0;tNum<size;tNum++){
-		if(isPrtChar(file[tNum])){
+		if(isVisChar(file[tNum])){
 			state.lastPrtChar = file[tNum];
 		}
 		if(state.isMark_one == 1){
@@ -58,9 +64,6 @@ void prepro(const char* file, int size, struct char_status *cState)
 
 		if(file[tNum] == ENTER){
 			state.isStartOfLine = 1;
-			if(state.isMacro == 1 && preChar == '\\'){
-				state.isMacro = 0;
-			}
 		}else if(state.isStartOfLine == 1 && isVisChar(file[tNum] == 1)){
 			state.isStartOfLine = 0;
 		}
@@ -69,7 +72,8 @@ void prepro(const char* file, int size, struct char_status *cState)
 			if(preChar != '\\'){
 				state.isMacro = 0;
 			}
-		}else if(file[tNum] == '#' && cState[tNum-1].isStartOfLine == 1){
+		}else if(file[tNum] == '#' &&
+				(tNum == 0 || state.isStartOfLine == 1)){
 			state.isMacro = 1;
 		}
 
@@ -117,6 +121,7 @@ int findfunc(const struct char_status *pChStatus, int statusSize, int *buf, int 
 			buf[funcNum] = i;
 			funcNum++;
 			if(funcNum == bufSize){
+				printf("function number reach the max buffer size !\n");
 				return funcNum;
 			}
 		}
@@ -127,18 +132,25 @@ int findfunc(const struct char_status *pChStatus, int statusSize, int *buf, int 
 void prt_func(const char *file, int size, int *funcBuf, int funcBufNum)
 {
 	int i;
+	char *pBk, bkChar;
 	for(i=0;i<funcBufNum;i++){
 		char *p = (char*)&file[funcBuf[i]];
 		while(*--p != '(');
+		bkChar = *p;
+		pBk = p;
 		*p = '\0';
 		while(!isVarChar(*--p));
 		while(isVarChar(*--p));
 		p++;
 		puts(p);
+		*pBk = bkChar;
 	}
 }
 void addPrt(const char *filePath, const char *file, int size, int *funcBuf, int funcNum)
 {
+	FILE *fp;
+	int i;
+	/* // backup files
 	char strBuf[80];
 	int ret;
 	sprintf(strBuf, "mv %s %s.bk", filePath, filePath);
@@ -146,16 +158,48 @@ void addPrt(const char *filePath, const char *file, int size, int *funcBuf, int 
 	if(ret != 0){
 		printf("process command failed. ret = %d", ret);
 	}
+	*/
+	fp = fopen(filePath, "wb");
+	if(fp != NULL){
+		int curPos = 0;
+		int writeSize;
+		if(strlen(addStringAtHeader) > 0){
+			fwrite(addStringAtHeader, strlen(addStringAtHeader), 1, fp);
+		}
+		for(i=0;i<funcNum;i++){
+			writeSize = funcBuf[i] - curPos + 1;
+			fwrite(&file[curPos], writeSize, 1, fp);
+			curPos += writeSize;
+			if(strlen(addString) > 0){
+				fwrite(addString, strlen(addString), 1, fp);
+			}
+		}
+		writeSize = size - curPos;
+		if(writeSize > 0){
+			fwrite(&file[curPos], writeSize, 1, fp);
+		}
+		fclose(fp);
+	}else{
+		printf("open file: %s error\n", filePath);
+	}
 }
 
+struct char_status chStatusBuf[1024*1024];
 int fileProcess(const char *filePath, const char *file, int size)
 {
 #define FUNC_BUF_SIZE 1000
 	struct char_status *pChStatus;
 	int funcNum, funcBuf[FUNC_BUF_SIZE];
 	pChStatus = (struct char_status *)malloc(size * sizeof(struct char_status));
+	//pChStatus = &chStatusBuf;
+	memset(pChStatus, 0, size * sizeof(struct char_status));
+	if(pChStatus == NULL){
+		printf("malloc failed.");
+		return -1;
+	}
 	prepro(file, size, pChStatus);
 	funcNum = findfunc(pChStatus, size, funcBuf, FUNC_BUF_SIZE);
+	printf("%s : %d\n", filePath, funcNum);
 	prt_func(file, size, funcBuf, funcNum);
 	addPrt(filePath, file, size, funcBuf, funcNum);
 	free(pChStatus);
@@ -203,6 +247,8 @@ int fileFunc(const char* path,void *para)
 			fileProcess(path, fileBuf,fileSize);
 			fclose(fp);
 		}
+	}else{
+		printf("malloc failed.");
 	}
 	free(fileBuf);
 	return 0;
@@ -213,6 +259,12 @@ int main(int argc, char *argv[])
 	if(argc < 2){
 		List_Files("./",(fileHandle)fileFunc,(void*)0);
 	}else{
+		if(argc > 2){
+			addString = argv[3];
+		}
+		if(argc > 3){
+			addStringAtHeader = argv[4];
+		}
 		List_Files(argv[1],(fileHandle)fileFunc,(void*)0);
 	}
 	return 0;
