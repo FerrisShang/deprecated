@@ -31,6 +31,7 @@ void prepro(const char* file, int size, struct char_status *cState)
 {
 	int tNum;
 	char preChar = '\0';
+	char isPreCharStr = 0;
 	struct char_status state;
 
 	memset(&state, 0, sizeof(struct char_status));
@@ -77,10 +78,35 @@ void prepro(const char* file, int size, struct char_status *cState)
 			state.isMacro = 1;
 		}
 
-		if(file[tNum] == '\'' && preChar != '\\'){
-			state.issQuotes = !state.issQuotes;
-		}else if(file[tNum] == '\"' && preChar != '\\'){
-			state.isQuotes = !state.isQuotes;
+		if(state.isQuotes == 0 && file[tNum] == '\''){
+			if(state.issQuotes == 1){
+				if(isPreCharStr == 0 && preChar == '\\'){
+					isPreCharStr = 1;
+				}else{
+					state.issQuotes = !state.issQuotes;
+					isPreCharStr = 0;
+				}
+			}else{
+				state.issQuotes = !state.issQuotes;
+				isPreCharStr = 0;
+			}
+		}else if(state.issQuotes == 0 && file[tNum] == '\"'){
+			if(state.isQuotes == 1){
+				if(isPreCharStr == 0 && preChar == '\\'){
+					isPreCharStr = 1;
+				}else{
+					state.isQuotes = !state.isQuotes;
+					isPreCharStr = 0;
+				}
+			}else{
+				state.isQuotes = !state.isQuotes;
+				isPreCharStr = 0;
+			}
+		}else if((state.issQuotes == 1 || state.isQuotes == 1) && 
+				isPreCharStr == 0 && preChar == '\\'){
+			isPreCharStr = 1;
+		}else{
+			isPreCharStr = 0;
 		}
 		if(tNum >0 && state.isQuotes == 0 && state.issQuotes == 0){
 			if(file[tNum] == '{'){
@@ -131,19 +157,33 @@ int findfunc(const struct char_status *pChStatus, int statusSize, int *buf, int 
 
 void prt_func(const char *file, int size, int *funcBuf, int funcBufNum)
 {
-	int i;
-	char *pBk, bkChar;
+	int i, parentCnt;
+	char *pBk = NULL, bkChar;
 	for(i=0;i<funcBufNum;i++){
 		char *p = (char*)&file[funcBuf[i]];
-		while(*--p != '(');
-		bkChar = *p;
-		pBk = p;
-		*p = '\0';
+		parentCnt = 0;
+		while(*p){
+			if(*p == ')'){
+				parentCnt++;
+			}else if(*p == '('){
+				parentCnt--;
+				if(parentCnt == 0){
+					bkChar = *p;
+					pBk = p;
+					*p = '\0';
+					break;
+				}
+			}
+			p--;
+		}
+
 		while(!isVarChar(*--p));
 		while(isVarChar(*--p));
 		p++;
 		puts(p);
-		*pBk = bkChar;
+		if(pBk){
+			*pBk = bkChar;
+		}
 	}
 }
 void addPrt(const char *filePath, const char *file, int size, int *funcBuf, int funcNum)
@@ -201,7 +241,7 @@ int fileProcess(const char *filePath, const char *file, int size)
 	funcNum = findfunc(pChStatus, size, funcBuf, FUNC_BUF_SIZE);
 	printf("%s : %d\n", filePath, funcNum);
 	prt_func(file, size, funcBuf, funcNum);
-	addPrt(filePath, file, size, funcBuf, funcNum);
+	//addPrt(filePath, file, size, funcBuf, funcNum);
 	free(pChStatus);
 	return 0;
 }
@@ -234,7 +274,7 @@ int fileFunc(const char* path,void *para)
 	int nameLen;
 	nameLen = strlen(path);
 	if(path[nameLen-2] != '.')return 0;
-	if(path[nameLen-1] != 'c' && path[nameLen-1] != 'h')return 0;
+	if(path[nameLen-1] != 'c' /* && path[nameLen-1] != 'h' */)return 0;
 	//printf("%s\n", path);
 	fileSize = get_file_size(path);
 	fileBuf = (char*)malloc(fileSize);
