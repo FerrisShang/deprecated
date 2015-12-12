@@ -57,7 +57,8 @@ void prepro(const char* file, int size, struct char_status *cState)
 			state.isMark_multi = 1;
 			preChar = file[tNum];
 			continue;
-		}else if(file[tNum] == '/' && preChar == '/'){
+		}else if(state.isQuotes == 0 && state.issQuotes == 0 &&
+				file[tNum] == '/' && preChar == '/'){
 			state.isMark_one = 1;
 			preChar = file[tNum];
 			continue;
@@ -227,7 +228,7 @@ void addPrt(const char *filePath, const char *file, int size, int *funcBuf, int 
 struct char_status chStatusBuf[1024*1024];
 int fileProcess(const char *filePath, const char *file, int size)
 {
-#define FUNC_BUF_SIZE 1000
+#define FUNC_BUF_SIZE 256
 	struct char_status *pChStatus;
 	int funcNum, funcBuf[FUNC_BUF_SIZE];
 	pChStatus = (struct char_status *)malloc(size * sizeof(struct char_status));

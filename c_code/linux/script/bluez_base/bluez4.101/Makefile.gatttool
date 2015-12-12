@@ -1,0 +1,108 @@
+app = gatttool
+
+PREFIX=/home/fshang/f/wicom_code/BlueZ/output/app/usr
+CC = mips-linux-gnu-gcc
+srcExt = c
+objDir = obj
+binDir = .
+
+CFLAGS = -Wall -O2 \
+		 -fdata-sections -ffunction-sections \
+		 -DVERSION="4.101" \
+		 -ffunction-sections -fdata-sections \
+
+LDFLAGS = -Wl,--gc-sections \
+
+inc = . \
+	  src \
+	  btio \
+	  gdbus \
+	  attrib \
+	  lib \
+	  $(PREFIX)/include \
+	  $(PREFIX)/include/dbus-1.0 \
+	  $(PREFIX)/include/glib-2.0 \
+	  $(PREFIX)/include/readline \
+	  $(PREFIX)/lib/glib-2.0/include \
+	  $(PREFIX)/lib/dbus-1.0/include \
+
+libDir = $(PREFIX)/lib \
+
+LIBS = dbus-1 \
+	   glib-2.0 \
+	   readline \
+	   ncurses \
+
+SOURCES = attrib/gattrib.c \
+		  attrib/utils.c \
+		  attrib/interactive.c \
+		  attrib/gatt.c \
+		  attrib/gatttool.c \
+		  attrib/att.c \
+		  lib/uuid.c \
+		  lib/bluetooth.c \
+		  lib/hci.c \
+		  lib/sdp.c \
+		  src/textfile.c \
+		  src/log.c \
+		  src/dbus-common.c \
+		  src/glib-helper.c \
+		  gdbus/object.c \
+		  gdbus/polkit.c \
+		  gdbus/mainloop.c \
+		  gdbus/watch.c \
+		  btio/btio.c \
+
+
+#************************ DO NOT EDIT BELOW THIS LINE! ************************
+
+inc := $(addprefix -I,$(inc))
+LIBS := $(addprefix -l,$(LIBS))
+libDir := $(addprefix -L,$(libDir))
+CFLAGS += -c $(inc) $(libDir) $(LIBS)
+LDFLAGS += $(libDir) $(LIBS)
+srcDirs := $(shell find . -name '*.$(srcExt)' -exec dirname {} \; | uniq)
+objects := $(patsubst %.$(srcExt),$(objDir)/%.o,$(SOURCES))
+
+.phony: all clean distclean
+
+all: $(binDir)/$(app)
+
+$(binDir)/$(app): buildrepo $(objects)
+	@mkdir -p `dirname $@`
+	@echo "Linking $@..."
+	@$(CC) $(objects) $(LDFLAGS) -o $@
+
+sinclude $(SOURCES:%.$(srcExt)=$(objDir)/%.d)
+$(objDir)/%.o: %.$(srcExt)
+#	@echo "Generating dependencies for $<..."
+	@$(call make-depend,$<,$@,$(subst .o,.d,$@))
+	@echo "Compiling $<..."
+	@$(CC) $(CFLAGS) $< -o $@
+
+clean:
+	@$(RM) -r $(objDir)
+
+distclean: clean
+	@$(RM) -r $(binDir)/$(app)
+
+buildrepo:
+	@$(call make-repo)
+
+define make-repo
+   for dir in $(srcDirs); \
+   do \
+	mkdir -p $(objDir)/$$dir; \
+   done
+endef
+
+
+# usage: $(call make-depend,source-file,object-file,depend-file)
+define make-depend
+  $(CC) -MM       \
+        -MF $3    \
+        -MP       \
+        -MT $2    \
+        $(CFLAGS) \
+        $1
+endef
