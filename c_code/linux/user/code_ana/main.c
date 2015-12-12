@@ -158,26 +158,14 @@ int findfunc(const struct char_status *pChStatus, int statusSize, int *buf, int 
 
 void prt_func(const char *file, int size, int *funcBuf, int funcBufNum)
 {
-	int i, parentCnt;
-	char *pBk = NULL, bkChar;
+	int i;
+	char *pBk, bkChar;
 	for(i=0;i<funcBufNum;i++){
 		char *p = (char*)&file[funcBuf[i]];
-		parentCnt = 0;
-		while(*p){
-			if(*p == ')'){
-				parentCnt++;
-			}else if(*p == '('){
-				parentCnt--;
-				if(parentCnt == 0){
-					bkChar = *p;
-					pBk = p;
-					*p = '\0';
-					break;
-				}
-			}
-			p--;
-		}
-
+		while(*--p != '(');
+		bkChar = *p;
+		pBk = p;
+		*p = '\0';
 		while(!isVarChar(*--p));
 		while(isVarChar(*--p));
 		p++;

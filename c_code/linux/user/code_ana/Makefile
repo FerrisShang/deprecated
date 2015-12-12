@@ -7,7 +7,7 @@ objDir = obj
 binDir = .
 inc = .  $(shell find -exec dirname {} \; | uniq)
 
-CFlags = -Wall -O2 -fdata-sections -ffunction-sections
+CFlags = -Wall -fdata-sections -ffunction-sections
 LDFlags = -Wl,--gc-sections -lpthread -lrt
 libs =
 libDir =
