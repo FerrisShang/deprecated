@@ -1552,17 +1552,17 @@ static int l2cap_le_att_listen_and_accept(bdaddr_t *src, int sec,
 	srcaddr.l2_bdaddr_type = src_type;
 	bacpy(&srcaddr.l2_bdaddr, src);
 
-	if (bind(sk, (struct sockaddr *) &srcaddr, sizeof(srcaddr)) < 0) {
-		perror("Failed to bind L2CAP socket");
-		goto fail;
-	}
-
 	/* Set the security level */
 	memset(&btsec, 0, sizeof(btsec));
 	btsec.level = sec;
 	if (setsockopt(sk, SOL_BLUETOOTH, BT_SECURITY, &btsec,
 							sizeof(btsec)) != 0) {
 		fprintf(stderr, "Failed to set L2CAP security level\n");
+		goto fail;
+	}
+
+	if (bind(sk, (struct sockaddr *) &srcaddr, sizeof(srcaddr)) < 0) {
+		perror("Failed to bind L2CAP socket");
 		goto fail;
 	}
 
@@ -1741,7 +1741,7 @@ static void le_adv(int hdev)
 	adv_params_cp.max_interval = htobs(0x0040);
 	adv_params_cp.chan_map = 7;
 	adv_params_cp.advtype = 0;
-	adv_params_cp.own_bdaddr_type = LE_RANDOM_ADDRESS;
+	adv_params_cp.own_bdaddr_type = LE_PUBLIC_ADDRESS;//pair fail if set LE_RANDOM_ADDRESS
 
 	memset(&rq, 0, sizeof(rq));
 	rq.ogf = OGF_LE_CTL;
@@ -1948,7 +1948,10 @@ int main(int argc, char *argv[])
 	le_adv(0);
 	printf("advertising..\n");
 	printf("listening..\n");
-	fd = l2cap_le_att_listen_and_accept(&src_addr, sec, BDADDR_LE_RANDOM);
+	hci_devba(0, &src_addr);
+	fd = l2cap_le_att_listen_and_accept(&src_addr, BT_SECURITY_HIGH, BDADDR_LE_PUBLIC);//BDADDR_LE_RANDOM);
+	sleep(5);
+#if 0
 	if (fd < 0) {
 		fprintf(stderr, "Failed to accept L2CAP ATT connection\n");
 		return EXIT_FAILURE;
@@ -1970,6 +1973,7 @@ int main(int argc, char *argv[])
 
 
 	fd = l2cap_le_att_connect(&src_addr, &dst_addr, dst_type, sec);
+#endif
 	if (fd < 0)
 		return EXIT_FAILURE;
 	/*
