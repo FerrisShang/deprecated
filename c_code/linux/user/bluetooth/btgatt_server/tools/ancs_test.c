@@ -1949,44 +1949,8 @@ int main(int argc, char *argv[])
 	printf("advertising..\n");
 	printf("listening..\n");
 	hci_devba(0, &src_addr);
-	fd = l2cap_le_att_listen_and_accept(&src_addr, BT_SECURITY_HIGH, BDADDR_LE_PUBLIC);//BDADDR_LE_RANDOM);
-	sleep(5);
-#if 0
-	if (fd < 0) {
-		fprintf(stderr, "Failed to accept L2CAP ATT connection\n");
-		return EXIT_FAILURE;
-	}
-	close(fd);
-	char buf[1024];
-	int bytes_read;
-	bytes_read = read(fd, buf, sizeof(buf));
-	if(bytes_read>0){
-		int i;
-		for(i=0;i<bytes_read;i++){
-			if((i%16)==0)printf("\n");
-			printf("%02x ", (unsigned char)buf[i]);
-		}
-		printf("\n");
-	}
-	bacpy(&dst_addr, &src_addr);
-	bacpy(&src_addr, BDADDR_ANY);
-
-
-	fd = l2cap_le_att_connect(&src_addr, &dst_addr, dst_type, sec);
-#endif
-	if (fd < 0)
-		return EXIT_FAILURE;
-	/*
-	else
-	*/
-///////////////////////////////////////////////////////////////////////////////
-
 	mainloop_init();
-	//fd = l2cap_le_att_connect(&src_addr, &dst_addr, dst_type, sec);
-	//cmd_auth(0, &dst_addr);
-	if (fd < 0)
-		return EXIT_FAILURE;
-
+	fd = l2cap_le_att_listen_and_accept(&src_addr, BT_SECURITY_HIGH, BDADDR_LE_PUBLIC);//BDADDR_LE_RANDOM);
 	cli = client_create(fd, mtu);
 	if (!cli) {
 		close(fd);

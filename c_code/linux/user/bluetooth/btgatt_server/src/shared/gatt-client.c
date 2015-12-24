@@ -79,6 +79,8 @@ struct bt_gatt_client {
 
 	unsigned int reliable_write_session_id;
 
+	unsigned int req_mtu_id;
+
 	/* List of registered disconnect/notification/indication callbacks */
 	struct queue *notify_list;
 	struct queue *notify_chrcs;
@@ -1655,6 +1657,7 @@ static void bt_gatt_client_free(struct bt_gatt_client *client)
 		bt_att_unregister_disconnect(client->att, client->disc_id);
 		bt_att_unregister(client->att, client->notify_id);
 		bt_att_unregister(client->att, client->ind_id);
+		bt_att_unregister(client->att, client->req_mtu_id);
 		bt_att_unref(client->att);
 	}
 
@@ -1685,6 +1688,34 @@ static void att_disconnect_cb(int err, void *user_data)
 		notify_client_ready(client, false, 0);
 }
 
+static void req_exchange_mtu_cb(uint8_t opcode, const void *pdu,
+					uint16_t length, void *user_data)
+{
+	struct bt_gatt_client *cli = user_data;
+	uint16_t client_rx_mtu;
+	uint16_t final_mtu;
+	uint8_t rsp_pdu[2];
+
+	if (length != 2) {
+		bt_att_send_error_rsp(cli->att, opcode, 0,
+						BT_ATT_ERROR_INVALID_PDU);
+		return;
+	}
+
+	client_rx_mtu = get_le16(pdu);
+	final_mtu = MAX(MIN(client_rx_mtu, BT_ATT_DEFAULT_LE_MTU), BT_ATT_DEFAULT_LE_MTU);
+
+	/* Respond with the client MTU */
+	put_le16(BT_ATT_DEFAULT_LE_MTU, rsp_pdu);
+	bt_att_send(cli->att, BT_ATT_OP_MTU_RSP, rsp_pdu, 2, NULL, NULL,
+									NULL);
+
+	/* Set MTU to be the minimum */
+	bt_att_set_mtu(cli->att, final_mtu);
+
+	util_debug(cli->debug_callback, cli->debug_data,
+			"MTU exchange complete, with MTU: %u", final_mtu);
+}
 struct bt_gatt_client *bt_gatt_client_new(struct gatt_db *db,
 							struct bt_att *att,
 							uint16_t mtu)
@@ -1731,6 +1762,12 @@ struct bt_gatt_client *bt_gatt_client_new(struct gatt_db *db,
 	client->ind_id = bt_att_register(att, BT_ATT_OP_HANDLE_VAL_IND,
 						notify_cb, client, NULL);
 	if (!client->ind_id)
+		goto fail;
+
+	client->req_mtu_id = bt_att_register(att, BT_ATT_OP_MTU_REQ,
+			req_exchange_mtu_cb,
+			client, NULL);
+	if (!client->req_mtu_id)
 		goto fail;
 
 	client->att = bt_att_ref(att);
