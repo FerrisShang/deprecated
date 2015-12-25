@@ -247,6 +247,8 @@ static struct client *client_create(int fd, uint16_t mtu)
 
 static void client_destroy(struct client *cli)
 {
+	close(cli->fd);
+	free(cli->db);
 	bt_gatt_client_unref(cli->gatt);
 	bt_att_unref(cli->att);
 	free(cli);
@@ -1154,6 +1156,7 @@ static void cmd_register_notify(struct client *cli, char *cmd_str)
 		return;
 	}
 
+	/*
 	id = bt_gatt_client_register_notify(cli->gatt, value_handle,
 							register_notify_cb,
 							notify_cb, NULL, NULL);
@@ -1161,6 +1164,7 @@ static void cmd_register_notify(struct client *cli, char *cmd_str)
 		printf("Failed to register notify handler\n");
 		return;
 	}
+	*/
 
 	PRLOG("Registering notify handler with id: %u\n", id);
 }
@@ -1330,12 +1334,19 @@ static void cmd_help(struct client *cli, char *cmd_str);
 
 typedef void (*command_func_t)(struct client *cli, char *cmd_str);
 
+void exit_program(struct client *cli, char *cmd_str)
+{
+	client_destroy(cli);
+	exit(0);
+}
+
 static struct {
 	char *cmd;
 	command_func_t func;
 	char *doc;
 } command[] = {
 	{ "help", cmd_help, "\tDisplay help message" },
+	{ "exit", exit_program, "\tExit" },
 	{ "services", cmd_services, "\tShow discovered services" },
 	{ "read-value", cmd_read_value,
 				"\tRead a characteristic or descriptor value" },
@@ -1785,48 +1796,6 @@ done:
 	}
 }
 
-static void cmd_auth(int dev_id, const bdaddr_t *bdaddr)
-{
-	struct hci_conn_info_req *cr;
-	int opt, dd;
-
-	if (dev_id < 0) {
-		//dev_id = hci_for_each_dev(HCI_UP, find_conn, (long) &bdaddr);
-		if (dev_id < 0) {
-			fprintf(stderr, "Not connected.\n");
-			exit(1);
-		}
-	}
-
-	dd = hci_open_dev(dev_id);
-	if (dd < 0) {
-		perror("HCI device open failed");
-		exit(1);
-	}
-
-	cr = malloc(sizeof(*cr) + sizeof(struct hci_conn_info));
-	if (!cr) {
-		perror("Can't allocate memory");
-		exit(1);
-	}
-
-	bacpy(&cr->bdaddr, bdaddr);
-	cr->type = ACL_LINK;
-	if (ioctl(dd, HCIGETCONNINFO, (unsigned long) cr) < 0) {
-		perror("Get connection info failed");
-		exit(1);
-	}
-
-	if (hci_authenticate_link(dd, htobs(cr->conn_info->handle), 25000) < 0) {
-		perror("HCI authentication request failed");
-		exit(1);
-	}
-
-	free(cr);
-
-	hci_close_dev(dd);
-}
-
 int main(int argc, char *argv[])
 {
 	int opt;
@@ -1835,110 +1804,12 @@ int main(int argc, char *argv[])
 	uint8_t dst_type = BDADDR_LE_RANDOM;
 	bool dst_addr_given = true;
 	bdaddr_t src_addr, dst_addr;
-	int dev_id = -1;
+	int dev_id = 0;
 	int fd;
 	sigset_t mask;
 	struct client *cli;
+	hci_devba(dev_id, &src_addr) < 0;
 
-	while ((opt = getopt_long(argc, argv, "+hvs:m:t:d:i:",
-						main_options, NULL)) != -1) {
-		switch (opt) {
-		case 'h':
-			usage();
-			return EXIT_SUCCESS;
-		case 'v':
-			verbose = true;
-			break;
-		case 's':
-			if (strcmp(optarg, "low") == 0)
-				sec = BT_SECURITY_LOW;
-			else if (strcmp(optarg, "medium") == 0)
-				sec = BT_SECURITY_MEDIUM;
-			else if (strcmp(optarg, "high") == 0)
-				sec = BT_SECURITY_HIGH;
-			else {
-				fprintf(stderr, "Invalid security level\n");
-				return EXIT_FAILURE;
-			}
-			break;
-		case 'm': {
-			int arg;
-
-			arg = atoi(optarg);
-			if (arg <= 0) {
-				fprintf(stderr, "Invalid MTU: %d\n", arg);
-				return EXIT_FAILURE;
-			}
-
-			if (arg > UINT16_MAX) {
-				fprintf(stderr, "MTU too large: %d\n", arg);
-				return EXIT_FAILURE;
-			}
-
-			mtu = (uint16_t)arg;
-			break;
-		}
-		case 't':
-			if (strcmp(optarg, "random") == 0)
-				dst_type = BDADDR_LE_RANDOM;
-			else if (strcmp(optarg, "public") == 0)
-				dst_type = BDADDR_LE_PUBLIC;
-			else {
-				fprintf(stderr,
-					"Allowed types: random, public\n");
-				return EXIT_FAILURE;
-			}
-			break;
-		case 'd':
-			if (str2ba(optarg, &dst_addr) < 0) {
-				fprintf(stderr, "Invalid remote address: %s\n",
-									optarg);
-				return EXIT_FAILURE;
-			}
-
-			dst_addr_given = true;
-			break;
-
-		case 'i':
-			dev_id = hci_devid(optarg);
-			if (dev_id < 0) {
-				perror("Invalid adapter");
-				return EXIT_FAILURE;
-			}
-
-			break;
-		default:
-			fprintf(stderr, "Invalid option: %c\n", opt);
-			return EXIT_FAILURE;
-		}
-	}
-
-	if (!argc) {
-		usage();
-		return EXIT_SUCCESS;
-	}
-
-	argc -= optind;
-	argv += optind;
-	optind = 0;
-
-	if (argc) {
-		usage();
-		return EXIT_SUCCESS;
-	}
-
-	if (dev_id == -1)
-		bacpy(&src_addr, BDADDR_ANY);
-	else if (hci_devba(dev_id, &src_addr) < 0) {
-		perror("Adapter not available");
-		return EXIT_FAILURE;
-	}
-
-	if (!dst_addr_given) {
-		fprintf(stderr, "Destination address required!\n");
-		return EXIT_FAILURE;
-	}
-///////////////////////////////////////////////////////////////////////////////
 	le_addr(0);
 	printf("setting address..\n");
 	le_set_advdata(0);
@@ -1956,7 +1827,11 @@ int main(int argc, char *argv[])
 		close(fd);
 		return EXIT_FAILURE;
 	}
-
+	while(bt_att_get_security(cli->att) != BT_SECURITY_HIGH){//wait until paring success
+		sleep(1);
+	}
+	mainloop_run();
+#if 0
 	if (mainloop_add_fd(fileno(stdin),
 				EPOLLIN | EPOLLRDHUP | EPOLLHUP | EPOLLERR,
 				prompt_read_cb, cli, NULL) < 0) {
@@ -1972,7 +1847,7 @@ int main(int argc, char *argv[])
 
 	print_prompt();
 
-	mainloop_run();
+#endif
 
 	printf("\n\nShutting down...\n");
 

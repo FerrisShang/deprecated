@@ -121,6 +121,72 @@ struct request {
 	void (*destroy)(void *);
 };
 
+struct pdu_data {
+	const void *pdu;
+	uint16_t length;
+};
+
+
+
+static void notify_cb(uint8_t opcode, const void *pdu, uint16_t length, void *user_data);
+static void notify_cb_22(uint8_t opcode, const void *pdu, uint16_t length, void *user_data);
+static void notify_cb_9f(uint8_t opcode, const void *pdu, uint16_t length, void *user_data);
+static register_notify_cb(uint16_t att_ecode, void *user_data)
+{
+	if (att_ecode) {
+		printf("Failed to register notify handler "
+					"- error code: 0x%02x\n", att_ecode);
+		return;
+	}
+	printf("Registered notify handler!");
+}
+static void ancs_notify(struct gatt_db_attribute *attr, void *user_data)
+{
+	static char isReg22;
+	static char isReg9f;
+	struct bt_gatt_client *cli_gatt = user_data;
+	uint16_t handle, value_handle;
+	uint8_t properties;
+	bt_uuid_t uuid;
+
+	if (!gatt_db_attribute_get_char_data(attr, &handle,
+								&value_handle,
+								&properties,
+								&uuid))
+		return;
+	char uuid_str[MAX_LEN_UUID_STR];
+	bt_uuid_t uuid128;
+	bt_uuid_to_uuid128(&uuid, &uuid128);
+	bt_uuid_to_string(&uuid128, uuid_str, sizeof(uuid_str));
+	puts(uuid_str);
+	if(isReg22==0&&!strcmp(uuid_str, "22eac6e9-24d6-4bb5-be44-b36ace7c7bfb")){
+		printf("fs:sub1\n");
+		isReg22 = 1;
+		bt_gatt_client_register_notify(cli_gatt , value_handle,
+							register_notify_cb,
+							notify_cb_22, NULL, NULL);
+	}else if(isReg9f==0&&!strcmp(uuid_str, "9fbf120d-6301-42d9-8c58-25e699a21dbd")){
+		printf("fs:sub2\n");
+		isReg9f = 1;
+		bt_gatt_client_register_notify(cli_gatt , value_handle,
+							register_notify_cb,
+							notify_cb_9f, cli_gatt, NULL);
+	}
+}
+void subject_chara(struct gatt_db_attribute *attrib, void *user_data)
+{
+	struct bt_gatt_client *cli_gatt = user_data;
+	gatt_db_service_foreach_char(attrib, ancs_notify, cli_gatt);
+}
+void ancs_subject(struct bt_gatt_client *cli_gatt)
+{
+	bt_uuid_t uuid;
+	bt_string_to_uuid(&uuid, "7905f431-b5ce-4e99-a40f-4b1e122d00d0");
+	//bt_string_to_uuid(&uuid, "9fbf120d-6301-42d9-8c58-25e699a21dbd")
+	struct gatt_db_attribute *res = gatt_db_get_service_with_uuid(cli_gatt->db, &uuid);
+	gatt_db_foreach_service(cli_gatt->db, &uuid, subject_chara, cli_gatt);
+}
+
 static struct request *request_ref(struct request *req)
 {
 	__sync_fetch_and_add(&req->ref_count, 1);
@@ -1317,6 +1383,8 @@ static void service_changed_register_cb(uint16_t att_ecode, void *user_data)
 
 done:
 	notify_client_ready(client, success, att_ecode);
+	//add by fshang
+	ancs_subject(client);
 }
 
 static bool register_service_changed(struct bt_gatt_client *client)
@@ -1535,11 +1603,6 @@ static bool gatt_client_init(struct bt_gatt_client *client, uint16_t mtu)
 	return true;
 }
 
-struct pdu_data {
-	const void *pdu;
-	uint16_t length;
-};
-
 static void disable_ccc_callback(uint8_t opcode, const void *pdu,
 					uint16_t length, void *user_data)
 {
@@ -1610,9 +1673,21 @@ static void notify_handler(void *data, void *user_data)
 							notify_data->user_data);
 }
 
+static void notify_cb_9f(uint8_t opcode, const void *pdu, uint16_t length,
+								void *user_data)
+{
+	printf("=======xxx %d xxx=====9f\n", __LINE__);
+}
+static void notify_cb_22(uint8_t opcode, const void *pdu, uint16_t length,
+								void *user_data)
+{
+	printf("=======xxx %d xxx=====22\n", __LINE__);
+}
 static void notify_cb(uint8_t opcode, const void *pdu, uint16_t length,
 								void *user_data)
 {
+	printf("%s@%d \n", __func__,__LINE__);
+	/*
 	struct bt_gatt_client *client = user_data;
 	struct pdu_data pdu_data;
 
@@ -1629,6 +1704,7 @@ static void notify_cb(uint8_t opcode, const void *pdu, uint16_t length,
 							NULL, NULL, NULL);
 
 	bt_gatt_client_unref(client);
+	*/
 }
 
 static void notify_data_cleanup(void *data)
@@ -1758,12 +1834,6 @@ struct bt_gatt_client *bt_gatt_client_new(struct gatt_db *db,
 						notify_cb, client, NULL);
 	if (!client->notify_id)
 		goto fail;
-
-	client->ind_id = bt_att_register(att, BT_ATT_OP_HANDLE_VAL_IND,
-						notify_cb, client, NULL);
-	if (!client->ind_id)
-		goto fail;
-
 	client->req_mtu_id = bt_att_register(att, BT_ATT_OP_MTU_REQ,
 			req_exchange_mtu_cb,
 			client, NULL);
