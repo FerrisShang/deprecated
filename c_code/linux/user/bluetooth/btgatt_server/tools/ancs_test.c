@@ -728,16 +728,16 @@ static void cmd_write_value(struct client *cli, char *cmd_str)
 		}
 
 		for (i = 1; i < argc; i++) {
-			if (strlen(argv[i]) != 2) {
-				printf("Invalid value byte: %s\n",
+			if (strlen(argv[i]) != 4) {
+				printf("Invalid value byte(error length): %s\n",
 								argv[i]);
 				goto done;
 			}
 
 			value[i-1] = strtol(argv[i], &endptr, 0);
-			if (endptr == argv[i] || *endptr != '\0'
+			if (endptr == argv[i]
 							|| errno == ERANGE) {
-				printf("Invalid value byte: %s\n",
+				printf("Invalid value byte(error xxx): %s\n",
 								argv[i]);
 				goto done;
 			}
@@ -1830,8 +1830,7 @@ int main(int argc, char *argv[])
 	while(bt_att_get_security(cli->att) != BT_SECURITY_HIGH){//wait until paring success
 		sleep(1);
 	}
-	mainloop_run();
-#if 0
+#if 1
 	if (mainloop_add_fd(fileno(stdin),
 				EPOLLIN | EPOLLRDHUP | EPOLLHUP | EPOLLERR,
 				prompt_read_cb, cli, NULL) < 0) {
@@ -1848,6 +1847,7 @@ int main(int argc, char *argv[])
 	print_prompt();
 
 #endif
+	mainloop_run();
 
 	printf("\n\nShutting down...\n");
 

@@ -26,6 +26,9 @@ sources=tools/ancs_test.c \
 	 lib/bluetooth.c \
 	 lib/uuid.c \
 	 lib/hci.c \
+	 tools/ParseDate/attr_req_assembler.c \
+	 tools/ParseDate/resp_assembler.c \
+	 tools/ParseDate/parse_date.c \
 
 #************************ DO NOT EDIT BELOW THIS LINE! ************************
 

@@ -1686,7 +1686,24 @@ static void notify_cb_22(uint8_t opcode, const void *pdu, uint16_t length,
 static void notify_cb(uint8_t opcode, const void *pdu, uint16_t length,
 								void *user_data)
 {
+	void* req_tmp;
+	int req_len;
+
 	printf("%s@%d \n", __func__,__LINE__);
+	notif_req_assembling(&req_tmp,&req_len,pdu,0x3F);
+
+	int i;
+	for(i=0;i<req_len;i++){
+		printf("%d ", ((unsigned char*)req_tmp)[i]);
+	}
+	printf("\n");
+	for(i=0;i<req_len;i++){
+		printf("0x%02x ", ((unsigned char*)req_tmp)[i]);
+	}
+	printf("\n");
+	struct bt_gatt_client *client = user_data;
+	//bt_gatt_client_write_value(client, 0x001b, req_tmp,req_len, NULL, NULL, NULL);
+
 	/*
 	struct bt_gatt_client *client = user_data;
 	struct pdu_data pdu_data;
