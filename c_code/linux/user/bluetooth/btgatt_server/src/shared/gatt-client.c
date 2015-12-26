@@ -126,7 +126,12 @@ struct pdu_data {
 	uint16_t length;
 };
 
-
+struct ancs_client {
+	uint16_t handle_noti;
+	uint16_t handle_data;
+	uint16_t handle_ctrl;
+};
+struct ancs_client ancs_client;
 
 static void notify_cb(uint8_t opcode, const void *pdu, uint16_t length, void *user_data);
 static void notify_cb_22(uint8_t opcode, const void *pdu, uint16_t length, void *user_data);
@@ -158,19 +163,22 @@ static void ancs_notify(struct gatt_db_attribute *attr, void *user_data)
 	bt_uuid_t uuid128;
 	bt_uuid_to_uuid128(&uuid, &uuid128);
 	bt_uuid_to_string(&uuid128, uuid_str, sizeof(uuid_str));
-	puts(uuid_str);
-	if(isReg22==0&&!strcmp(uuid_str, "22eac6e9-24d6-4bb5-be44-b36ace7c7bfb")){
-		printf("fs:sub1\n");
-		isReg22 = 1;
+	//puts(uuid_str);
+	if(ancs_client.handle_data == 0 &&
+			!strcmp(uuid_str, "22eac6e9-24d6-4bb5-be44-b36ace7c7bfb")){
+		ancs_client.handle_data = value_handle;
 		bt_gatt_client_register_notify(cli_gatt , value_handle,
 							register_notify_cb,
-							notify_cb_22, NULL, NULL);
-	}else if(isReg9f==0&&!strcmp(uuid_str, "9fbf120d-6301-42d9-8c58-25e699a21dbd")){
-		printf("fs:sub2\n");
-		isReg9f = 1;
+							NULL, NULL, NULL);
+	}else if(ancs_client.handle_noti == 0 &&
+			!strcmp(uuid_str, "9fbf120d-6301-42d9-8c58-25e699a21dbd")){
+		ancs_client.handle_noti = value_handle;
 		bt_gatt_client_register_notify(cli_gatt , value_handle,
 							register_notify_cb,
-							notify_cb_9f, cli_gatt, NULL);
+							NULL , NULL, NULL);
+	}else if(ancs_client.handle_ctrl == 0 &&
+			!strcmp(uuid_str, "69d1d8f3-45e1-49a8-9821-9bbdfdaad9d9")){
+		ancs_client.handle_ctrl = value_handle;
 	}
 }
 void subject_chara(struct gatt_db_attribute *attrib, void *user_data)
@@ -182,7 +190,6 @@ void ancs_subject(struct bt_gatt_client *cli_gatt)
 {
 	bt_uuid_t uuid;
 	bt_string_to_uuid(&uuid, "7905f431-b5ce-4e99-a40f-4b1e122d00d0");
-	//bt_string_to_uuid(&uuid, "9fbf120d-6301-42d9-8c58-25e699a21dbd")
 	struct gatt_db_attribute *res = gatt_db_get_service_with_uuid(cli_gatt->db, &uuid);
 	gatt_db_foreach_service(cli_gatt->db, &uuid, subject_chara, cli_gatt);
 }
@@ -1686,42 +1693,29 @@ static void notify_cb_22(uint8_t opcode, const void *pdu, uint16_t length,
 static void notify_cb(uint8_t opcode, const void *pdu, uint16_t length,
 								void *user_data)
 {
+	struct bt_gatt_client *client = user_data;
+	uint16_t handle_pdu = ((uint8_t*)pdu)[0] + (((uint8_t*)pdu)[1]<<8);
 	void* req_tmp;
 	int req_len;
-
-	printf("%s@%d \n", __func__,__LINE__);
-	notif_req_assembling(&req_tmp,&req_len,pdu,0x3F);
-
+#if 0
 	int i;
-	for(i=0;i<req_len;i++){
-		printf("%d ", ((unsigned char*)req_tmp)[i]);
+	for(i=0;i<length;i++){
+		printf("%02x ", ((unsigned char*)pdu)[i]);
 	}
 	printf("\n");
-	for(i=0;i<req_len;i++){
-		printf("0x%02x ", ((unsigned char*)req_tmp)[i]);
+#endif
+	if(handle_pdu == ancs_client.handle_noti){
+		notif_req_assembling(&req_tmp,&req_len,pdu+2,0x3F);
+		if(ancs_client.handle_ctrl != 0){
+			bt_gatt_client_write_value(client, ancs_client.handle_ctrl,
+					req_tmp,req_len, NULL, NULL, NULL);
+		}
+	}else if(handle_pdu == ancs_client.handle_data){
+		printf("resp_data_assembling..len=%d\n",length-2);
+		resp_data_assembling(pdu+2,length-2);
+	}else{
+		printf("notify_cb unknown handle:0x%04x\n", handle_pdu);
 	}
-	printf("\n");
-	struct bt_gatt_client *client = user_data;
-	//bt_gatt_client_write_value(client, 0x001b, req_tmp,req_len, NULL, NULL, NULL);
-
-	/*
-	struct bt_gatt_client *client = user_data;
-	struct pdu_data pdu_data;
-
-	bt_gatt_client_ref(client);
-
-	memset(&pdu_data, 0, sizeof(pdu_data));
-	pdu_data.pdu = pdu;
-	pdu_data.length = length;
-
-	queue_foreach(client->notify_list, notify_handler, &pdu_data);
-
-	if (opcode == BT_ATT_OP_HANDLE_VAL_IND)
-		bt_att_send(client->att, BT_ATT_OP_HANDLE_VAL_CONF, NULL, 0,
-							NULL, NULL, NULL);
-
-	bt_gatt_client_unref(client);
-	*/
 }
 
 static void notify_data_cleanup(void *data)

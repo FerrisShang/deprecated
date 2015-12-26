@@ -1796,6 +1796,50 @@ done:
 	}
 }
 
+#include "attribute_data.h"
+void print_data(void* arg)
+{
+	Resp_data *data = arg;
+
+	DEBUG("#######################################################\n");
+
+	DEBUG("commandid = %d\n",data->commandid);
+
+	DEBUG("notif_uid = %lx\n", *(unsigned long*) data->notif_uid);
+
+	if(data->app_id_str != NULL)
+		DEBUG("app_id_str = %s\n",data->app_id_str);
+
+	if(data->app_identifier != NULL)
+		DEBUG("app_identifier = %s\n",data->app_identifier);
+
+	if(data->title != NULL)
+		DEBUG("title = %s\n", data->title);
+
+	if(data->subtitle != NULL)
+		DEBUG("subtitle = %s\n",data->subtitle);
+
+	if(data->message != NULL)
+		DEBUG("message = %s\n",data->message);
+
+	if(data->message_size != NULL)
+		DEBUG("message_size = %s\n",data->message_size);
+
+	if(data->date != NULL)
+		DEBUG("data = %s\n",data->date);
+
+	if(data->positive_actionlabel != NULL)
+		DEBUG("positive_actionlabel = %s\n",data->positive_actionlabel);
+
+	if(data->negative_actionlabel != NULL)
+		DEBUG("negative_actionlabel = %s\n",data->negative_actionlabel);
+
+
+	DEBUG("***********************************************************\n");
+	return;
+}
+
+
 int main(int argc, char *argv[])
 {
 	int opt;
@@ -1847,7 +1891,9 @@ int main(int argc, char *argv[])
 	print_prompt();
 
 #endif
+	start_resp_assembler_session(print_data);
 	mainloop_run();
+	end_resp_assembler_session();
 
 	printf("\n\nShutting down...\n");
 

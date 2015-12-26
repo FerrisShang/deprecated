@@ -1,11 +1,10 @@
-CC=gcc
+CC=mips-linux-gnu-gcc
 STRIP=strip
 #CC = mipsel-linux-gcc
 #STRIP = mipsel-linux-strip
 
 
-CFLAGS = -I/usr/include 
-LDFLAGS = -L/usr/lib/ -pthread
+LDFLAGS = -lpthread
 
 
 TARGET = test

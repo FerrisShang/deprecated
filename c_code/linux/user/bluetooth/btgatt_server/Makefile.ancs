@@ -4,11 +4,11 @@ CC = mips-linux-gnu-gcc
 srcExt = c
 objDir = obj
 binDir = .
-inc = . lib
+inc = . lib tools/ParseDate
 
 CFlags = -Wall -O2 -fdata-sections -ffunction-sections
 LDFlags = -Wl,--gc-sections
-libs = -lrt -lpthread
+libs = rt pthread
 libDir =
 
 sources=tools/ancs_test.c \
@@ -36,6 +36,7 @@ inc := $(addprefix -I,$(inc))
 libs := $(addprefix -l,$(libs))
 libDir := $(addprefix -L,$(libDir))
 CFlags += -c $(inc) $(libDir) $(libs)
+LDFlags += $(libs)
 srcDirs := $(shell find . -name '*.$(srcExt)' -exec dirname {} \; | uniq)
 objects := $(patsubst %.$(srcExt),$(objDir)/%.o,$(sources))
 
