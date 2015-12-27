@@ -60,7 +60,7 @@
 #define COLOR_BOLDGRAY	"\x1B[1;30m"
 #define COLOR_BOLDWHITE	"\x1B[1;37m"
 
-static bool verbose = true;
+static bool verbose = false;
 
 struct client {
 	int fd;
@@ -1891,9 +1891,7 @@ int main(int argc, char *argv[])
 	print_prompt();
 
 #endif
-	start_resp_assembler_session(print_data);
 	mainloop_run();
-	end_resp_assembler_session();
 
 	printf("\n\nShutting down...\n");
 

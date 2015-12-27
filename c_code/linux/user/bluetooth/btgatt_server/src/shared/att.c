@@ -744,7 +744,6 @@ static void handle_notify(struct bt_att *att, uint8_t opcode, uint8_t *pdu,
 	found = false;
 	entry = queue_get_entries(att->notify_list);
 
-	printf("opcode = 0x%02X\n", opcode);
 	while (entry) {
 		struct att_notify *notify = entry->data;
 

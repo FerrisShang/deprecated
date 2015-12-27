@@ -147,8 +147,6 @@ static register_notify_cb(uint16_t att_ecode, void *user_data)
 }
 static void ancs_notify(struct gatt_db_attribute *attr, void *user_data)
 {
-	static char isReg22;
-	static char isReg9f;
 	struct bt_gatt_client *cli_gatt = user_data;
 	uint16_t handle, value_handle;
 	uint8_t properties;
@@ -1690,6 +1688,24 @@ static void notify_cb_22(uint8_t opcode, const void *pdu, uint16_t length,
 {
 	printf("=======xxx %d xxx=====22\n", __LINE__);
 }
+
+#include "AncsParser.h"
+void parseData_cb(resp_data_t *getNotifCmd, void *user_data)
+{
+	if(getNotifCmd->state != STATE_DATA_ADDED_NEW){
+		return;
+	}
+	printf("==========================================\n");
+	printf("st:%d\n", getNotifCmd->state);
+	printf("uuid:0x%08x\n", getNotifCmd->notif_uid);
+	printf("app:%s\n", getNotifCmd->appId);
+	printf("tit:%s\n", getNotifCmd->title);
+	printf("sit:%s\n", getNotifCmd->subtitle);
+	printf("msg:%s\n", getNotifCmd->message);
+	printf("msl:%d\n", getNotifCmd->msg_len);
+	printf("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n");
+}
+
 static void notify_cb(uint8_t opcode, const void *pdu, uint16_t length,
 								void *user_data)
 {
@@ -1704,6 +1720,24 @@ static void notify_cb(uint8_t opcode, const void *pdu, uint16_t length,
 	}
 	printf("\n");
 #endif
+#if 1
+	if(handle_pdu == ancs_client.handle_noti){
+		getNotifCmd_t getNotifCmd;
+		notif_req_assembling(pdu+2, length-2, &getNotifCmd);
+		if(getNotifCmd.event == EVENTID_NOTIFI_ADDED){
+			bt_gatt_client_write_value(client, ancs_client.handle_ctrl,
+					getNotifCmd.req_buf,getNotifCmd.req_buf_len,
+					NULL, NULL, NULL);
+		}else{
+			printf("getNotifCmd.event = %d\n", getNotifCmd.event);
+		}
+	}else if(handle_pdu == ancs_client.handle_data){
+		//printf("resp_data_assembling..len=%d\n",length-2);
+		resp_data_assembling(pdu+2,length-2, parseData_cb, NULL);
+	}else{
+		printf("notify_cb unknown handle:0x%04x\n", handle_pdu);
+	}
+#else
 	if(handle_pdu == ancs_client.handle_noti){
 		notif_req_assembling(&req_tmp,&req_len,pdu+2,0x3F);
 		if(ancs_client.handle_ctrl != 0){
@@ -1716,6 +1750,7 @@ static void notify_cb(uint8_t opcode, const void *pdu, uint16_t length,
 	}else{
 		printf("notify_cb unknown handle:0x%04x\n", handle_pdu);
 	}
+#endif
 }
 
 static void notify_data_cleanup(void *data)
