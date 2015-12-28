@@ -20,7 +20,7 @@ int bt_sem_timedwait(bt_sem_t *sem,int time_s)
 {
 	struct timespec ts;
 	clock_gettime(CLOCK_REALTIME, &ts);
-	ts.tv_sec = time(NULL)+time_s;
+	ts.tv_sec += time_s;
 	return sem_timedwait(sem, &ts);
 }
 

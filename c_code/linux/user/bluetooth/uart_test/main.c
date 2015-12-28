@@ -13,7 +13,7 @@ int callback(struct bt_pkg* bt_pkg, void *pdata)
 {
 	printf("xx");
 	pdata_t *pd = pdata;
-	//bt_sem_post(&pd->sem);
+	bt_sem_post(&pd->sem);
 	return -1;
 }
 struct bt_pkg_proc_node proc_node = {

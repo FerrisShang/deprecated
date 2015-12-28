@@ -26,11 +26,11 @@
 
 #include "lib/bluetooth.h"
 #include "lib/uuid.h"
-#include "src/shared/util.h"
-#include "src/shared/queue.h"
-#include "src/shared/timeout.h"
-#include "src/shared/att.h"
-#include "src/shared/gatt-db.h"
+#include "src/util.h"
+#include "src/queue.h"
+#include "src/timeout.h"
+#include "src/att.h"
+#include "src/gatt-db.h"
 
 #ifndef MAX
 #define MAX(a, b) ((a) > (b) ? (a) : (b))

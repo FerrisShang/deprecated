@@ -35,7 +35,7 @@
 #include <limits.h>
 #include <string.h>
 
-#include "src/shared/util.h"
+#include "src/util.h"
 
 void util_debug(util_debug_func_t function, void *user_data,
 						const char *format, ...)

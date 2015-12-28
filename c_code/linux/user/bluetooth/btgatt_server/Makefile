@@ -1,29 +1,32 @@
-app = btgatt-server
+app = ancs_test
 
 CC = mips-linux-gnu-gcc
 srcExt = c
 objDir = obj
 binDir = .
-inc = .
+inc = . lib tools/ParseDate tools/AncsParser/
 
 CFlags = -Wall -O2 -fdata-sections -ffunction-sections
 LDFlags = -Wl,--gc-sections
-libs =
+libs = rt pthread
 libDir =
 
-sources=tools/btgatt-server.c \
-	 src/shared/mainloop.c \
-	 src/shared/gatt-db.c \
-	 src/shared/gatt-server.c \
-	 src/shared/att.c \
-	 src/shared/queue.c \
-	 src/shared/util.c \
-	 src/shared/crypto.c \
-	 src/shared/io-mainloop.c \
-	 src/shared/timeout-mainloop.c \
+sources=src/ancs_test.c \
+	 src/gatt-client.c \
+	 src/gatt-helpers.c \
+	 src/mainloop.c \
+	 src/gatt-db.c \
+	 src/gatt-server.c \
+	 src/att.c \
+	 src/queue.c \
+	 src/util.c \
+	 src/crypto.c \
+	 src/io-mainloop.c \
+	 src/timeout-mainloop.c \
 	 lib/bluetooth.c \
 	 lib/uuid.c \
 	 lib/hci.c \
+	 tools/AncsParser/AncsParser.c \
 
 #************************ DO NOT EDIT BELOW THIS LINE! ************************
 
@@ -31,6 +34,7 @@ inc := $(addprefix -I,$(inc))
 libs := $(addprefix -l,$(libs))
 libDir := $(addprefix -L,$(libDir))
 CFlags += -c $(inc) $(libDir) $(libs)
+LDFlags += $(libs)
 srcDirs := $(shell find . -name '*.$(srcExt)' -exec dirname {} \; | uniq)
 objects := $(patsubst %.$(srcExt),$(objDir)/%.o,$(sources))
 

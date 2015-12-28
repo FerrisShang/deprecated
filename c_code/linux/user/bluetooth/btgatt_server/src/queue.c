@@ -25,8 +25,8 @@
 #include <config.h>
 #endif
 
-#include "src/shared/util.h"
-#include "src/shared/queue.h"
+#include "src/util.h"
+#include "src/queue.h"
 
 struct queue {
 	int ref_count;

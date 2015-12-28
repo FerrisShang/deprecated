@@ -21,14 +21,14 @@
  *
  */
 
-#include "src/shared/att.h"
+#include "src/att.h"
 #include "lib/bluetooth.h"
 #include "lib/uuid.h"
-#include "src/shared/gatt-helpers.h"
-#include "src/shared/util.h"
-#include "src/shared/queue.h"
-#include "src/shared/gatt-db.h"
-#include "src/shared/gatt-client.h"
+#include "src/gatt-helpers.h"
+#include "src/util.h"
+#include "src/queue.h"
+#include "src/gatt-db.h"
+#include "src/gatt-client.h"
 
 #include <assert.h>
 #include <limits.h>
@@ -134,9 +134,7 @@ struct ancs_client {
 struct ancs_client ancs_client;
 
 static void notify_cb(uint8_t opcode, const void *pdu, uint16_t length, void *user_data);
-static void notify_cb_22(uint8_t opcode, const void *pdu, uint16_t length, void *user_data);
-static void notify_cb_9f(uint8_t opcode, const void *pdu, uint16_t length, void *user_data);
-static register_notify_cb(uint16_t att_ecode, void *user_data)
+static void register_notify_cb(uint16_t att_ecode, void *user_data)
 {
 	if (att_ecode) {
 		printf("Failed to register notify handler "
@@ -188,7 +186,6 @@ void ancs_subject(struct bt_gatt_client *cli_gatt)
 {
 	bt_uuid_t uuid;
 	bt_string_to_uuid(&uuid, "7905f431-b5ce-4e99-a40f-4b1e122d00d0");
-	struct gatt_db_attribute *res = gatt_db_get_service_with_uuid(cli_gatt->db, &uuid);
 	gatt_db_foreach_service(cli_gatt->db, &uuid, subject_chara, cli_gatt);
 }
 
@@ -1653,42 +1650,6 @@ static void complete_unregister_notify(void *data)
 done:
 	notify_data_unref(notify_data);
 }
-
-static void notify_handler(void *data, void *user_data)
-{
-	struct notify_data *notify_data = data;
-	struct pdu_data *pdu_data = user_data;
-	uint16_t value_handle;
-	const uint8_t *value = NULL;
-
-	value_handle = get_le16(pdu_data->pdu);
-
-	if (notify_data->chrc->value_handle != value_handle)
-		return;
-
-	if (pdu_data->length > 2)
-		value = pdu_data->pdu + 2;
-
-	/*
-	 * Even if the notify data has a pending ATT request to write to the
-	 * CCC, there is really no reason not to notify the handlers.
-	 */
-	if (notify_data->notify)
-		notify_data->notify(value_handle, value, pdu_data->length - 2,
-							notify_data->user_data);
-}
-
-static void notify_cb_9f(uint8_t opcode, const void *pdu, uint16_t length,
-								void *user_data)
-{
-	printf("=======xxx %d xxx=====9f\n", __LINE__);
-}
-static void notify_cb_22(uint8_t opcode, const void *pdu, uint16_t length,
-								void *user_data)
-{
-	printf("=======xxx %d xxx=====22\n", __LINE__);
-}
-
 #include "AncsParser.h"
 void parseData_cb(resp_data_t *getNotifCmd, void *user_data)
 {
@@ -1711,16 +1672,6 @@ static void notify_cb(uint8_t opcode, const void *pdu, uint16_t length,
 {
 	struct bt_gatt_client *client = user_data;
 	uint16_t handle_pdu = ((uint8_t*)pdu)[0] + (((uint8_t*)pdu)[1]<<8);
-	void* req_tmp;
-	int req_len;
-#if 0
-	int i;
-	for(i=0;i<length;i++){
-		printf("%02x ", ((unsigned char*)pdu)[i]);
-	}
-	printf("\n");
-#endif
-#if 1
 	if(handle_pdu == ancs_client.handle_noti){
 		getNotifCmd_t getNotifCmd;
 		notif_req_assembling(pdu+2, length-2, &getNotifCmd);
@@ -1732,25 +1683,10 @@ static void notify_cb(uint8_t opcode, const void *pdu, uint16_t length,
 			printf("getNotifCmd.event = %d\n", getNotifCmd.event);
 		}
 	}else if(handle_pdu == ancs_client.handle_data){
-		//printf("resp_data_assembling..len=%d\n",length-2);
 		resp_data_assembling(pdu+2,length-2, parseData_cb, NULL);
 	}else{
 		printf("notify_cb unknown handle:0x%04x\n", handle_pdu);
 	}
-#else
-	if(handle_pdu == ancs_client.handle_noti){
-		notif_req_assembling(&req_tmp,&req_len,pdu+2,0x3F);
-		if(ancs_client.handle_ctrl != 0){
-			bt_gatt_client_write_value(client, ancs_client.handle_ctrl,
-					req_tmp,req_len, NULL, NULL, NULL);
-		}
-	}else if(handle_pdu == ancs_client.handle_data){
-		printf("resp_data_assembling..len=%d\n",length-2);
-		resp_data_assembling(pdu+2,length-2);
-	}else{
-		printf("notify_cb unknown handle:0x%04x\n", handle_pdu);
-	}
-#endif
 }
 
 static void notify_data_cleanup(void *data)
