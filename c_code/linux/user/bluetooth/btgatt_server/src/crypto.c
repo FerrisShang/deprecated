@@ -147,14 +147,14 @@ struct bt_crypto *bt_crypto_new(void)
 
 	crypto->ecb_aes = ecb_aes_setup();
 	if (crypto->ecb_aes < 0) {
-		free(crypto);
+		mem_free(crypto);
 		return NULL;
 	}
 
 	crypto->urandom = urandom_setup();
 	if (crypto->urandom < 0) {
 		close(crypto->ecb_aes);
-		free(crypto);
+		mem_free(crypto);
 		return NULL;
 	}
 
@@ -162,7 +162,7 @@ struct bt_crypto *bt_crypto_new(void)
 	if (crypto->cmac_aes < 0) {
 		close(crypto->urandom);
 		close(crypto->ecb_aes);
-		free(crypto);
+		mem_free(crypto);
 		return NULL;
 	}
 
@@ -191,7 +191,7 @@ void bt_crypto_unref(struct bt_crypto *crypto)
 	close(crypto->ecb_aes);
 	close(crypto->cmac_aes);
 
-	free(crypto);
+	mem_free(crypto);
 }
 
 bool bt_crypto_random_bytes(struct bt_crypto *crypto,

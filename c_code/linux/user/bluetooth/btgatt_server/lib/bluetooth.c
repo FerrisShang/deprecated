@@ -37,6 +37,7 @@
 
 #include "bluetooth.h"
 #include "hci.h"
+#include "src/mem_manage.h"
 
 void baswap(bdaddr_t *dst, const bdaddr_t *src)
 {
@@ -180,7 +181,7 @@ void *bt_malloc(size_t size)
 
 void bt_free(void *ptr)
 {
-	free(ptr);
+	mem_free(ptr);
 }
 
 /* Bluetooth error codes to Unix errno mapping */

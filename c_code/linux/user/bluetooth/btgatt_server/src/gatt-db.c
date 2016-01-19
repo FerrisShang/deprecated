@@ -117,7 +117,7 @@ static void pending_read_result(struct pending_read *p, int err,
 
 	p->func(p->attrib, err, data, length, p->user_data);
 
-	free(p);
+	mem_free(p);
 }
 
 static void pending_read_free(void *data)
@@ -134,7 +134,7 @@ static void pending_write_result(struct pending_write *p, int err)
 
 	p->func(p->attrib, err, p->user_data);
 
-	free(p);
+	mem_free(p);
 }
 
 static void pending_write_free(void *data)
@@ -153,8 +153,8 @@ static void attribute_destroy(struct gatt_db_attribute *attribute)
 	queue_destroy(attribute->pending_reads, pending_read_free);
 	queue_destroy(attribute->pending_writes, pending_write_free);
 
-	free(attribute->value);
-	free(attribute);
+	mem_free(attribute->value);
+	mem_free(attribute);
 }
 
 static struct gatt_db_attribute *new_attribute(struct gatt_db_service *service,
@@ -216,14 +216,14 @@ struct gatt_db *gatt_db_new(void)
 
 	db->services = queue_new();
 	if (!db->services) {
-		free(db);
+		mem_free(db);
 		return NULL;
 	}
 
 	db->notify_list = queue_new();
 	if (!db->notify_list) {
 		queue_destroy(db->services, NULL);
-		free(db);
+		mem_free(db);
 		return NULL;
 	}
 
@@ -239,7 +239,7 @@ static void notify_destroy(void *data)
 	if (notify->destroy)
 		notify->destroy(notify->user_data);
 
-	free(notify);
+	mem_free(notify);
 }
 
 static bool match_notify_id(const void *a, const void *b)
@@ -296,8 +296,8 @@ static void gatt_db_service_destroy(void *data)
 	for (i = 0; i < service->num_handles; i++)
 		attribute_destroy(service->attributes[i]);
 
-	free(service->attributes);
-	free(service);
+	mem_free(service->attributes);
+	mem_free(service);
 }
 
 static void gatt_db_destroy(struct gatt_db *db)
@@ -313,7 +313,7 @@ static void gatt_db_destroy(struct gatt_db *db)
 	db->notify_list = NULL;
 
 	queue_destroy(db->services, gatt_db_service_destroy);
-	free(db);
+	mem_free(db);
 }
 
 void gatt_db_unref(struct gatt_db *db)
@@ -391,7 +391,7 @@ static struct gatt_db_service *gatt_db_service_create(const bt_uuid_t *uuid,
 
 	service->attributes = new0(struct gatt_db_attribute *, num_handles);
 	if (!service->attributes) {
-		free(service);
+		mem_free(service);
 		return NULL;
 	}
 
@@ -619,7 +619,7 @@ unsigned int gatt_db_register(struct gatt_db *db,
 	notify->id = db->next_notify_id++;
 
 	if (!queue_push_tail(db->notify_list, notify)) {
-		free(notify);
+		mem_free(notify);
 		return 0;
 	}
 
@@ -743,7 +743,7 @@ service_insert_characteristic(struct gatt_db_service *service,
 
 	service->attributes[i] = new_attribute(service, handle, uuid, NULL, 0);
 	if (!service->attributes[i]) {
-		free(service->attributes[i - 1]);
+		mem_free(service->attributes[i - 1]);
 		return NULL;
 	}
 
@@ -1748,7 +1748,7 @@ bool gatt_db_attribute_reset(struct gatt_db_attribute *attrib)
 	if (!attrib->value || !attrib->value_len)
 		return true;
 
-	free(attrib->value);
+	mem_free(attrib->value);
 	attrib->value = NULL;
 	attrib->value_len = 0;
 

@@ -49,7 +49,7 @@ static void timeout_destroy(void *user_data)
 	if (data->destroy)
 		data->destroy(data->user_data);
 
-	free(data);
+	mem_free(data);
 }
 
 unsigned int timeout_add(unsigned int timeout, timeout_func_t func,
@@ -69,7 +69,7 @@ unsigned int timeout_add(unsigned int timeout, timeout_func_t func,
 	data->id = mainloop_add_timeout(timeout, timeout_callback, data,
 							timeout_destroy);
 	if (data->id < 0) {
-		free(data);
+		mem_free(data);
 		return 0;
 	}
 

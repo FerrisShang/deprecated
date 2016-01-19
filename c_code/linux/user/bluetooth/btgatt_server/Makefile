@@ -11,7 +11,8 @@ LDFlags = -Wl,--gc-sections
 libs = rt pthread
 libDir =
 
-sources=src/ancs_test.c \
+sources=src/main.c \
+	 src/ancs.c \
 	 src/gatt-client.c \
 	 src/gatt-helpers.c \
 	 src/mainloop.c \
@@ -23,6 +24,7 @@ sources=src/ancs_test.c \
 	 src/crypto.c \
 	 src/io-mainloop.c \
 	 src/timeout-mainloop.c \
+	 src/mem_manage.c \
 	 lib/bluetooth.c \
 	 lib/uuid.c \
 	 lib/hci.c \

@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <alloca.h>
 #include <byteswap.h>
+#include "src/mem_manage.h"
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 #define le16_to_cpu(val) (val)
@@ -78,9 +79,9 @@ do {						\
 #define PTR_TO_INT(p) ((int) ((intptr_t) (p)))
 #define INT_TO_PTR(u) ((void *) ((intptr_t) (u)))
 
-#define new0(t, n) ((t*) calloc((n), sizeof(t)))
+#define new0(t, n) ((t*) mem_calloc((n), sizeof(t)))
 #define newa(t, n) ((t*) alloca(sizeof(t)*(n)))
-#define malloc0(n) (calloc((n), 1))
+#define malloc0(n) (mem_calloc((n), 1))
 
 typedef void (*util_debug_func_t)(const char *str, void *user_data);
 

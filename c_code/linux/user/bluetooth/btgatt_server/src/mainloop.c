@@ -37,6 +37,7 @@
 #include <sys/epoll.h>
 
 #include "mainloop.h"
+#include "mem_manage.h"
 
 #define MAX_EPOLL_EVENTS 10
 
@@ -177,7 +178,7 @@ int mainloop_run(void)
 			if (data->destroy)
 				data->destroy(data->user_data);
 
-			free(data);
+			mem_free(data);
 		}
 	}
 
@@ -197,7 +198,7 @@ int mainloop_add_fd(int fd, uint32_t events, mainloop_event_func callback,
 	if (fd < 0 || fd > MAX_MAINLOOP_ENTRIES - 1 || !callback)
 		return -EINVAL;
 
-	data = malloc(sizeof(*data));
+	data = mem_malloc(sizeof(*data));
 	if (!data)
 		return -ENOMEM;
 
@@ -214,7 +215,7 @@ int mainloop_add_fd(int fd, uint32_t events, mainloop_event_func callback,
 
 	err = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, data->fd, &ev);
 	if (err < 0) {
-		free(data);
+		mem_free(data);
 		return err;
 	}
 
@@ -268,7 +269,7 @@ int mainloop_remove_fd(int fd)
 	if (data->destroy)
 		data->destroy(data->user_data);
 
-	free(data);
+	mem_free(data);
 
 	return err;
 }
@@ -323,7 +324,7 @@ int mainloop_add_timeout(unsigned int msec, mainloop_timeout_func callback,
 	if (!callback)
 		return -EINVAL;
 
-	data = malloc(sizeof(*data));
+	data = mem_malloc(sizeof(*data));
 	if (!data)
 		return -ENOMEM;
 
@@ -334,14 +335,14 @@ int mainloop_add_timeout(unsigned int msec, mainloop_timeout_func callback,
 
 	data->fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK | TFD_CLOEXEC);
 	if (data->fd < 0) {
-		free(data);
+		mem_free(data);
 		return -EIO;
 	}
 
 	if (msec > 0) {
 		if (timeout_set(data->fd, msec) < 0) {
 			close(data->fd);
-			free(data);
+			mem_free(data);
 			return -EIO;
 		}
 	}
@@ -349,7 +350,7 @@ int mainloop_add_timeout(unsigned int msec, mainloop_timeout_func callback,
 	if (mainloop_add_fd(data->fd, EPOLLIN | EPOLLONESHOT,
 				timeout_callback, data, timeout_destroy) < 0) {
 		close(data->fd);
-		free(data);
+		mem_free(data);
 		return -EIO;
 	}
 
@@ -382,7 +383,7 @@ int mainloop_set_signal(sigset_t *mask, mainloop_signal_func callback,
 	if (!mask || !callback)
 		return -EINVAL;
 
-	data = malloc(sizeof(*data));
+	data = mem_malloc(sizeof(*data));
 	if (!data)
 		return -ENOMEM;
 
@@ -394,7 +395,7 @@ int mainloop_set_signal(sigset_t *mask, mainloop_signal_func callback,
 	data->fd = -1;
 	memcpy(&data->mask, mask, sizeof(sigset_t));
 
-	free(signal_data);
+	mem_free(signal_data);
 	signal_data = data;
 
 	return 0;

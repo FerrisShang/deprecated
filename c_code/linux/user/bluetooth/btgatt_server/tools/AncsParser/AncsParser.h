@@ -6,14 +6,15 @@
 #include "Parser_utils.h"
 
 #define GET_NOTIF_CMD_BUF_SIZE 24
+#define DATA_BUF_BUF_SIZE 1024
 
 /*capacity*/
-#define APPID_CAP        24
-#define TITLE_CAP        16
-#define SUBTITLE_CAP     16
-#define MSG_CAP          512
-#define MSG_SIZE_CAP      4
-#define DATE_CAP         16
+#define APPID_CAP        31
+#define TITLE_CAP        31
+#define SUBTITLE_CAP     31
+#define MSG_CAP          511
+#define MSG_SIZE_CAP      7
+#define DATE_CAP         31
 
 enum {
 	EVENTID_NOTIFI_ADDED    = 0,
@@ -44,6 +45,8 @@ typedef struct {
 	char message[MSG_CAP+1];
 	int msg_len;
 	char date[DATE_CAP+1];
+	char buf[DATA_BUF_BUF_SIZE];
+	int bufLen;
 }resp_data_t;
 
 typedef void (*resp_data_func_t)(resp_data_t *getNotifCmd, void *user_data);

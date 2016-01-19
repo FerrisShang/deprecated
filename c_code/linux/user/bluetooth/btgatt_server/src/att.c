@@ -203,8 +203,8 @@ static void destroy_att_send_op(void *data)
 	if (op->destroy)
 		op->destroy(op->user_data);
 
-	free(op->pdu);
-	free(op);
+	mem_free(op->pdu);
+	mem_free(op);
 }
 
 static void cancel_att_send_op(struct att_send_op *op)
@@ -232,7 +232,7 @@ static void destroy_att_notify(void *data)
 	if (notify->destroy)
 		notify->destroy(notify->user_data);
 
-	free(notify);
+	mem_free(notify);
 }
 
 static bool match_notify_id(const void *a, const void *b)
@@ -258,7 +258,7 @@ static void destroy_att_disconn(void *data)
 	if (disconn->destroy)
 		disconn->destroy(disconn->user_data);
 
-	free(disconn);
+	mem_free(disconn);
 }
 
 static bool match_disconn_id(const void *a, const void *b)
@@ -286,7 +286,7 @@ static bool encode_pdu(struct bt_att *att, struct att_send_op *op,
 		return false;
 
 	op->len = pdu_len;
-	op->pdu = malloc(op->len);
+	op->pdu = mem_malloc(op->len);
 	if (!op->pdu)
 		return false;
 
@@ -308,7 +308,7 @@ static bool encode_pdu(struct bt_att *att, struct att_send_op *op,
 					"ATT unable to generate signature");
 
 fail:
-	free(op->pdu);
+	mem_free(op->pdu);
 	return false;
 }
 
@@ -354,7 +354,7 @@ static struct att_send_op *create_att_send_op(struct bt_att *att,
 	op->user_data = user_data;
 
 	if (!encode_pdu(att, op, pdu, length)) {
-		free(op);
+		mem_free(op);
 		return NULL;
 	}
 
@@ -503,7 +503,7 @@ static bool can_write_data(struct io *io, void *user_data)
 	timeout->att = att;
 	timeout->id = op->id;
 	op->timeout_id = timeout_add(ATT_TIMEOUT_INTERVAL, timeout_cb,
-								timeout, free);
+								timeout, mem_free_cb);
 
 	/* Return true as there may be more operations ready to write. */
 	return true;
@@ -893,12 +893,12 @@ static void bt_att_free(struct bt_att *att)
 	if (att->debug_destroy)
 		att->debug_destroy(att->debug_data);
 
-	free(att->local_sign);
-	free(att->remote_sign);
+	mem_free(att->local_sign);
+	mem_free(att->remote_sign);
 
-	free(att->buf);
+	mem_free(att->buf);
 
-	free(att);
+	mem_free(att);
 }
 
 struct bt_att *bt_att_new(int fd, bool ext_signed)
@@ -915,7 +915,7 @@ struct bt_att *bt_att_new(int fd, bool ext_signed)
 	att->fd = fd;
 	att->ext_signed = ext_signed;
 	att->mtu = BT_ATT_DEFAULT_LE_MTU;
-	att->buf = malloc(att->mtu);
+	att->buf = mem_malloc(att->mtu);
 	if (!att->buf)
 		goto fail;
 
@@ -1039,11 +1039,11 @@ bool bt_att_set_mtu(struct bt_att *att, uint16_t mtu)
 	if (mtu < BT_ATT_DEFAULT_LE_MTU)
 		return false;
 
-	buf = malloc(mtu);
+	buf = mem_malloc(mtu);
 	if (!buf)
 		return false;
 
-	free(att->buf);
+	mem_free(att->buf);
 
 	att->mtu = mtu;
 	att->buf = buf;
@@ -1092,7 +1092,7 @@ unsigned int bt_att_register_disconnect(struct bt_att *att,
 	disconn->id = att->next_reg_id++;
 
 	if (!queue_push_tail(att->disconn_list, disconn)) {
-		free(disconn);
+		mem_free(disconn);
 		return 0;
 	}
 
@@ -1155,8 +1155,8 @@ unsigned int bt_att_send(struct bt_att *att, uint8_t opcode,
 	}
 
 	if (!result) {
-		free(op->pdu);
-		free(op);
+		mem_free(op->pdu);
+		mem_free(op);
 		return 0;
 	}
 
@@ -1309,7 +1309,7 @@ unsigned int bt_att_register(struct bt_att *att, uint8_t opcode,
 	notify->id = att->next_reg_id++;
 
 	if (!queue_push_tail(att->notify_list, notify)) {
-		free(notify);
+		mem_free(notify);
 		return 0;
 	}
 

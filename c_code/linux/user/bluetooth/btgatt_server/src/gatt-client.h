@@ -27,8 +27,6 @@
 
 #define BT_GATT_UUID_SIZE 16
 
-struct bt_gatt_client;
-
 struct bt_gatt_client *bt_gatt_client_new(struct gatt_db *db,
 							struct bt_att *att,
 							uint16_t mtu);
@@ -54,6 +52,69 @@ typedef void (*bt_gatt_client_register_callback_t)(uint16_t att_ecode,
 typedef void (*bt_gatt_client_service_changed_callback_t)(uint16_t start_handle,
 							uint16_t end_handle,
 							void *user_data);
+struct bt_gatt_client {
+	struct bt_att *att;
+	int ref_count;
+
+	bt_gatt_client_callback_t ready_callback;
+	bt_gatt_client_destroy_func_t ready_destroy;
+	void *ready_data;
+
+	bt_gatt_client_service_changed_callback_t svc_chngd_callback;
+	bt_gatt_client_destroy_func_t svc_chngd_destroy;
+	void *svc_chngd_data;
+
+	bt_gatt_client_debug_func_t debug_callback;
+	bt_gatt_client_destroy_func_t debug_destroy;
+	void *debug_data;
+
+	struct gatt_db *db;
+	bool in_init;
+	bool ready;
+
+	/*
+	 * Queue of long write requests. An error during "prepare write"
+	 * requests can result in a cancel through "execute write". To prevent
+	 * cancelation of prepared writes to the wrong attribute and multiple
+	 * requests to the same attribute that may result in a corrupted final
+	 * value, we avoid interleaving prepared writes.
+	 */
+	struct queue *long_write_queue;
+	bool in_long_write;
+
+	unsigned int reliable_write_session_id;
+
+	unsigned int req_mtu_id;
+
+	/* List of registered disconnect/notification/indication callbacks */
+	struct queue *notify_list;
+	struct queue *notify_chrcs;
+	int next_reg_id;
+	unsigned int disc_id, notify_id, ind_id;
+
+	/*
+	 * Handles of the GATT Service and the Service Changed characteristic
+	 * value handle. These will have the value 0 if they are not present on
+	 * the remote peripheral.
+	 */
+	unsigned int svc_chngd_ind_id;
+	bool svc_chngd_registered;
+	struct queue *svc_chngd_queue;  /* Queued service changed events */
+	bool in_svc_chngd;
+
+	/*
+	 * List of pending read/write operations. For operations that span
+	 * across multiple PDUs, this list provides a mapping from an operation
+	 * id to an ATT request id.
+	 */
+	struct queue *pending_requests;
+	unsigned int next_request_id;
+
+	struct bt_gatt_request *discovery_req;
+	unsigned int mtu_req_id;
+};
+
+
 
 bool bt_gatt_client_is_ready(struct bt_gatt_client *client);
 bool bt_gatt_client_set_ready_handler(struct bt_gatt_client *client,

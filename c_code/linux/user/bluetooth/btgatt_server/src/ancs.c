@@ -20,21 +20,17 @@
 #include "src/gatt-db.h"
 #include "src/gatt-client.h"
 
+#include "AncsParser.h"
+
+#define ANCS_MTU 158
+#define ANCS_DEV_ID 0
 #define ATT_CID 4
+#define ANCS_VERBOSE false
 
 #define PRLOG(...) \
-	printf(__VA_ARGS__); print_prompt();
+	printf(__VA_ARGS__); 
 
-#define COLOR_OFF	"\x1B[0m"
-#define COLOR_RED	"\x1B[0;91m"
-#define COLOR_GREEN	"\x1B[0;92m"
-#define COLOR_YELLOW	"\x1B[0;93m"
-#define COLOR_BLUE	"\x1B[0;94m"
-#define COLOR_MAGENTA	"\x1B[0;95m"
-#define COLOR_BOLDGRAY	"\x1B[1;30m"
-#define COLOR_BOLDWHITE	"\x1B[1;37m"
-
-static bool verbose = false;
+typedef void (*ancs_func_t)(resp_data_t *getNotifCmd, void *user_data);
 
 struct client {
 	int fd;
@@ -43,13 +39,17 @@ struct client {
 	struct bt_gatt_client *gatt;
 
 	unsigned int reliable_session_id;
+	ancs_func_t ancs_cb;
 };
 
-static void print_prompt(void)
-{
-	printf(COLOR_BLUE "[GATT client]" COLOR_OFF "# ");
-	fflush(stdout);
-}
+struct ancs_handle {
+	uint16_t notify;
+	uint16_t data;
+	uint16_t ctrl;
+};
+
+struct ancs_handle ancs_handle;
+
 
 static void att_disconnect_cb(int err, void *user_data)
 {
@@ -62,19 +62,15 @@ static void att_debug_cb(const char *str, void *user_data)
 {
 	const char *prefix = user_data;
 
-	PRLOG(COLOR_BOLDGRAY "%s" COLOR_BOLDWHITE "%s\n" COLOR_OFF, prefix, str);
+	PRLOG("%s" "%s\n" , prefix, str);
 }
 
 static void gatt_debug_cb(const char *str, void *user_data)
 {
 	const char *prefix = user_data;
 
-	PRLOG(COLOR_GREEN "%s%s\n" COLOR_OFF, prefix, str);
+	PRLOG("%s%s\n" , prefix, str);
 }
-
-static void ready_cb(bool success, uint8_t att_ecode, void *user_data);
-static void service_changed_cb(uint16_t start_handle, uint16_t end_handle,
-							void *user_data);
 
 static void log_service_event(struct gatt_db_attribute *attr, const char *str)
 {
@@ -101,127 +97,40 @@ static void service_removed_cb(struct gatt_db_attribute *attr, void *user_data)
 	log_service_event(attr, "Service Removed");
 }
 
-static struct client *client_create(int fd, uint16_t mtu)
-{
-	struct client *cli;
-
-	cli = new0(struct client, 1);
-	if (!cli) {
-		fprintf(stderr, "Failed to allocate memory for client\n");
-		return NULL;
-	}
-
-	cli->att = bt_att_new(fd, false);
-	if (!cli->att) {
-		fprintf(stderr, "Failed to initialze ATT transport layer\n");
-		bt_att_unref(cli->att);
-		free(cli);
-		return NULL;
-	}
-
-	if (!bt_att_set_close_on_unref(cli->att, true)) {
-		fprintf(stderr, "Failed to set up ATT transport layer\n");
-		bt_att_unref(cli->att);
-		free(cli);
-		return NULL;
-	}
-
-	if (!bt_att_register_disconnect(cli->att, att_disconnect_cb, NULL,
-								NULL)) {
-		fprintf(stderr, "Failed to set ATT disconnect handler\n");
-		bt_att_unref(cli->att);
-		free(cli);
-		return NULL;
-	}
-
-	cli->fd = fd;
-	cli->db = gatt_db_new();
-	if (!cli->db) {
-		fprintf(stderr, "Failed to create GATT database\n");
-		bt_att_unref(cli->att);
-		free(cli);
-		return NULL;
-	}
-
-	cli->gatt = bt_gatt_client_new(cli->db, cli->att, mtu);
-	if (!cli->gatt) {
-		fprintf(stderr, "Failed to create GATT client\n");
-		gatt_db_unref(cli->db);
-		bt_att_unref(cli->att);
-		free(cli);
-		return NULL;
-	}
-
-	gatt_db_register(cli->db, service_added_cb, service_removed_cb,
-								NULL, NULL);
-
-	if (verbose) {
-		bt_att_set_debug(cli->att, att_debug_cb, "att: ", NULL);
-		bt_gatt_client_set_debug(cli->gatt, gatt_debug_cb, "gatt: ",
-									NULL);
-	}
-
-	bt_gatt_client_set_ready_handler(cli->gatt, ready_cb, cli, NULL);
-	bt_gatt_client_set_service_changed(cli->gatt, service_changed_cb, cli,
-									NULL);
-
-	/* bt_gatt_client already holds a reference */
-	gatt_db_unref(cli->db);
-
-	return cli;
-}
-
-static void client_destroy(struct client *cli)
-{
-	close(cli->fd);
-	free(cli->db);
-	bt_gatt_client_unref(cli->gatt);
-	bt_att_unref(cli->att);
-	free(cli);
-}
-
-static void print_uuid(const bt_uuid_t *uuid)
-{
-	char uuid_str[MAX_LEN_UUID_STR];
-	bt_uuid_t uuid128;
-
-	bt_uuid_to_uuid128(uuid, &uuid128);
-	bt_uuid_to_string(&uuid128, uuid_str, sizeof(uuid_str));
-
-	printf("%s\n", uuid_str);
-}
-
-static void print_incl(struct gatt_db_attribute *attr, void *user_data)
+static void ancs_notify_cb(uint16_t value_handle,
+		const uint8_t *value, uint16_t length,
+		void *user_data)
 {
 	struct client *cli = user_data;
-	uint16_t handle, start, end;
-	struct gatt_db_attribute *service;
-	bt_uuid_t uuid;
-
-	if (!gatt_db_attribute_get_incl_data(attr, &handle, &start, &end))
-		return;
-
-	service = gatt_db_get_attribute(cli->db, start);
-	if (!service)
-		return;
-
-	gatt_db_attribute_get_service_uuid(service, &uuid);
-
-	printf("\t  " COLOR_GREEN "include" COLOR_OFF " - handle: "
-					"0x%04x, - start: 0x%04x, end: 0x%04x,"
-					"uuid: ", handle, start, end);
-	print_uuid(&uuid);
+	getNotifCmd_t getNotifCmd;
+	notif_req_assembling((char*)value, length, &getNotifCmd);
+	if(getNotifCmd.event == EVENTID_NOTIFI_ADDED){
+		bt_gatt_client_write_value(cli->gatt, ancs_handle.ctrl,
+				getNotifCmd.req_buf,getNotifCmd.req_buf_len,
+				NULL, NULL, NULL);
+	}else{
+		printf("getNotifCmd.event = %d\n", getNotifCmd.event);
+	}
 }
 
-static void print_desc(struct gatt_db_attribute *attr, void *user_data)
+static void ancs_data_cb(uint16_t value_handle,
+		const uint8_t *value, uint16_t length,
+		void *user_data)
 {
-	printf("\t\t  " COLOR_MAGENTA "descr" COLOR_OFF
-					" - handle: 0x%04x, uuid: ",
-					gatt_db_attribute_get_handle(attr));
-	print_uuid(gatt_db_attribute_get_type(attr));
+	struct client *cli = user_data;
+	resp_data_assembling((char*)value,length, cli->ancs_cb, NULL);
 }
 
-static void print_chrc(struct gatt_db_attribute *attr, void *user_data)
+static void register_notify_cb(uint16_t att_ecode, void *user_data)
+{
+	if (att_ecode) {
+		printf("Failed to register notify handler "
+					"- error code: 0x%02x\n", att_ecode);
+		return;
+	}
+	printf("Registered notify handler!\n");
+}
+static void ancs_notify(struct gatt_db_attribute *attr, void *user_data)
 {
 	uint16_t handle, value_handle;
 	uint8_t properties;
@@ -232,43 +141,52 @@ static void print_chrc(struct gatt_db_attribute *attr, void *user_data)
 								&properties,
 								&uuid))
 		return;
-
-	printf("\t  " COLOR_YELLOW "charac" COLOR_OFF
-					" - start: 0x%04x, value: 0x%04x, "
-					"props: 0x%02x, uuid: ",
-					handle, value_handle, properties);
-	print_uuid(&uuid);
-
-	gatt_db_service_foreach_desc(attr, print_desc, NULL);
+	char uuid_str[MAX_LEN_UUID_STR];
+	bt_uuid_t uuid128;
+	bt_uuid_to_uuid128(&uuid, &uuid128);
+	bt_uuid_to_string(&uuid128, uuid_str, sizeof(uuid_str));
+	//puts(uuid_str);
+	if(ancs_handle.data == 0 &&
+			!strcmp(uuid_str, "22eac6e9-24d6-4bb5-be44-b36ace7c7bfb")){
+		ancs_handle.data = value_handle;
+	}else if(ancs_handle.notify == 0 &&
+			!strcmp(uuid_str, "9fbf120d-6301-42d9-8c58-25e699a21dbd")){
+		ancs_handle.notify = value_handle;
+	}else if(ancs_handle.ctrl == 0 &&
+			!strcmp(uuid_str, "69d1d8f3-45e1-49a8-9821-9bbdfdaad9d9")){
+		ancs_handle.ctrl = value_handle;
+	}
 }
 
-static void print_service(struct gatt_db_attribute *attr, void *user_data)
+void subject_chara(struct gatt_db_attribute *attrib, void *user_data)
 {
 	struct client *cli = user_data;
-	uint16_t start, end;
-	bool primary;
-	bt_uuid_t uuid;
+	int res;
+	gatt_db_service_foreach_char(attrib, ancs_notify, cli);
+	while(1){
+		//wait until paring success
+		res = bt_att_get_security(cli->att);
+		if(res == BT_SECURITY_HIGH || res < 0){
+			break;
+		}
+		sleep(1);
+	}
 
-	if (!gatt_db_attribute_get_service_data(attr, &start, &end, &primary,
-									&uuid))
-		return;
+	bt_gatt_client_register_notify(cli->gatt , ancs_handle.data,
+			register_notify_cb,
+			ancs_data_cb, cli, NULL);
 
-	printf(COLOR_RED "service" COLOR_OFF " - start: 0x%04x, "
-				"end: 0x%04x, type: %s, uuid: ",
-				start, end, primary ? "primary" : "secondary");
-	print_uuid(&uuid);
+	bt_gatt_client_register_notify(cli->gatt , ancs_handle.notify,
+			register_notify_cb,
+			ancs_notify_cb, cli, NULL);
 
-	gatt_db_service_foreach_incl(attr, print_incl, cli);
-	gatt_db_service_foreach_char(attr, print_chrc, NULL);
-
-	printf("\n");
 }
 
-static void print_services(struct client *cli)
+void ancs_subject(struct client *cli)
 {
-	printf("\n");
-
-	gatt_db_foreach_service(cli->db, NULL, print_service, cli);
+	bt_uuid_t uuid;
+	bt_string_to_uuid(&uuid, "7905f431-b5ce-4e99-a40f-4b1e122d00d0");
+	gatt_db_foreach_service(cli->gatt->db, &uuid, subject_chara, cli);
 }
 
 static void ready_cb(bool success, uint8_t att_ecode, void *user_data)
@@ -282,22 +200,85 @@ static void ready_cb(bool success, uint8_t att_ecode, void *user_data)
 	}
 
 	PRLOG("GATT discovery procedures complete\n");
-
-	print_services(cli);
-	print_prompt();
+	ancs_subject(cli);
 }
 
-static void service_changed_cb(uint16_t start_handle, uint16_t end_handle,
-								void *user_data)
+static struct client *client_create(int fd, uint16_t mtu, ancs_func_t ancs_cb)
 {
-	struct client *cli = user_data;
+	struct client *cli;
 
-	printf("\nService Changed handled - start: 0x%04x end: 0x%04x\n",
-						start_handle, end_handle);
+	cli = new0(struct client, 1);
+	if (!cli) {
+		fprintf(stderr, "Failed to allocate memory for client\n");
+		return NULL;
+	}
 
-	gatt_db_foreach_service_in_range(cli->db, NULL, print_service, cli,
-						start_handle, end_handle);
-	print_prompt();
+	cli->ancs_cb = ancs_cb;
+	cli->att = bt_att_new(fd, false);
+	if (!cli->att) {
+		fprintf(stderr, "Failed to initialze ATT transport layer\n");
+		bt_att_unref(cli->att);
+		mem_free(cli);
+		return NULL;
+	}
+
+	if (!bt_att_set_close_on_unref(cli->att, true)) {
+		fprintf(stderr, "Failed to set up ATT transport layer\n");
+		bt_att_unref(cli->att);
+		mem_free(cli);
+		return NULL;
+	}
+
+	if (!bt_att_register_disconnect(cli->att, att_disconnect_cb, NULL,
+								NULL)) {
+		fprintf(stderr, "Failed to set ATT disconnect handler\n");
+		bt_att_unref(cli->att);
+		mem_free(cli);
+		return NULL;
+	}
+
+	cli->fd = fd;
+	cli->db = gatt_db_new();
+	if (!cli->db) {
+		fprintf(stderr, "Failed to create GATT database\n");
+		bt_att_unref(cli->att);
+		mem_free(cli);
+		return NULL;
+	}
+
+	cli->gatt = bt_gatt_client_new(cli->db, cli->att, mtu);
+	if (!cli->gatt) {
+		fprintf(stderr, "Failed to create GATT client\n");
+		gatt_db_unref(cli->db);
+		bt_att_unref(cli->att);
+		mem_free(cli);
+		return NULL;
+	}
+
+	gatt_db_register(cli->db, service_added_cb, service_removed_cb,
+								NULL, NULL);
+
+	if (ANCS_VERBOSE) {
+		bt_att_set_debug(cli->att, att_debug_cb, "att: ", NULL);
+		bt_gatt_client_set_debug(cli->gatt, gatt_debug_cb, "gatt: ",
+									NULL);
+	}
+
+	bt_gatt_client_set_ready_handler(cli->gatt, ready_cb, cli, NULL);
+
+	/* bt_gatt_client already holds a reference */
+	gatt_db_unref(cli->db);
+
+	return cli;
+}
+
+static void client_destroy(struct client *cli)
+{
+	close(cli->fd);
+	mem_free(cli->db);
+	bt_gatt_client_unref(cli->gatt);
+	bt_att_unref(cli->att);
+	mem_free(cli);
 }
 
 static int l2cap_le_att_listen_and_accept(bdaddr_t *src, int sec,
@@ -554,34 +535,27 @@ done:
 		return;
 	}
 }
-int main(int argc, char *argv[])
+
+int ancs_start(ancs_func_t ancs_cb)
 {
-	uint16_t mtu = 0;
 	bdaddr_t src_addr;
-	int dev_id = 0;
 	int fd;
 	struct client *cli;
-	hci_devba(dev_id, &src_addr);
+	memset(&ancs_handle, 0, sizeof(struct ancs_handle));
+	hci_devba(ANCS_DEV_ID, &src_addr);
 
-	le_addr(0);
-	printf("setting address..\n");
-	le_set_advdata(0);
-	printf("setting advertise data..\n");
-	le_set_scanresp(0);
-	printf("setting scan response data..\n");
-	le_adv(0);
-	printf("advertising..\n");
-	printf("listening..\n");
-	hci_devba(0, &src_addr);
+	le_addr(ANCS_DEV_ID);
+	le_set_advdata(ANCS_DEV_ID);
+	le_set_scanresp(ANCS_DEV_ID);
+	le_adv(ANCS_DEV_ID);
+	hci_devba(ANCS_DEV_ID, &src_addr);
 	mainloop_init();
+	printf("ancs listening..\n");
 	fd = l2cap_le_att_listen_and_accept(&src_addr, BT_SECURITY_HIGH, BDADDR_LE_PUBLIC);//BDADDR_LE_RANDOM);
-	cli = client_create(fd, mtu);
+	cli = client_create(fd, ANCS_MTU, ancs_cb);
 	if (!cli) {
 		close(fd);
 		return EXIT_FAILURE;
-	}
-	while(bt_att_get_security(cli->att) != BT_SECURITY_HIGH){//wait until paring success
-		sleep(1);
 	}
 	mainloop_run();
 

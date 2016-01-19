@@ -67,7 +67,7 @@ static void io_unref(struct io *io)
 	if (__sync_sub_and_fetch(&io->ref_count, 1))
 		return;
 
-	free(io);
+	mem_free(io);
 }
 
 static void io_cleanup(void *user_data)
@@ -169,7 +169,7 @@ struct io *io_new(int fd)
 
 	if (mainloop_add_fd(io->fd, io->events, io_callback,
 						io, io_cleanup) < 0) {
-		free(io);
+		mem_free(io);
 		return NULL;
 	}
 

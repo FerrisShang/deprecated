@@ -89,110 +89,194 @@ static int timeDiffMs(struct timeval *new, struct timeval *old)
 		return res;
 	}
 }
+
+static int checkIntegral(char *data, int len)
+{
+	int remain_len = len;
+	char *p = data;
+	int attrLen;
+	UINT8 attrId;
+	if(remain_len < sizeof(UINT8)+sizeof(UINT32) || remain_len > DATA_BUF_BUF_SIZE){
+		return 0;
+	}
+	if(data[0] != COMMANDID_GETNOTIFICATION_ATTRIBUITES){
+		return 0;
+	}
+	remain_len -= 5;
+	p += sizeof(UINT8)+sizeof(UINT32);
+	while(1){
+		if(remain_len < sizeof(UINT8)+sizeof(UINT16)){
+			return 0;
+		}
+		STREAM_TO_UINT8(attrId, p);
+		remain_len -= sizeof(UINT8);
+		STREAM_TO_UINT16(attrLen, p);
+		remain_len -= sizeof(UINT16);
+
+		switch(attrId){
+			case NOTIFICATION_ATTRIBUITE_ID_APPIDENTIFIER :
+				if(attrLen > remain_len){
+					return 0;
+				}
+				p += attrLen;
+				remain_len -= attrLen;
+				break;
+			case NOTIFICATION_ATTRIBUITE_ID_TITLE :
+				if(attrLen > remain_len){
+					return 0;
+				}
+				p += attrLen;
+				remain_len -= attrLen;
+				break;
+			case NOTIFICATION_ATTRIBUITE_ID_SUBTITLE :
+				if(attrLen > remain_len){
+					return 0;
+				}
+				p += attrLen;
+				remain_len -= attrLen;
+				break;
+			case NOTIFICATION_ATTRIBUITE_ID_DATE :
+				if(attrLen > remain_len){
+					return 0;
+				}
+				p += attrLen;
+				remain_len -= attrLen;
+				break;
+			case NOTIFICATION_ATTRIBUITE_ID_MESSAGESIZE :
+				if(attrLen > remain_len){
+					return 0;
+				}
+				p += attrLen;
+				remain_len -= attrLen;
+				break;
+			case NOTIFICATION_ATTRIBUITE_ID_MESSAGE :
+				if(attrLen > remain_len){
+					return 0;
+				}
+				p += attrLen;
+				remain_len -= attrLen;
+				if(remain_len == 0){
+					return 1;
+				}else{
+					return 0;
+				}
+				break;
+			default :
+				p += attrLen;
+				remain_len -= attrLen;
+				break;
+		}
+	}
+	return 1;
+}
 void resp_data_assembling(const char *srcData, int srcDataLen, resp_data_func_t resp_data_cb, void *user_data)
 {
-#define MAX_PARTS_TOUT_MS 100
+#define MAX_PARTS_TOUT_MS 500
 	static struct timeval last_tv;  
 	static resp_data_t getNotifCmd;
-	static int msgCount;
-	static UINT16 attrLen;
 
-	char isNewMsg = 0;
-	UINT8 *p = (UINT8*)srcData;
-	int remain_len = srcDataLen;
+	UINT8 *p;
+	int remain_len;
 	struct timeval new_tv;  
+	int attrLen;
 	UINT8 commId;
 	UINT8 attrId;
 
 	gettimeofday(&new_tv, NULL);
 	if(getNotifCmd.state != STATE_DATA_CONTINUE ||
 			timeDiffMs(&new_tv, &last_tv) > MAX_PARTS_TOUT_MS){
-		isNewMsg = 1;
+		//receive a new notification
+		memset(&getNotifCmd, 0, sizeof(resp_data_t));
 	}
 	last_tv = new_tv;
+	memcpy(&getNotifCmd.buf[getNotifCmd.bufLen], srcData, srcDataLen);
+	getNotifCmd.bufLen += srcDataLen;
+	if(getNotifCmd.bufLen > DATA_BUF_BUF_SIZE){
+		printf("Message too long.\n");
+		getNotifCmd.state = STATE_DATA_ERROR;
+		return;
+	}
 
-	if(isNewMsg == 1){
-		memset(&getNotifCmd, 0, sizeof(resp_data_t));
-		STREAM_TO_UINT8(commId, p);
-		remain_len -= 1;
-		if(commId != COMMANDID_GETNOTIFICATION_ATTRIBUITES){
-			printf("struct error\n");
-			goto error;
-		}
-		STREAM_TO_UINT32(getNotifCmd.notif_uid, p);
-		remain_len -= sizeof(UINT32);
-		while(1){
+	if(!checkIntegral(getNotifCmd.buf, getNotifCmd.bufLen)){
+		getNotifCmd.state = STATE_DATA_CONTINUE;
+		return;
+	}
+
+	p = (UINT8*)getNotifCmd.buf;
+	remain_len = getNotifCmd.bufLen;
+
+	STREAM_TO_UINT8(commId, p);
+	remain_len -= 1;
+	if(commId != COMMANDID_GETNOTIFICATION_ATTRIBUITES){
+		printf("Message structure error.\n");
+		getNotifCmd.state = STATE_DATA_ERROR;
+		return;
+	}
+	STREAM_TO_UINT32(getNotifCmd.notif_uid, p);
+	remain_len -= sizeof(UINT32);
+
+	while(1){
+		if(remain_len > 0){
 			STREAM_TO_UINT8(attrId, p);
 			remain_len -= sizeof(UINT8);
 			STREAM_TO_UINT16(attrLen, p);
 			remain_len -= sizeof(UINT16);
-			if(attrId == NOTIFICATION_ATTRIBUITE_ID_MESSAGE){
-				break;
-			}
-			if(remain_len < attrLen){
-				printf("message too short\n");
-				goto error;
-			}
 			switch(attrId){
 				case NOTIFICATION_ATTRIBUITE_ID_APPIDENTIFIER :
+					if(attrLen > APPID_CAP){
+						getNotifCmd.state = STATE_DATA_ERROR;
+						return;
+					}
 					STREAM_TO_ARRAY(getNotifCmd.appId, p, attrLen);
 					getNotifCmd.appId[attrLen] = 0;
 					break;
 				case NOTIFICATION_ATTRIBUITE_ID_TITLE :
+					if(attrLen > TITLE_CAP){
+						getNotifCmd.state = STATE_DATA_ERROR;
+						return;
+					}
 					STREAM_TO_ARRAY(getNotifCmd.title, p, attrLen);
 					getNotifCmd.title[attrLen] = 0;
 					break;
 				case NOTIFICATION_ATTRIBUITE_ID_SUBTITLE :
+					if(attrLen > SUBTITLE_CAP){
+						getNotifCmd.state = STATE_DATA_ERROR;
+						return;
+					}
 					STREAM_TO_ARRAY(getNotifCmd.subtitle, p, attrLen);
 					getNotifCmd.subtitle[attrLen] = 0;
 					break;
 				case NOTIFICATION_ATTRIBUITE_ID_DATE :
+					if(attrLen > DATE_CAP){
+						getNotifCmd.state = STATE_DATA_ERROR;
+						return;
+					}
 					STREAM_TO_ARRAY(getNotifCmd.date, p, attrLen);
 					getNotifCmd.date[attrLen] = 0;
+					break;
+				case NOTIFICATION_ATTRIBUITE_ID_MESSAGE :
+					if(attrLen > MSG_CAP){
+						getNotifCmd.state = STATE_DATA_ERROR;
+						return;
+					}
+					STREAM_TO_ARRAY(getNotifCmd.message, p, attrLen);
+					getNotifCmd.message[attrLen] = 0;
 					break;
 				default :
 					p += attrLen;
 					break;
 			}
 			remain_len -= attrLen;
-		}
-		//message
-		getNotifCmd.msg_len = attrLen;
-		if(remain_len == attrLen){
-			STREAM_TO_ARRAY(getNotifCmd.message, p, attrLen);
+		}else if(remain_len == 0){
 			getNotifCmd.state = STATE_DATA_ADDED_NEW;
-			goto done;
-		}else if(remain_len < attrLen){
-			STREAM_TO_ARRAY(getNotifCmd.message, p, remain_len);
-			msgCount = remain_len;
-			getNotifCmd.state = STATE_DATA_CONTINUE;
-			attrLen -= remain_len;
-			goto done;
+			if(resp_data_cb){
+				resp_data_cb(&getNotifCmd, user_data);
+			}
+			return;
 		}else{
-			printf("error : remain data length larger then message length\n");
-			goto error;
+			printf("Message structure error.\n");
+			getNotifCmd.state = STATE_DATA_ERROR;
+			return;
 		}
-	}else{
-		if(remain_len == attrLen){
-			STREAM_TO_ARRAY(&getNotifCmd.message[msgCount], p, remain_len);
-			getNotifCmd.state = STATE_DATA_ADDED_NEW;
-			goto done;
-		}else if(remain_len < attrLen){
-			STREAM_TO_ARRAY(&getNotifCmd.message[msgCount], p, remain_len);
-			msgCount += remain_len;
-			attrLen -= remain_len;
-			getNotifCmd.state = STATE_DATA_CONTINUE;
-			goto done;
-		}else{
-			printf("error : remain data length too large\n");
-			goto error;
-		}
-	}
-
-error:
-	getNotifCmd.state = STATE_DATA_ERROR;
-done:
-	if(resp_data_cb){
-		resp_data_cb(&getNotifCmd, user_data);
 	}
 }

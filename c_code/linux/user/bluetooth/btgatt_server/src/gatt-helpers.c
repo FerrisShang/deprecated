@@ -59,9 +59,9 @@ static struct bt_gatt_result *result_create(uint8_t opcode, const void *pdu,
 	if (!result)
 		return NULL;
 
-	result->pdu = malloc(pdu_len);
+	result->pdu = mem_malloc(pdu_len);
 	if (!result->pdu) {
-		free(result);
+		mem_free(result);
 		return NULL;
 	}
 
@@ -82,8 +82,8 @@ static void result_destroy(struct bt_gatt_result *result)
 	while (result) {
 		next = result->next;
 
-		free(result->pdu);
-		free(result);
+		mem_free(result->pdu);
+		mem_free(result);
 
 		result = next;
 	}
@@ -494,7 +494,7 @@ static void destroy_mtu_op(void *user_data)
 	if (op->destroy)
 		op->destroy(op->user_data);
 
-	free(op);
+	mem_free(op);
 }
 
 static uint8_t process_error(const void *pdu, uint16_t length)
@@ -563,7 +563,7 @@ unsigned int bt_gatt_exchange_mtu(struct bt_att *att, uint16_t client_rx_mtu,
 	id = bt_att_send(att, BT_ATT_OP_MTU_REQ, pdu, sizeof(pdu), mtu_cb, op,
 								destroy_mtu_op);
 	if (!id)
-		free(op);
+		mem_free(op);
 
 	return id;
 }
@@ -601,7 +601,7 @@ void bt_gatt_request_unref(struct bt_gatt_request *req)
 
 	result_destroy(req->result_head);
 
-	free(req);
+	mem_free(req);
 }
 
 void bt_gatt_request_cancel(struct bt_gatt_request *req)
@@ -852,7 +852,7 @@ static struct bt_gatt_request *discover_services(struct bt_att *att,
 		uint8_t pdu[6 + get_uuid_len(uuid)];
 
 		if (uuid->type == BT_UUID_UNSPEC) {
-			free(op);
+			mem_free(op);
 			return NULL;
 		}
 
@@ -872,7 +872,7 @@ static struct bt_gatt_request *discover_services(struct bt_att *att,
 	}
 
 	if (!op->id) {
-		free(op);
+		mem_free(op);
 		return NULL;
 	}
 
@@ -949,7 +949,7 @@ static void read_included_unref(void *data)
 
 	async_req_unref(read_data->op);
 
-	free(read_data);
+	mem_free(read_data);
 }
 
 static void discover_included_cb(uint8_t opcode, const void *pdu,
@@ -1179,7 +1179,7 @@ struct bt_gatt_request *bt_gatt_discover_included_services(struct bt_att *att,
 				discover_included_cb, bt_gatt_request_ref(op),
 				async_req_unref);
 	if (!op->id) {
-		free(op);
+		mem_free(op);
 		return NULL;
 	}
 
@@ -1296,7 +1296,7 @@ struct bt_gatt_request *bt_gatt_discover_characteristics(struct bt_att *att,
 				discover_chrcs_cb, bt_gatt_request_ref(op),
 				async_req_unref);
 	if (!op->id) {
-		free(op);
+		mem_free(op);
 		return NULL;
 	}
 
@@ -1410,7 +1410,7 @@ bool bt_gatt_read_by_type(struct bt_att *att, uint16_t start, uint16_t end,
 	if (op->id)
 		return true;
 
-	free(op);
+	mem_free(op);
 	return false;
 }
 
@@ -1529,7 +1529,7 @@ struct bt_gatt_request *bt_gatt_discover_descriptors(struct bt_att *att,
 						bt_gatt_request_ref(op),
 						async_req_unref);
 	if (!op->id) {
-		free(op);
+		mem_free(op);
 		return NULL;
 	}
 

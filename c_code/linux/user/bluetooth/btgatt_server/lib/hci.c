@@ -44,6 +44,7 @@
 #include "bluetooth.h"
 #include "hci.h"
 #include "hci_lib.h"
+#include "src/mem_manage.h"
 
 #ifndef MIN
 #define MIN(x, y) ((x) < (y) ? (x) : (y))
@@ -90,7 +91,7 @@ static int hci_str2bit(hci_map *map, char *str, unsigned int *val)
 			}
 		}
 	}
-	free(str);
+	mem_free(str);
 
 	return set;
 }
@@ -134,7 +135,7 @@ static int hci_str2uint(hci_map *map, char *str, unsigned int *val)
 			}
 		}
 	}
-	free(str);
+	mem_free(str);
 
 	return set;
 }
@@ -318,7 +319,7 @@ char *hci_lmtostr(unsigned int lm)
 	}
 
 	strcat(str, s);
-	free(s);
+	mem_free(s);
 	return str;
 }
 
@@ -866,7 +867,7 @@ int hci_for_each_dev(int flag, int (*func)(int dd, int dev_id, long arg),
 		err = ENODEV;
 
 free:
-	free(dl);
+	mem_free(dl);
 
 done:
 	close(sk);
@@ -1027,7 +1028,7 @@ int hci_inquiry(int dev_id, int len, int nrsp, const uint8_t *lap,
 		ret = -1;
 
 free:
-	free(buf);
+	mem_free(buf);
 
 done:
 	err = errno;

@@ -74,8 +74,8 @@ static void prep_write_data_destroy(void *user_data)
 {
 	struct prep_write_data *data = user_data;
 
-	free(data->value);
-	free(data);
+	mem_free(data->value);
+	mem_free(data);
 }
 
 struct bt_gatt_server {
@@ -136,7 +136,7 @@ static void bt_gatt_server_free(struct bt_gatt_server *server)
 
 	gatt_db_unref(server->db);
 	bt_att_unref(server->att);
-	free(server);
+	mem_free(server);
 }
 
 static bool get_uuid_le(const uint8_t *uuid, size_t len, bt_uuid_t *out_uuid)
@@ -318,8 +318,8 @@ static void async_read_op_destroy(struct async_read_op *op)
 		op->server->pending_read_op = NULL;
 
 	queue_destroy(op->db_data, NULL);
-	free(op->pdu);
-	free(op);
+	mem_free(op->pdu);
+	mem_free(op);
 }
 
 static void process_read_by_type(struct async_read_op *op);
@@ -500,9 +500,9 @@ static void read_by_type_cb(uint8_t opcode, const void *pdu,
 		goto error;
 	}
 
-	op->pdu = malloc(bt_att_get_mtu(server->att));
+	op->pdu = mem_malloc(bt_att_get_mtu(server->att));
 	if (!op->pdu) {
-		free(op);
+		mem_free(op);
 		ecode = BT_ATT_ERROR_INSUFFICIENT_RESOURCES;
 		goto error;
 	}
@@ -738,7 +738,7 @@ static void async_write_op_destroy(struct async_write_op *op)
 	if (op->server)
 		op->server->pending_write_op = NULL;
 
-	free(op);
+	mem_free(op);
 }
 
 static void write_complete_cb(struct gatt_db_attribute *attr, int err,
@@ -983,10 +983,10 @@ struct read_multiple_resp_data {
 
 static void read_multiple_resp_data_free(struct read_multiple_resp_data *data)
 {
-	free(data->handles);
+	mem_free(data->handles);
 	data->handles = NULL;
 
-	free(data->rsp_data);
+	mem_free(data->rsp_data);
 	data->rsp_data = NULL;
 }
 
@@ -1081,7 +1081,7 @@ static void read_multiple_cb(uint8_t opcode, const void *pdu,
 	data.cur_handle = 0;
 	data.mtu = bt_att_get_mtu(server->att);
 	data.length = 0;
-	data.rsp_data = malloc(data.mtu - 1);
+	data.rsp_data = mem_malloc(data.mtu - 1);
 
 	if (!data.rsp_data)
 		goto error;
@@ -1160,7 +1160,7 @@ static void prep_write_cb(uint8_t opcode, const void *pdu,
 
 	prep_data->length = length - 4;
 	if (prep_data->length) {
-		prep_data->value = malloc(prep_data->length);
+		prep_data->value = mem_malloc(prep_data->length);
 		if (!prep_data->value) {
 			ecode = BT_ATT_ERROR_INSUFFICIENT_RESOURCES;
 			goto error;
@@ -1491,7 +1491,7 @@ bool bt_gatt_server_send_notification(struct bt_gatt_server *server,
 		return false;
 
 	pdu_len = MIN(bt_att_get_mtu(server->att) - 1, length + 2);
-	pdu = malloc(pdu_len);
+	pdu = mem_malloc(pdu_len);
 	if (!pdu)
 		return false;
 
@@ -1500,7 +1500,7 @@ bool bt_gatt_server_send_notification(struct bt_gatt_server *server,
 
 	result = !!bt_att_send(server->att, BT_ATT_OP_HANDLE_VAL_NOT, pdu,
 						pdu_len, NULL, NULL, NULL);
-	free(pdu);
+	mem_free(pdu);
 
 	return result;
 }
@@ -1518,7 +1518,7 @@ static void destroy_ind_data(void *user_data)
 	if (data->destroy)
 		data->destroy(data->user_data);
 
-	free(data);
+	mem_free(data);
 }
 
 static void conf_cb(uint8_t opcode, const void *pdu,
@@ -1546,13 +1546,13 @@ bool bt_gatt_server_send_indication(struct bt_gatt_server *server,
 		return false;
 
 	pdu_len = MIN(bt_att_get_mtu(server->att) - 1, length + 2);
-	pdu = malloc(pdu_len);
+	pdu = mem_malloc(pdu_len);
 	if (!pdu)
 		return false;
 
 	data = new0(struct ind_data, 1);
 	if (!data) {
-		free(pdu);
+		mem_free(pdu);
 		return false;
 	}
 
@@ -1569,7 +1569,7 @@ bool bt_gatt_server_send_indication(struct bt_gatt_server *server,
 	if (!result)
 		destroy_ind_data(data);
 
-	free(pdu);
+	mem_free(pdu);
 
 	return result;
 }

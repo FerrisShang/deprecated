@@ -50,7 +50,7 @@ static void queue_unref(struct queue *queue)
 	if (__sync_sub_and_fetch(&queue->ref_count, 1))
 		return;
 
-	free(queue);
+	mem_free(queue);
 }
 
 struct queue *queue_new(void)
@@ -93,7 +93,7 @@ static void queue_entry_unref(struct queue_entry *entry)
 	if (__sync_sub_and_fetch(&entry->ref_count, 1))
 		return;
 
-	free(entry);
+	mem_free(entry);
 }
 
 static struct queue_entry *queue_entry_new(void *data)
