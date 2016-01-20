@@ -22,6 +22,13 @@ enum {
 	NOTIFICATION_ATTRIBUITE_ID_NEGATIVEACTIONLABLE = 7,
 };
 
+enum {
+	STATE_DATA_ADDED_NEW,
+	STATE_DATA_CONTINUE,
+	STATE_DATA_DONE,
+	STATE_DATA_ERROR,
+};
+
 #define NOTIF_DATA_LEN    8
 
 typedef struct {
@@ -31,6 +38,13 @@ typedef struct {
 	UINT8  category_cnt;
 	UINT32 notif_uid;
 }notifData_t;
+
+struct notifMsg{
+	int state;
+	char buf[DATA_BUF_BUF_SIZE];
+	int bufLen;
+};
+static struct notifMsg notifMsg;
 
 static void parseNotifData(const char *srcData, int srcDataLen, notifData_t *notifData)
 {
@@ -97,16 +111,16 @@ static int checkIntegral(char *data, int len)
 	int attrLen;
 	UINT8 attrId;
 	if(remain_len < sizeof(UINT8)+sizeof(UINT32) || remain_len > DATA_BUF_BUF_SIZE){
-		return 0;
+		return STATE_DATA_ERROR;
 	}
 	if(data[0] != COMMANDID_GETNOTIFICATION_ATTRIBUITES){
-		return 0;
+		return STATE_DATA_ERROR;
 	}
 	remain_len -= 5;
 	p += sizeof(UINT8)+sizeof(UINT32);
 	while(1){
 		if(remain_len < sizeof(UINT8)+sizeof(UINT16)){
-			return 0;
+			return STATE_DATA_CONTINUE;
 		}
 		STREAM_TO_UINT8(attrId, p);
 		remain_len -= sizeof(UINT8);
@@ -115,50 +129,70 @@ static int checkIntegral(char *data, int len)
 
 		switch(attrId){
 			case NOTIFICATION_ATTRIBUITE_ID_APPIDENTIFIER :
+				if(attrLen > APPID_CAP){
+					return STATE_DATA_ERROR;
+				}
 				if(attrLen > remain_len){
-					return 0;
+					return STATE_DATA_CONTINUE;
 				}
 				p += attrLen;
 				remain_len -= attrLen;
 				break;
 			case NOTIFICATION_ATTRIBUITE_ID_TITLE :
+				if(attrLen > TITLE_CAP){
+					return STATE_DATA_ERROR;
+				}
 				if(attrLen > remain_len){
-					return 0;
+					return STATE_DATA_CONTINUE;
 				}
 				p += attrLen;
 				remain_len -= attrLen;
 				break;
 			case NOTIFICATION_ATTRIBUITE_ID_SUBTITLE :
+				if(attrLen > SUBTITLE_CAP){
+					return STATE_DATA_ERROR;
+				}
 				if(attrLen > remain_len){
-					return 0;
+					return STATE_DATA_CONTINUE;
 				}
 				p += attrLen;
 				remain_len -= attrLen;
 				break;
 			case NOTIFICATION_ATTRIBUITE_ID_DATE :
+				if(attrLen > DATE_CAP){
+					return STATE_DATA_ERROR;
+				}
 				if(attrLen > remain_len){
-					return 0;
+					return STATE_DATA_CONTINUE;
 				}
 				p += attrLen;
 				remain_len -= attrLen;
 				break;
 			case NOTIFICATION_ATTRIBUITE_ID_MESSAGESIZE :
+				if(attrLen > MSG_SIZE_CAP){
+					return STATE_DATA_ERROR;
+				}
 				if(attrLen > remain_len){
-					return 0;
+					return STATE_DATA_CONTINUE;
 				}
 				p += attrLen;
 				remain_len -= attrLen;
 				break;
 			case NOTIFICATION_ATTRIBUITE_ID_MESSAGE :
+				if(attrLen > MSG_CAP){
+					return STATE_DATA_ERROR;
+				}
 				if(attrLen > remain_len){
-					return 0;
+					return STATE_DATA_CONTINUE;
 				}
 				p += attrLen;
 				remain_len -= attrLen;
 				if(remain_len == 0){
-					return 1;
+					return STATE_DATA_DONE;
+				}else if(remain_len > 0){
+					return STATE_DATA_CONTINUE;
 				}else{
-					return 0;
+					return STATE_DATA_ERROR;
 				}
 				break;
 			default :
@@ -171,45 +205,51 @@ static int checkIntegral(char *data, int len)
 }
 void resp_data_assembling(const char *srcData, int srcDataLen, resp_data_func_t resp_data_cb, void *user_data)
 {
-#define MAX_PARTS_TOUT_MS 500
+#define MAX_PARTS_TOUT_MS 2000
 	static struct timeval last_tv;  
 	static resp_data_t getNotifCmd;
 
 	UINT8 *p;
-	int remain_len;
 	struct timeval new_tv;  
-	int attrLen;
+	int remain_len, attrLen, res;
 	UINT8 commId;
 	UINT8 attrId;
 
 	gettimeofday(&new_tv, NULL);
-	if(getNotifCmd.state != STATE_DATA_CONTINUE ||
+	if(notifMsg.state != STATE_DATA_CONTINUE ||
 			timeDiffMs(&new_tv, &last_tv) > MAX_PARTS_TOUT_MS){
 		//receive a new notification
 		memset(&getNotifCmd, 0, sizeof(resp_data_t));
+		notifMsg.bufLen = 0;
+		notifMsg.state = STATE_DATA_ADDED_NEW;
 	}
 	last_tv = new_tv;
-	memcpy(&getNotifCmd.buf[getNotifCmd.bufLen], srcData, srcDataLen);
-	getNotifCmd.bufLen += srcDataLen;
-	if(getNotifCmd.bufLen > DATA_BUF_BUF_SIZE){
-		printf("Message too long.\n");
-		getNotifCmd.state = STATE_DATA_ERROR;
+	if(notifMsg.bufLen+srcDataLen > DATA_BUF_BUF_SIZE){
+		notifMsg.state = STATE_DATA_ERROR;
+		printf("Message structure error %d.\n", __LINE__);
+		return;
+	}
+	memcpy(&notifMsg.buf[notifMsg.bufLen], srcData, srcDataLen);
+	notifMsg.bufLen += srcDataLen;
+
+	res = checkIntegral(notifMsg.buf, notifMsg.bufLen);
+	if(res == STATE_DATA_CONTINUE){
+		notifMsg.state = STATE_DATA_CONTINUE;
+		return;
+	}else if(res == STATE_DATA_ERROR){
+		printf("Message structure error %d.\n", __LINE__);
+		notifMsg.state = STATE_DATA_ERROR;
 		return;
 	}
 
-	if(!checkIntegral(getNotifCmd.buf, getNotifCmd.bufLen)){
-		getNotifCmd.state = STATE_DATA_CONTINUE;
-		return;
-	}
-
-	p = (UINT8*)getNotifCmd.buf;
-	remain_len = getNotifCmd.bufLen;
+	p = (UINT8*)notifMsg.buf;
+	remain_len = notifMsg.bufLen;
 
 	STREAM_TO_UINT8(commId, p);
 	remain_len -= 1;
 	if(commId != COMMANDID_GETNOTIFICATION_ATTRIBUITES){
-		printf("Message structure error.\n");
-		getNotifCmd.state = STATE_DATA_ERROR;
+		printf("Message structure error %d.\n", __LINE__);
+		notifMsg.state = STATE_DATA_ERROR;
 		return;
 	}
 	STREAM_TO_UINT32(getNotifCmd.notif_uid, p);
@@ -224,7 +264,7 @@ void resp_data_assembling(const char *srcData, int srcDataLen, resp_data_func_t 
 			switch(attrId){
 				case NOTIFICATION_ATTRIBUITE_ID_APPIDENTIFIER :
 					if(attrLen > APPID_CAP){
-						getNotifCmd.state = STATE_DATA_ERROR;
+						notifMsg.state = STATE_DATA_ERROR;
 						return;
 					}
 					STREAM_TO_ARRAY(getNotifCmd.appId, p, attrLen);
@@ -232,7 +272,7 @@ void resp_data_assembling(const char *srcData, int srcDataLen, resp_data_func_t 
 					break;
 				case NOTIFICATION_ATTRIBUITE_ID_TITLE :
 					if(attrLen > TITLE_CAP){
-						getNotifCmd.state = STATE_DATA_ERROR;
+						notifMsg.state = STATE_DATA_ERROR;
 						return;
 					}
 					STREAM_TO_ARRAY(getNotifCmd.title, p, attrLen);
@@ -240,7 +280,7 @@ void resp_data_assembling(const char *srcData, int srcDataLen, resp_data_func_t 
 					break;
 				case NOTIFICATION_ATTRIBUITE_ID_SUBTITLE :
 					if(attrLen > SUBTITLE_CAP){
-						getNotifCmd.state = STATE_DATA_ERROR;
+						notifMsg.state = STATE_DATA_ERROR;
 						return;
 					}
 					STREAM_TO_ARRAY(getNotifCmd.subtitle, p, attrLen);
@@ -248,7 +288,7 @@ void resp_data_assembling(const char *srcData, int srcDataLen, resp_data_func_t 
 					break;
 				case NOTIFICATION_ATTRIBUITE_ID_DATE :
 					if(attrLen > DATE_CAP){
-						getNotifCmd.state = STATE_DATA_ERROR;
+						notifMsg.state = STATE_DATA_ERROR;
 						return;
 					}
 					STREAM_TO_ARRAY(getNotifCmd.date, p, attrLen);
@@ -256,9 +296,10 @@ void resp_data_assembling(const char *srcData, int srcDataLen, resp_data_func_t 
 					break;
 				case NOTIFICATION_ATTRIBUITE_ID_MESSAGE :
 					if(attrLen > MSG_CAP){
-						getNotifCmd.state = STATE_DATA_ERROR;
+						notifMsg.state = STATE_DATA_ERROR;
 						return;
 					}
+					getNotifCmd.msg_len = attrLen;
 					STREAM_TO_ARRAY(getNotifCmd.message, p, attrLen);
 					getNotifCmd.message[attrLen] = 0;
 					break;
@@ -268,14 +309,14 @@ void resp_data_assembling(const char *srcData, int srcDataLen, resp_data_func_t 
 			}
 			remain_len -= attrLen;
 		}else if(remain_len == 0){
-			getNotifCmd.state = STATE_DATA_ADDED_NEW;
+			notifMsg.state = STATE_DATA_ADDED_NEW;
 			if(resp_data_cb){
 				resp_data_cb(&getNotifCmd, user_data);
 			}
 			return;
 		}else{
 			printf("Message structure error.\n");
-			getNotifCmd.state = STATE_DATA_ERROR;
+			notifMsg.state = STATE_DATA_ERROR;
 			return;
 		}
 	}

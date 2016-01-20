@@ -7,20 +7,7 @@
 #include <unistd.h>
 #include <errno.h>
 
-#include "lib/bluetooth.h"
-#include "lib/hci.h"
-#include "lib/hci_lib.h"
-#include "lib/l2cap.h"
-#include "lib/uuid.h"
-
-#include "src/mainloop.h"
-#include "src/util.h"
-#include "src/att.h"
-#include "src/queue.h"
-#include "src/gatt-db.h"
-#include "src/gatt-client.h"
-
-#include "AncsParser.h"
+#include "src/ancs.h"
 
 #define ANCS_MTU 158
 #define ANCS_DEV_ID 0
@@ -29,8 +16,6 @@
 
 #define PRLOG(...) \
 	printf(__VA_ARGS__); 
-
-typedef void (*ancs_func_t)(resp_data_t *getNotifCmd, void *user_data);
 
 struct client {
 	int fd;
@@ -83,8 +68,7 @@ static void log_service_event(struct gatt_db_attribute *attr, const char *str)
 
 	gatt_db_attribute_get_service_handles(attr, &start, &end);
 
-	PRLOG("%s - UUID: %s start: 0x%04x end: 0x%04x\n", str, uuid_str,
-								start, end);
+	//PRLOG("%s - UUID: %s start: 0x%04x end: 0x%04x\n", str, uuid_str, start, end);
 }
 
 static void service_added_cb(struct gatt_db_attribute *attr, void *user_data)
@@ -108,6 +92,7 @@ static void ancs_notify_cb(uint16_t value_handle,
 		bt_gatt_client_write_value(cli->gatt, ancs_handle.ctrl,
 				getNotifCmd.req_buf,getNotifCmd.req_buf_len,
 				NULL, NULL, NULL);
+	}else if(getNotifCmd.event == EVENTID_NOTIFI_REMOVED){
 	}else{
 		printf("getNotifCmd.event = %d\n", getNotifCmd.event);
 	}
@@ -128,7 +113,7 @@ static void register_notify_cb(uint16_t att_ecode, void *user_data)
 					"- error code: 0x%02x\n", att_ecode);
 		return;
 	}
-	printf("Registered notify handler!\n");
+	//printf("Registered notify handler!\n");
 }
 static void ancs_notify(struct gatt_db_attribute *attr, void *user_data)
 {
@@ -322,7 +307,7 @@ static int l2cap_le_att_listen_and_accept(bdaddr_t *src, int sec,
 		goto fail;
 	}
 
-	printf("Started listening on ATT channel. Waiting for connections\n");
+	//printf("Started listening on ATT channel. Waiting for connections\n");
 
 	memset(&addr, 0, sizeof(addr));
 	optlen = sizeof(addr);
@@ -529,9 +514,7 @@ done:
 	}
 
 	if (status) {
-		fprintf(stderr,
-			"LE set advertise enable on hci%d returned status %d\n",
-								hdev, status);
+		//fprintf(stderr, "LE set advertise enable on hci%d returned status %d\n", hdev, status);
 		return;
 	}
 }
@@ -550,7 +533,7 @@ int ancs_start(ancs_func_t ancs_cb)
 	le_adv(ANCS_DEV_ID);
 	hci_devba(ANCS_DEV_ID, &src_addr);
 	mainloop_init();
-	printf("ancs listening..\n");
+	printf("Ancs listening..\n");
 	fd = l2cap_le_att_listen_and_accept(&src_addr, BT_SECURITY_HIGH, BDADDR_LE_PUBLIC);//BDADDR_LE_RANDOM);
 	cli = client_create(fd, ANCS_MTU, ancs_cb);
 	if (!cli) {
@@ -559,7 +542,7 @@ int ancs_start(ancs_func_t ancs_cb)
 	}
 	mainloop_run();
 
-	printf("\n\nShutting down...\n");
+	printf("Ancs shutting down...\n");
 
 	client_destroy(cli);
 

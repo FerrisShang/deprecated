@@ -30,14 +30,7 @@ typedef struct {
 	UINT8  req_buf_len;
 }getNotifCmd_t;
 
-enum {
-	STATE_DATA_ADDED_NEW,
-	STATE_DATA_CONTINUE,
-	STATE_DATA_ERROR,
-};
-
 typedef struct {
-	UINT8 state;
 	UINT32 notif_uid;
 	char appId[APPID_CAP+1];
 	char title[TITLE_CAP+1];
@@ -45,8 +38,6 @@ typedef struct {
 	char message[MSG_CAP+1];
 	int msg_len;
 	char date[DATE_CAP+1];
-	char buf[DATA_BUF_BUF_SIZE];
-	int bufLen;
 }resp_data_t;
 
 typedef void (*resp_data_func_t)(resp_data_t *getNotifCmd, void *user_data);
