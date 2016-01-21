@@ -16,6 +16,6 @@
 #include "AncsParser.h"
 
 typedef void (*ancs_func_t)(resp_data_t *getNotifCmd, void *user_data);
-int ancs_start(ancs_func_t ancs_cb);
+int ancs_start(ancs_func_t ancs_cb, char *le_name);
 
 #endif /* __ANCS_H__ */

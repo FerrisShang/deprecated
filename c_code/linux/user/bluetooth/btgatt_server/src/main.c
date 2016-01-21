@@ -23,6 +23,7 @@ void parseData_cb(resp_data_t *getNotifCmd, void *user_data)
 	printf("\n\n");
 }
 
+#define LE_NAME "BlueZ Ancs"
 int main(int argc, char *argv[])
 {
 	pid_t childpid;
@@ -33,10 +34,11 @@ int main(int argc, char *argv[])
 			perror( "fork()" );
 			exit( EXIT_FAILURE );
 		}else if ( childpid == 0 ){
-			ancs_start(parseData_cb);
+			ancs_start(parseData_cb, LE_NAME);
 			exit(EXIT_SUCCESS);
 		}else{
 			waitpid( childpid, &status, 0 );
 		}
+		break;
 	}
 }
