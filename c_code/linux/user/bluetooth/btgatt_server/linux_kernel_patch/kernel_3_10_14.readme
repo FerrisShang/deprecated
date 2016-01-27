@@ -1,0 +1,12 @@
+kernel_ancs.patch is the patch for implenmenting ancs reconnect function.
+The patch apply to linux kernel 3.10.14
+
+Macro LTKS_CACHE_FILE_NAME defines the filename and position of file which used for saving keys.
+Macro MAX_LTK_NUM defines the maximum number of keys.
+
+The base committed version in /net/bluetooth is below :
+  commit 2b6cc26b6b84fa02e49c9440737835428740e272
+  Author: JP Abgrall <jpa@google.com>
+  Date:   Wed Feb 20 17:39:53 2013 -0800
+  ...
+

@@ -1,10 +1,10 @@
-app = ancs_test
+app = AncsClient
 
 CC = mips-linux-gnu-gcc
 srcExt = c
 objDir = obj
 binDir = .
-inc = . lib tools/ParseDate tools/AncsParser/
+inc = . lib tools/AncsParser/
 
 CFlags = -Wall -O2 -fdata-sections -ffunction-sections
 LDFlags = -Wl,--gc-sections

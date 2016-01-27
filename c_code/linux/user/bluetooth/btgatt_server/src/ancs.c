@@ -389,7 +389,8 @@ static void le_set_scanresp(int hdev)
 	const char advdata[]={
 		0x11, 0x15, 0xd0, 0x00, 0x2d, 0x12, 0x1e, 0x4b,
 		0x0f, 0xa4, 0x99, 0x4e, 0xce, 0xb5, 0x31, 0xf4,
-		0x05, 0x79,
+		0x05, 0x79, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00
 	};
 	const char adv_len = sizeof(advdata);
 
@@ -422,12 +423,14 @@ static void le_set_scanresp(int hdev)
 
 	hci_close_dev(dd);
 }
+
 static void le_addr(int hdev)
 {
 	struct hci_request rq;
 	le_set_random_address_cp cp;
 	uint8_t status;
 	int dd, err, ret;
+	bdaddr_t src_addr;
 
 	dd = hci_open_dev(hdev);
 	if (dd < 0) {
@@ -437,12 +440,11 @@ static void le_addr(int hdev)
 		exit(1);
 	}
 
-	/* Random seed for generating fake random address */
-	srand(time(NULL));
-	memset(&cp, 0, sizeof(cp));
-	cp.bdaddr.b[0] = 0;        cp.bdaddr.b[1] = rand()&0xFF;
-	cp.bdaddr.b[2] = rand()&0xFF; cp.bdaddr.b[3] = rand()&0xFF;
-	cp.bdaddr.b[4] = rand()&0xFF; cp.bdaddr.b[5] = 0;
+	hci_devba(ANCS_DEV_ID, &src_addr);
+	memcpy(&cp.bdaddr, &src_addr, sizeof(bdaddr_t));
+	cp.bdaddr.b[5] = ~cp.bdaddr.b[5];
+	cp.bdaddr.b[5] &= 0x7F;
+	cp.bdaddr.b[5] |= 0x40;
 
 	memset(&rq, 0, sizeof(rq));
 	rq.ogf = OGF_LE_CTL;
@@ -485,7 +487,7 @@ static void le_adv(int hdev)
 	adv_params_cp.max_interval = htobs(0x0040);
 	adv_params_cp.chan_map = 7;
 	adv_params_cp.advtype = 0;
-	adv_params_cp.own_bdaddr_type = LE_PUBLIC_ADDRESS ;
+	adv_params_cp.own_bdaddr_type = LE_RANDOM_ADDRESS;
 
 	memset(&rq, 0, sizeof(rq));
 	rq.ogf = OGF_LE_CTL;
@@ -534,12 +536,10 @@ int ancs_start(ancs_func_t ancs_cb, char *le_name)
 	struct client *cli;
 	memset(&ancs_handle, 0, sizeof(struct ancs_handle));
 	hci_devba(ANCS_DEV_ID, &src_addr);
-
 	le_addr(ANCS_DEV_ID);
-	le_set_advdata(ANCS_DEV_ID, le_name);
 	le_set_scanresp(ANCS_DEV_ID);
 	le_adv(ANCS_DEV_ID);
-	hci_devba(ANCS_DEV_ID, &src_addr);
+	le_set_advdata(ANCS_DEV_ID, le_name);
 	mainloop_init();
 	printf("Ancs listening..\n");
 	fd = l2cap_le_att_listen_and_accept(&src_addr, BT_SECURITY_HIGH, BDADDR_LE_RANDOM);
