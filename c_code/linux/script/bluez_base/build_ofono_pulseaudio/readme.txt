@@ -43,4 +43,5 @@ ofono-1.16/config_ofono-1.16.sh
 libtool-2.4/config_libtool-2.4.sh
 libsndfile-1.0.25/config_libsndfile-1.0.25.sh
 json-c-0.12/config_json-c-0.12.sh
+sbc-1.3/config_sbc-1.3.sh
 pulseaudio-6.0/config_pulseaudio-6.0.sh
