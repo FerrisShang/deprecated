@@ -18,12 +18,21 @@ static int find_pid(char *pro_name)
 		char *p;
 		p = strstr(str_buf, pro_name);
 		if(p != NULL){
+			printf("%s", str_buf);
 			pclose(pf);
 			return atoi(str_buf);
 		}
 	}
 	pclose(pf);
 	return 0;
+}
+static void kill_all_pro_by_name(char *pro_name)
+{
+	pid_t ext_pro_pid;
+	while((ext_pro_pid = find_pid(pro_name))>0){
+		printf("kill extern progress, ext_pro_pid=%d\n", ext_pro_pid);
+		kill(ext_pro_pid, SIGKILL);
+	}
 }
 static int CreateMyProcess(char *pro_name)
 {
@@ -40,7 +49,7 @@ static int CreateMyProcess(char *pro_name)
 int main(int argc, char *argv[])
 {
 #define PRO_NAME "test_pro_child"
-	pid_t c_pid, ext_pro_pid;
+	pid_t c_pid;
 	c_pid = CreateMyProcess("./"PRO_NAME);
 	if (c_pid < 0) {
 		printf("Create child progress failed \n");
@@ -48,11 +57,7 @@ int main(int argc, char *argv[])
 	}
 	printf("parent process sleep 3s\n");
 	sleep(3);
-	ext_pro_pid = find_pid(PRO_NAME);
-	printf("kill extern progress, ext_pro_pid=%d\n", ext_pro_pid);
-	if(ext_pro_pid > 0){
-		kill(ext_pro_pid, SIGKILL);
-	}
+	kill_all_pro_by_name(PRO_NAME);
 	sleep(1);
 	printf("parent progress exit\n");
 }
