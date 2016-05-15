@@ -1,10 +1,11 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 #define STR_SETTINGS   "settings"
 #define STR_UPDATE     "update"
 #define STR_ACTION     "action"
-#define STR_PLAY_TEST  "test"
+#define STR_PLAY_TEST  "t"
 #define MAX_STRING_LEN 1024
 #define MAX_FIELD 10
 
@@ -133,10 +134,18 @@ void updata_field(struct data *data, int id, int col)
 {
 	char (*f)[MAX_FIELD] = data->field;
 	int x = col, y;
-	for(y=0;y<data->field_rows-1;y++){
-		if(f[y+1][x] != 0) break;
+	if(id >=0 && f[0][x] != 0) return;
+	if(id < 0){
+		for(y=0;y<data->field_rows;y++){
+			if(f[y][x] != 0) break;
+		}
+		f[y][x] = 0;
+	}else{
+		for(y=0;y<data->field_rows-1;y++){
+			if(f[y+1][x] != 0) break;
+		}
+		f[y][x] = id;
 	}
-	f[y][x] = id;
 }
 void dump_field(struct data *data)
 {
@@ -161,16 +170,22 @@ void dump_field(struct data *data)
 }
 void test(struct data *data, int col)
 {
-	updata_field(data, data->your_botid, col);
-	updata_field(data, 2, cal_col(data));
+	updata_field(data, 3-data->your_botid, col);
+	updata_field(data, data->your_botid, cal_col(data));
 	dump_field(data);
 }
 
+int isFinish(struct data *data, int last_col);
 int main(int argc, char *argv[])
 {
 	struct command cmd;
 	struct data data;
 	memset(&data, 0, sizeof(struct data));
+	data.your_botid = 2;
+	if(data.field_columns == 0){
+		data.field_columns = 7;
+		data.field_rows = 6;
+	}
 	while(1){
 		get_lines(&cmd);
 		if(cmd.type == TYPE_PLAY_TEST){
@@ -192,14 +207,17 @@ int isInRange(struct data *data, int x, int y)
 	if(y<0 || y>=data->field_rows)return 0;
 	return 1;
 }
-int isFinish(struct data *data, int last_col, int player_id)
+int isFinish(struct data *data, int last_col)
 {
+	int player_id;
 	char (*f)[MAX_FIELD] = data->field;
 	int x = last_col, y;
 	int cnt, tx, ty;
 	for(y=0;y<data->field_rows;y++){
 		if(f[y][x] != 0) break;
 	}
+	player_id = f[y][x];
+	if(player_id == 0) return 0;
 	//horizontal
 	cnt = 1;
 	tx = x;
@@ -215,8 +233,7 @@ int isFinish(struct data *data, int last_col, int player_id)
 	cnt = 1;
 	ty = y;
 	while(isInRange(data, x,--ty) && f[ty][x] == player_id){
-		cnt++;
-	}
+		cnt++; }
 	ty = y;
 	while(isInRange(data, x,++ty) && f[ty][x] == player_id){
 		cnt++;
@@ -233,22 +250,153 @@ int isFinish(struct data *data, int last_col, int player_id)
 		cnt++;
 	}
 	if(cnt >= 4) return 1;
+
 	cnt = 1;
 	tx = x; ty = y;
-	while(isInRange(data, --tx,--ty) && f[ty][tx] == player_id){
+	while(isInRange(data, --tx,++ty) && f[ty][tx] == player_id){
 		cnt++;
 	}
 	tx = x; ty = y;
-	while(isInRange(data, ++tx,++ty) && f[ty][tx] == player_id){
+	while(isInRange(data, ++tx,--ty) && f[ty][tx] == player_id){
 		cnt++;
 	}
 	if(cnt >= 4) return 1;
 	return 0;
 }
 
+void cal8(struct data *data, int col, float *score)
+{
+	int i;
+	int op_id = 3-data->your_botid;
+	if(data->field[0][col] != 0) return;
+	updata_field(data, op_id, col);
+	if(isFinish(data, col)){
+		*score -= 128;
+	}else{
+		//dump_field(data);
+	}
+	updata_field(data, -1, col);
+}
+void cal7(struct data *data, int col, float *score)
+{
+	int i;
+	if(data->field[0][col] != 0) return;
+	updata_field(data, data->your_botid, col);
+	if(isFinish(data, col)){
+		*score += 128;
+	}else{
+		for(i=0;i<data->field_columns;i++){
+			cal8(data, i, score);
+		}
+	}
+	updata_field(data, -1, col);
+}
+void cal6(struct data *data, int col, float *score)
+{
+	int i;
+	int op_id = 3-data->your_botid;
+	if(data->field[0][col] != 0) return;
+	updata_field(data, op_id, col);
+	if(isFinish(data, col)){
+		*score -= 256;
+	}else{
+		//dump_field(data);
+		for(i=0;i<data->field_columns;i++){
+			cal7(data, i, score);
+		}
+	}
+	updata_field(data, -1, col);
+}
+void cal5(struct data *data, int col, float *score)
+{
+	int i;
+	if(data->field[0][col] != 0) return;
+	updata_field(data, data->your_botid, col);
+	if(isFinish(data, col)){
+		*score += 256;
+	}else{
+		for(i=0;i<data->field_columns;i++){
+			cal6(data, i, score);
+		}
+	}
+	updata_field(data, -1, col);
+}
+
+void cal4(struct data *data, int col, float *score)
+{
+	int i;
+	int op_id = 3-data->your_botid;
+	if(data->field[0][col] != 0) return;
+	updata_field(data, op_id, col);
+	if(isFinish(data, col)){
+		*score -= 512;
+	}else{
+		for(i=0;i<data->field_columns;i++){
+			cal5(data, i, score);
+		}
+	}
+	updata_field(data, -1, col);
+}
+void cal3(struct data *data, int col, float *score)
+{
+	int i;
+	if(data->field[0][col] != 0) return;
+	updata_field(data, data->your_botid, col);
+	if(isFinish(data, col)){
+		*score += 512;
+	}else{
+		for(i=0;i<data->field_columns;i++){
+			cal4(data, i, score);
+		}
+	}
+	updata_field(data, -1, col);
+}
+void cal2(struct data *data, int col, float *score)
+{
+	int i;
+	int op_id = 3-data->your_botid;
+	if(data->field[0][col] != 0) {return;}
+	updata_field(data, op_id, col);
+	if(isFinish(data, col)){
+		*score -= 1e9;
+	}else{
+		for(i=0;i<data->field_columns;i++){
+			cal3(data, i, score);
+		}
+	}
+	updata_field(data, -1, col);
+} 
+void cal1(struct data *data, int col, float *score)
+{
+	int i;
+	if(data->field[0][col] != 0){
+		score[col] = -1e100;
+		return;
+	}
+	updata_field(data, data->your_botid, col);
+	if(isFinish(data, col)){
+		score[col] += 1e9;
+	}else{
+		for(i=0;i<data->field_columns;i++){
+			cal2(data, i, &score[col]);
+		}
+	}
+	updata_field(data, -1, col);
+}
 int cal_col(struct data *data)
 {
-	static int i;
-	char (*f)[MAX_FIELD] = data->field;
-	return (++i-1)%data->field_columns;
+	int i, max_idx = 0;
+	float max = -1e99, score[7] = {0,1,2,3,2,1,0};
+	for(i=0;i<data->field_columns;i++){
+		cal1(data, i, score);
+	}
+	for(i=0;i<data->field_columns;i++){
+		printf("%f, ", score[i]);
+		if(max < score[i]){
+			max = score[i];
+			max_idx = i;
+		}
+	}
+	printf("\n");
+	return max_idx;
 }
