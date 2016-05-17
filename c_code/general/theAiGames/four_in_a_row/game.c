@@ -3,67 +3,89 @@
 #include <stdlib.h>
 #include "main.h"
 
-int isInRange(struct data *data, int x, int y)
+void init_para(struct data *data)
 {
-	if(x<0 || x>=data->field_columns)return 0;
-	if(y<0 || y>=data->field_rows)return 0;
-	return 1;
+	char *map;
+	unsigned int i,j;
+	map = data->finishMap;
+	for(i=0;i<1<<16;i++){
+		unsigned short num = i;
+		char exitFlag = 0;
+		while(num >= 0xF){
+			if(num & 0xF == 0xF){
+				exitFlag = 1;
+				map[i] = 1;
+				break;
+			}else{
+				num >>= 1;
+			}
+		}
+	}
+	map = data->nextPosMap;
+	for(i=0;i<1<<8;i++){
+		unsigned char num = i;
+		for(j=0;j<8;j++){
+			if((0x80 & num) != 0){
+				map[i] = 8-j;
+				break;
+			}
+			num <<= 1;
+		}
+	}
+	char (*m)[FIELD_COL];
+	m = data->fieldSxMap;
+	for(i=0;i<FIELD_COL;i++){
+		for(j=0;j<FIELD_ROW;j++){
+			m[j][i] = i<j?i:j;
+		}
+	}
+	m = data->fieldSyMap;
+	for(i=0;i<FIELD_COL;i++){
+		for(j=0;j<FIELD_ROW;j++){
+			if(i > j){
+				m[j][i] = (FIELD_COL-i-1)<j?j:(FIELD_COL-i-1);
+			}else{
+				m[j][i] = FIELD_ROW + (j-i);
+			}
+		}
+	}
+	m = data->fieldBsxMap;
+	for(i=0;i<FIELD_COL;i++){
+		for(j=0;j<FIELD_ROW;j++){
+			if(i <= j){
+				m[j][i] = (FIELD_ROW-j-1)<i?(FIELD_ROW-j-1):i;
+			}else{
+				m[j][i] = i+j;
+			}
+		}
+	}
+	m = data->fieldBsyMap;
+	for(i=0;i<FIELD_COL;i++){
+		for(j=0;j<FIELD_ROW;j++){
+			m[j][i] = i+j;
+		}
+	}
+}
+int isColFull(struct data *data, int col)
+{
+	int id = 2;
+	int row = data->nextPosMap[
+		(unsigned char)data->field_v[id][col] |
+		(unsigned char)data->field_v[op_id(id)][col]
+		];
+	if(row >= FIELD_ROW) return 0;
+	else return 1;
 }
 
-int isFinish(struct data *data, int last_col)
+int isFinish(struct data *data, int id, int last_col)
 {
-	int player_id;
-	char (*f)[MAX_FIELD] = data->field;
-	int x = last_col, y;
-	int cnt, tx, ty;
-	for(y=0;y<data->field_rows;y++){
-		if(f[y][x] != 0) break;
-	}
-	player_id = f[y][x];
-	if(player_id == 0) return 0;
-	//horizontal
-	cnt = 1;
-	tx = x;
-	while(isInRange(data, --tx,y) && f[y][tx] == player_id){
-		cnt++;
-	}
-	tx = x;
-	while(isInRange(data, ++tx,y) && f[y][tx] == player_id){
-		cnt++;
-	}
-	if(cnt >= 4) return 1;
-	//vertical
-	cnt = 1;
-	ty = y;
-	while(isInRange(data, x,--ty) && f[ty][x] == player_id){
-		cnt++; }
-	ty = y;
-	while(isInRange(data, x,++ty) && f[ty][x] == player_id){
-		cnt++;
-	}
-	if(cnt >= 4) return 1;
-	//sideling
-	cnt = 1;
-	tx = x; ty = y;
-	while(isInRange(data, --tx,--ty) && f[ty][tx] == player_id){
-		cnt++;
-	}
-	tx = x; ty = y;
-	while(isInRange(data, ++tx,++ty) && f[ty][tx] == player_id){
-		cnt++;
-	}
-	if(cnt >= 4) return 1;
-
-	cnt = 1;
-	tx = x; ty = y;
-	while(isInRange(data, --tx,++ty) && f[ty][tx] == player_id){
-		cnt++;
-	}
-	tx = x; ty = y;
-	while(isInRange(data, ++tx,--ty) && f[ty][tx] == player_id){
-		cnt++;
-	}
-	if(cnt >= 4) return 1;
+	unsigned short line;
+	int col = last_col;
+	int row = data->nextPosMap[
+		(unsigned char)data->field_v[id][col] |
+		(unsigned char)data->field_v[op_id(id)][col]
+		];
+	line = 
 	return 0;
 }
 
@@ -90,12 +112,16 @@ void update_data(struct data* data, struct command* cmd)
 		if(!strcmp(cmd->update.type, "round")){
 			data->round = atoi(cmd->update.value);
 		}else if(!strcmp(cmd->update.type, "field")){
-			int i,j;
+			int i, j, id, idx;
 			char *p = cmd->update.value;
-			for(j=0;j<data->field_rows;j++){
+			clear_field(data);
+			for(j=data->field_rows-1;j>=0;j--){
 				for(i=0;i<data->field_columns;i++){
-					data->field[j][i] = (*p - '0');
-					p += 2;
+					idx = 2 * (data->field_columns*j + i);
+					id = p[idx] - '0';
+					if(id != 0){
+						add_field(data, id, i);
+					}
 				}
 			}
 		}
@@ -104,6 +130,7 @@ void update_data(struct data* data, struct command* cmd)
 
 void dump_data(struct data *data)
 {
+#if 0
 	int i,j;
 #if 0
 	printf("tb=%d,tp=%d,n=%s,b=%s,\nid=%d,c=%d,r=%d,round=%d\n",
@@ -118,57 +145,78 @@ void dump_data(struct data *data)
 		}
 	}
 	printf("\n");
+#endif
 }
 
-void update_field(struct data *data, int id, int col)
+void clear_field(struct data *data)
 {
-	char (*f)[MAX_FIELD] = data->field;
-	int x = col, y;
-	if(id >=0 && f[0][x] != 0) return;
-	if(id < 0){
-		for(y=0;y<data->field_rows;y++){
-			if(f[y][x] != 0) break;
-		}
-		f[y][x] = 0;
-	}else{
-		for(y=0;y<data->field_rows-1;y++){
-			if(f[y+1][x] != 0) break;
-		}
-		f[y][x] = id;
-	}
+	memcpy(data->field_h,  0, sizeof(data->field_h)); 
+	memcpy(data->field_v,  0, sizeof(data->field_v)); 
+	memcpy(data->field_s,  0, sizeof(data->field_s)); 
+	memcpy(data->field_bs, 0, sizeof(data->field_bs)); 
+}
+void add_field(struct data *data, int id, int col)
+{
+	int row = data->nextPosMap[
+		(unsigned char)data->field_v[id][col] |
+		(unsigned char)data->field_v[op_id(id)][col]
+		];
+	int tx,ty;
+	data->field_h[id][row] |= 1<<col;
+	data->field_v[id][col] |= 1<<row;
+	tx = data->fieldSxMap[row][col];
+	ty = data->fieldSyMap[row][col];
+	data->field_s[id][ty] |= 1<<tx;
+	tx = data->fieldBsxMap[row][col];
+	ty = data->fieldBsyMap[row][col];
+	data->field_bs[id][ty] |= 1<<tx;
+}
+
+void remove_field(struct data *data, int id, int col)
+{
+	int row = data->nextPosMap[
+		(unsigned char)data->field_v[id][col] |
+		(unsigned char)data->field_v[op_id(id)][col]
+		];
+	int tx,ty;
+	row--;
+	data->field_h[id][row] &= ~(1<<col);
+	data->field_v[id][col] &= ~(1<<row);
+	tx = data->fieldSxMap[row][col];
+	ty = data->fieldSyMap[row][col];
+	data->field_s[id][ty] &= ~(1<<tx);
+	tx = data->fieldBsxMap[row][col];
+	ty = data->fieldBsyMap[row][col];
+	data->field_bs[id][ty] &= ~(1<<tx);
 }
 void dump_field(struct data *data)
 {
 	int x=data->field_columns;
 	int y=data->field_rows;
-	char (*f)[MAX_FIELD] = data->field;
+	int id = data->your_botid;
 	int i, j;
-//	printf("----");
-//	for(i=0;i<x;i++)printf("--");
+	printf("----");
+	for(i=0;i<x;i++)printf("--");
 	printf("\n");
-	for(j=0;j<y;j++){
-//		printf("| ");
+	for(j=y-1;j>=0;j--){
+		printf("| ");
 		for(i=0;i<x;i++){
-			if(data->field[j][i] == 0) printf("  ");
-#if 0
-			else if(data->field[j][i] == data->your_botid) printf("★ ");
-			else printf("☆ ");
-#else
-			else if(data->field[j][i] == data->your_botid) printf("11");
-			else printf("22");
-#endif
+			if((data->field_h[id][j] & (1<<i)) != 0) printf("★ ");
+			else if((data->field_h[op_id(id)][j] & (1<<i)) != 0)printf("☆ ");
+			else printf("  ");
 		}
-//		printf(" |\n");
-		printf("0\n");///////////////////////
+		printf(" |\n");
 	}
-//	for(i=0;i<x;i++)printf("--");
-//	printf("----\n");
+	for(i=0;i<x;i++)printf("--");
+	printf("----\n");
 }
 void test(struct data *data, int col)
 {
-	update_field(data, 3-data->your_botid, col);
+	add_field(data, op_id(data->your_botid), col);
+	printf("t1:%d,%d\n",data->field_columns, data->field_rows);
 	//dump_data(data);
-	update_field(data, data->your_botid, cal_col(data));
+	add_field(data, data->your_botid, cal_col(data));
+	printf("t2:%d,%d\n",data->field_columns, data->field_rows);
 	//dump_data(data);
 	dump_field(data);
 }

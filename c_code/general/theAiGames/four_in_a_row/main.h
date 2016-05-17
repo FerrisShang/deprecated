@@ -8,7 +8,8 @@
 #define STR_ACTION     "action"
 #define STR_PLAY_TEST  "t"
 #define MAX_STRING_LEN 1024
-#define MAX_FIELD 10
+#define FIELD_ROW 6
+#define FIELD_COL 7
 
 #define DEBUG 1
 enum{
@@ -53,12 +54,27 @@ struct data {
 	int field_columns;
 	int field_rows;
 	int round;
-	char field[MAX_FIELD][MAX_FIELD];
+	unsigned short field_h[3][FIELD_ROW];
+	unsigned short field_v[3][FIELD_COL];
+	unsigned short field_s[3][FIELD_ROW+FIELD_COL];
+	unsigned short field_bs[3][FIELD_ROW+FIELD_COL];
+	char finishMap[1<<16];
+	char nextPosMap[1<<8];
+	char fieldSxMap[FIELD_ROW][FIELD_COL];
+	char fieldSyMap[FIELD_ROW][FIELD_COL];
+	char fieldBsxMap[FIELD_ROW][FIELD_COL];
+	char fieldBsyMap[FIELD_ROW][FIELD_COL];
 };
 
+#define op_id(id) (3-id)
 void test(struct data *data, int col);
 int cal_col(struct data *data);
 void action_move(struct data* data);
+void clear_field(struct data *data);
+void add_field(struct data *data, int id, int col);
+void remove_field(struct data *data, int id, int col);
 void update_data(struct data* data, struct command* cmd);
+int isColFull(struct data *data, int col);
+int isFinish(struct data *data, int id, int last_col);
 
 #endif

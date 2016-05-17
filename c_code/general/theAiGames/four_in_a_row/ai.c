@@ -27,10 +27,6 @@ int cal_col(struct data *data)
 	return idx[STEP_LEN];
 }
 
-#define op_id(id) (3-id)
-void update_field(struct data *data, int id, int col);
-int isFinish(struct data *data, int last_col);
-
 void max_score(struct data *data, int id, int steps, int *value, int *idx)
 {
 	int i;
@@ -40,10 +36,10 @@ void max_score(struct data *data, int id, int steps, int *value, int *idx)
 	}
 	value[steps] = -VALUE_INF;
 	for(i=0;i<data->field_columns;i++){
-		if(data->field[0][i] != 0) continue;
-		update_field(data, id, i);
-		if(isFinish(data, i)){
-			update_field(data, -1, i);
+		if(isColFull(data, i)) continue;
+		add_field(data, id, i);
+		if(isFinish(data, id, i)){
+			add_field(data, -1, i);
 			idx[steps] = i;
 			value[steps] = GAME_MAX;
 			value[steps] = - value[steps];
@@ -54,7 +50,7 @@ void max_score(struct data *data, int id, int steps, int *value, int *idx)
 				value[steps] = value[steps-1];
 				idx[steps] = i;
 			}
-			update_field(data, -1, i);
+			add_field(data, -1, i);
 		}
 #if DEBUG == 1
 		if(steps == STEP_LEN){

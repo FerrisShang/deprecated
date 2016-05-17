@@ -29,11 +29,12 @@ int main(int argc, char *argv[])
 	struct command cmd;
 	struct data data;
 	memset(&data, 0, sizeof(struct data));
+
 	data.your_botid = 2;
-	if(data.field_columns == 0){
-		data.field_columns = 7;
-		data.field_rows = 6;
-	}
+	data.field_columns = 7;
+	data.field_rows = 6;
+	init_para(&data);
+
 	while(1){
 		get_lines(&cmd);
 		if(cmd.type == TYPE_PLAY_TEST){
