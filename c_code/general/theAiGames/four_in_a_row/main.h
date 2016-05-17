@@ -10,7 +10,7 @@
 #define MAX_STRING_LEN 1024
 #define MAX_FIELD 10
 
-#define DEBUG 0
+#define DEBUG 1
 enum{
 	TYPE_SETTINGS,
 	TYPE_UPDATE,
@@ -56,7 +56,9 @@ struct data {
 	char field[MAX_FIELD][MAX_FIELD];
 };
 
+void test(struct data *data, int col);
 int cal_col(struct data *data);
 void action_move(struct data* data);
+void update_data(struct data* data, struct command* cmd);
 
 #endif

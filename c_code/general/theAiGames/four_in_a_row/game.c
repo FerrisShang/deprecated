@@ -105,13 +105,13 @@ void update_data(struct data* data, struct command* cmd)
 void dump_data(struct data *data)
 {
 	int i,j;
-	/*
+#if 0
 	printf("tb=%d,tp=%d,n=%s,b=%s,\nid=%d,c=%d,r=%d,round=%d\n",
 			data->timebank, data->time_per_move,
 			data->player_names, data->your_bot,
 			data->your_botid, data->field_columns, data->field_rows, data->round
 		  );
-	*/
+#endif
 	for(j=0;j<data->field_rows;j++){
 		for(i=0;i<data->field_columns;i++){
 			printf("%d ", data->field[j][i]);
@@ -143,20 +143,26 @@ void dump_field(struct data *data)
 	int y=data->field_rows;
 	char (*f)[MAX_FIELD] = data->field;
 	int i, j;
-	printf("----");
-	for(i=0;i<x;i++)printf("--");
+//	printf("----");
+//	for(i=0;i<x;i++)printf("--");
 	printf("\n");
 	for(j=0;j<y;j++){
-		printf("| ");
+//		printf("| ");
 		for(i=0;i<x;i++){
 			if(data->field[j][i] == 0) printf("  ");
+#if 0
 			else if(data->field[j][i] == data->your_botid) printf("★ ");
 			else printf("☆ ");
+#else
+			else if(data->field[j][i] == data->your_botid) printf("11");
+			else printf("22");
+#endif
 		}
-		printf(" |\n");
+//		printf(" |\n");
+		printf("0\n");///////////////////////
 	}
-	for(i=0;i<x;i++)printf("--");
-	printf("----\n");
+//	for(i=0;i<x;i++)printf("--");
+//	printf("----\n");
 }
 void test(struct data *data, int col)
 {
