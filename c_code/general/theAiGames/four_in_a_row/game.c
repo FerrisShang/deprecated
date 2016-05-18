@@ -10,10 +10,8 @@ void init_para(struct data *data)
 	map = data->finishMap;
 	for(i=0;i<1<<16;i++){
 		unsigned short num = i;
-		char exitFlag = 0;
 		while(num >= 0xF){
-			if(num & 0xF == 0xF){
-				exitFlag = 1;
+			if((num & 0xF) == 0xF){
 				map[i] = 1;
 				break;
 			}else{
@@ -43,7 +41,7 @@ void init_para(struct data *data)
 	for(i=0;i<FIELD_COL;i++){
 		for(j=0;j<FIELD_ROW;j++){
 			if(i > j){
-				m[j][i] = (FIELD_COL-i-1)<j?j:(FIELD_COL-i-1);
+				m[j][i] = (FIELD_COL-i-1)+j;
 			}else{
 				m[j][i] = FIELD_ROW + (j-i);
 			}
@@ -52,11 +50,7 @@ void init_para(struct data *data)
 	m = data->fieldBsxMap;
 	for(i=0;i<FIELD_COL;i++){
 		for(j=0;j<FIELD_ROW;j++){
-			if(i <= j){
-				m[j][i] = (FIELD_ROW-j-1)<i?(FIELD_ROW-j-1):i;
-			}else{
-				m[j][i] = i+j;
-			}
+			m[j][i] = (FIELD_ROW-j-1)<i?(FIELD_ROW-j-1):i;
 		}
 	}
 	m = data->fieldBsyMap;
@@ -73,8 +67,8 @@ int isColFull(struct data *data, int col)
 		(unsigned char)data->field_v[id][col] |
 		(unsigned char)data->field_v[op_id(id)][col]
 		];
-	if(row >= FIELD_ROW) return 0;
-	else return 1;
+	if(row >= FIELD_ROW) return 1;
+	else return 0;
 }
 
 int isFinish(struct data *data, int id, int last_col)
@@ -84,8 +78,15 @@ int isFinish(struct data *data, int id, int last_col)
 	int row = data->nextPosMap[
 		(unsigned char)data->field_v[id][col] |
 		(unsigned char)data->field_v[op_id(id)][col]
-		];
-	line = 
+		] - 1;
+	line = data->field_h[id][row];
+	if(data->finishMap[line] != 0){return 1;}
+	line = data->field_v[id][col];
+	if(data->finishMap[line] != 0){return 1;}
+	line = data->field_s[id][data->fieldSyMap[row][col]];
+	if(data->finishMap[line] != 0){return 1;}
+	line = data->field_bs[id][data->fieldBsyMap[row][col]];
+	if(data->finishMap[line] != 0){return 1;}
 	return 0;
 }
 
@@ -150,10 +151,10 @@ void dump_data(struct data *data)
 
 void clear_field(struct data *data)
 {
-	memcpy(data->field_h,  0, sizeof(data->field_h)); 
-	memcpy(data->field_v,  0, sizeof(data->field_v)); 
-	memcpy(data->field_s,  0, sizeof(data->field_s)); 
-	memcpy(data->field_bs, 0, sizeof(data->field_bs)); 
+	memset(data->field_h,  0, sizeof(data->field_h));
+	memset(data->field_v,  0, sizeof(data->field_v));
+	memset(data->field_s,  0, sizeof(data->field_s));
+	memset(data->field_bs, 0, sizeof(data->field_bs));
 }
 void add_field(struct data *data, int id, int col)
 {
@@ -177,9 +178,8 @@ void remove_field(struct data *data, int id, int col)
 	int row = data->nextPosMap[
 		(unsigned char)data->field_v[id][col] |
 		(unsigned char)data->field_v[op_id(id)][col]
-		];
+		] - 1;
 	int tx,ty;
-	row--;
 	data->field_h[id][row] &= ~(1<<col);
 	data->field_v[id][col] &= ~(1<<row);
 	tx = data->fieldSxMap[row][col];
@@ -213,10 +213,8 @@ void dump_field(struct data *data)
 void test(struct data *data, int col)
 {
 	add_field(data, op_id(data->your_botid), col);
-	printf("t1:%d,%d\n",data->field_columns, data->field_rows);
 	//dump_data(data);
 	add_field(data, data->your_botid, cal_col(data));
-	printf("t2:%d,%d\n",data->field_columns, data->field_rows);
 	//dump_data(data);
 	dump_field(data);
 }

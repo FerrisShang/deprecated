@@ -7,13 +7,12 @@
 #define GAME_MAX  1000000
 
 void max_score(struct data *data, int id, int steps, int *value, int *idx);
-void min_score(struct data *data, int id, int steps, int *value, int *idx);
 
-#define STEP_LEN 7
+#define STEP_LEN 8
 int cal_col(struct data *data)
 {
-	int i, idx[10] = {0};
-	int score[10] = {0};
+	int i, idx[STEP_LEN+1] = {0};
+	int score[STEP_LEN+1] = {0};
 	max_score(data, data->your_botid, STEP_LEN, score, idx);
 #if DEBUG == 1
 	printf("\nscore = %8d %8d %8d %8d %8d %8d %8d %8d\n",
@@ -39,10 +38,10 @@ void max_score(struct data *data, int id, int steps, int *value, int *idx)
 		if(isColFull(data, i)) continue;
 		add_field(data, id, i);
 		if(isFinish(data, id, i)){
-			add_field(data, -1, i);
 			idx[steps] = i;
 			value[steps] = GAME_MAX;
 			value[steps] = - value[steps];
+			remove_field(data, id, i);
 			return;
 		}else{
 			max_score(data, op_id(id), steps-1, value, idx);
@@ -50,7 +49,7 @@ void max_score(struct data *data, int id, int steps, int *value, int *idx)
 				value[steps] = value[steps-1];
 				idx[steps] = i;
 			}
-			add_field(data, -1, i);
+			remove_field(data, id, i);
 		}
 #if DEBUG == 1
 		if(steps == STEP_LEN){
