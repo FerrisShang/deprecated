@@ -3,9 +3,6 @@
 #include <stdlib.h>
 #include "main.h"
 
-#define VALUE_INF 100000000
-#define GAME_MAX  1000000
-
 void max_score(struct data *data, int id, int steps, int *value, int *idx);
 
 #define STEP_LEN 8
@@ -29,25 +26,25 @@ int cal_col(struct data *data)
 void max_score(struct data *data, int id, int steps, int *value, int *idx)
 {
 	int i;
-	if(steps == 0){
-		value[steps] = (rand() & 0x3F);
-		return;
-	}
 	value[steps] = -VALUE_INF;
 	for(i=0;i<data->field_columns;i++){
 		if(isColFull(data, i)) continue;
 		add_field(data, id, i);
 		if(isFinish(data, id, i)){
 			idx[steps] = i;
-			value[steps] = GAME_MAX;
+			value[steps] = VALUE_INF;
 			value[steps] = - value[steps];
 			remove_field(data, id, i);
 			return;
 		}else{
-			max_score(data, op_id(id), steps-1, value, idx);
-			if(value[steps] < value[steps-1]){
-				value[steps] = value[steps-1];
-				idx[steps] = i;
+			if(steps == 1){
+				value[steps] = judgement(data, id, i);
+			}else{
+				max_score(data, op_id(id), steps-1, value, idx);
+				if(value[steps] < value[steps-1]){
+					value[steps] = value[steps-1]-STEP_MINIUS;
+					idx[steps] = i;
+				}
 			}
 			remove_field(data, id, i);
 		}
@@ -57,6 +54,6 @@ void max_score(struct data *data, int id, int steps, int *value, int *idx)
 		}
 #endif
 	}
-	value[steps] = - value[steps];
+	value[steps] = -value[steps];
 	return;
 }

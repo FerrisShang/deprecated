@@ -11,6 +11,10 @@
 #define FIELD_ROW 6
 #define FIELD_COL 7
 
+#define VALUE_INF   100000000
+#define GAME_MAX    1000000
+#define STEP_MINIUS 10000
+
 #define DEBUG 1
 enum{
 	TYPE_SETTINGS,
@@ -76,5 +80,6 @@ void remove_field(struct data *data, int id, int col);
 void update_data(struct data* data, struct command* cmd);
 int isColFull(struct data *data, int col);
 int isFinish(struct data *data, int id, int last_col);
+int judgement(struct data *data, int id, int col);
 
 #endif

@@ -90,6 +90,10 @@ int isFinish(struct data *data, int id, int last_col)
 	return 0;
 }
 
+int judgement(struct data *data, int id, int col)
+{
+	return (rand() & 0x3F);
+}
 
 void update_data(struct data* data, struct command* cmd)
 {
