@@ -1,8 +1,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include "mem_manage.h"
 
-#if 0
+#if 1
+#define MEMORY_IN_USE  1
+#define MEMORY_NOT_USE 0
 struct mem_record{
 	int addr;
 	char func[32];
@@ -13,7 +16,7 @@ struct mem_record{
 struct mem_record mem_record[4096];
 int mem_record_cnt;
 
-void add_rec(int addr, const char *func, int line)
+static void add_rec(int addr, const char *func, int line)
 {
 	struct mem_record *p;
 	int i;
@@ -27,10 +30,10 @@ void add_rec(int addr, const char *func, int line)
 	p->addr = addr;
 	memcpy(p->func, func, 31);
 	p->line = line;
-	mem_record[i].state = 1;
+	mem_record[i].state = MEMORY_IN_USE;
 	mem_record_cnt++;
 }
-void rm_rec(int addr)
+static void rm_rec(int addr)
 {
 	int i;
 	for(i=0;i<mem_record_cnt;i++){
@@ -42,11 +45,14 @@ void rm_rec(int addr)
 void mem_dump(void)
 {
 	int i;
-	printf("total:%d\n", mem_record_cnt);
+	Log.v("Total:%d(freed included)", mem_record_cnt);
 	for(i=0;i<mem_record_cnt;i++){
-		if(mem_record[i].state != 0){
-			printf("@\t%08x\t%d\t%s\t%d\n", mem_record[i].addr, 
-					mem_record[i].state, mem_record[i].func, mem_record[i].line);
+		if(mem_record[i].state != MEMORY_NOT_USE){
+			Log.v(" @%08x  %d  %32s:%d",
+					mem_record[i].addr, 
+					mem_record[i].state,
+					mem_record[i].func,
+					mem_record[i].line);
 		}
 	}
 }
@@ -55,7 +61,7 @@ void* _mem_malloc(int size, const char *func, int line)
 {
 	void *p;
 	p = malloc(size);
-	printf("%s@%d => malloc:%8p\n", func, line, p);
+	Log.v("%32s@%d => malloc:%8p", func, line, p);
 	add_rec((int)p, func, line);
 	return p;
 }
@@ -64,7 +70,7 @@ void* _mem_calloc(int size, int num, const char *func, int line)
 {
 	void *p;
 	p = calloc(size, num);
-	printf("%s@%d => calloc:%8p\n", func, line, p);
+	Log.v("%32s@%d => calloc:%8p", func, line, p);
 	add_rec((int)p, func, line);
 	return p;
 }
@@ -73,7 +79,7 @@ void _mem_free(void *ptr, const char *func, int line)
 {
 	rm_rec((int)ptr);
 	free(ptr);
-	printf("%s@%d => free:%8p\n", func, line, ptr);
+	Log.v("%32s@%d =>    free:%8p", func, line, ptr);
 	ptr = 0;
 }
 

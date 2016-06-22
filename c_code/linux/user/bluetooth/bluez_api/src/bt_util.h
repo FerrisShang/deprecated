@@ -6,6 +6,8 @@
 
 int l2cap_le_att_listen_and_accept(int hdev, int security,
 		void (*connected_cb)(int fd, bdaddr_t addr));
+int l2cap_le_att_connect(int hdev, bdaddr_t *dst, int security,
+		void (*connected_cb)(int fd, bdaddr_t addr));
 int le_set_random_address(int hdev);
 int le_set_advertise_enable(int hdev);
 int le_set_advertise_parameters(int hdev);

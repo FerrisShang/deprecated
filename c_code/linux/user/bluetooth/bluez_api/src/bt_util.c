@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include "l2cap.h"
 #include "bt_util.h"
+#include "bluetooth.h"
 #include "hci.h"
 #include "log.h"
 
@@ -17,6 +18,9 @@ int l2cap_le_att_listen_and_accept(int hdev, int security,
 	//bdaddr_t rand_addr;
 	bdaddr_t src_addr;
 
+	if(!connected_cb){
+		return -1;
+	}
 	//hci_le_get_random_address(&rand_addr);
 	hci_devba(hdev, &src_addr);
 	sk = socket(PF_BLUETOOTH, SOCK_SEQPACKET, BTPROTO_L2CAP);
@@ -70,6 +74,69 @@ int l2cap_le_att_listen_and_accept(int hdev, int security,
 fail:
 	close(sk);
 	return -1;
+}
+
+int l2cap_le_att_connect(int hdev, bdaddr_t *dst, int security,
+		void (*connected_cb)(int fd, bdaddr_t addr))
+{
+	int sock;
+	struct sockaddr_l2 srcaddr, dstaddr;
+	bdaddr_t src;
+	struct bt_security btsec;
+
+	hci_devba(hdev, &src);
+	char srcaddr_str[18], dstaddr_str[18];
+	ba2str(&src, srcaddr_str);
+	ba2str(dst, dstaddr_str);
+	Log.v("LE connection on ATT\n\tsrc: %s\n\tdest: %s",
+			srcaddr_str, dstaddr_str);
+
+	sock = socket(PF_BLUETOOTH, SOCK_SEQPACKET, BTPROTO_L2CAP);
+	if (sock < 0) {
+		Log.e("Failed to create L2CAP socket");
+		return -1;
+	}
+
+	/* Set up source address */
+	memset(&srcaddr, 0, sizeof(srcaddr));
+	srcaddr.l2_family = AF_BLUETOOTH;
+	srcaddr.l2_cid = htobs(ATT_CID);
+	srcaddr.l2_bdaddr_type = 0;
+	bacpy(&srcaddr.l2_bdaddr, &src);
+
+	if (bind(sock, (struct sockaddr *)&srcaddr, sizeof(srcaddr)) < 0) {
+		Log.e("Failed to bind L2CAP socket");
+		close(sock);
+		return -1;
+	}
+
+	/* Set the security level */
+	memset(&btsec, 0, sizeof(btsec));
+	btsec.level = security;
+	if (setsockopt(sock, SOL_BLUETOOTH, BT_SECURITY, &btsec,
+							sizeof(btsec)) != 0) {
+		Log.e("Failed to set L2CAP security level");
+		close(sock);
+		return -1;
+	}
+
+	/* Set up destination address */
+	memset(&dstaddr, 0, sizeof(dstaddr));
+	dstaddr.l2_family = AF_BLUETOOTH;
+	dstaddr.l2_cid = htobs(ATT_CID);
+	dstaddr.l2_bdaddr_type = BDADDR_LE_RANDOM;
+	bacpy(&dstaddr.l2_bdaddr, dst);
+
+	if (connect(sock, (struct sockaddr *) &dstaddr, sizeof(dstaddr)) < 0) {
+		Log.e(" Failed to connect");
+		close(sock);
+		return -1;
+	}
+	if(connected_cb){
+		connected_cb(sock, dstaddr.l2_bdaddr);
+	}
+	Log.v("Connected !\n");
+	return sock;
 }
 
 int le_set_random_address(int hdev)

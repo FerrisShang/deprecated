@@ -16,6 +16,7 @@ sources=src/main.c \
 	 src/att_io.c \
 	 src/bt_util.c \
 	 src/common/log.c \
+	 src/common/mem_manage.c \
 	 src/mainloop/io-mainloop.c \
 	 src/mainloop/mainloop.c \
 	 src/mainloop/util.c \
@@ -23,7 +24,6 @@ sources=src/main.c \
 	 src/lib/hci.c \
 	 src/lib/uuid.c \
 	 src/lib/bluetooth.c \
-	 src/lib/mem_manage.c \
 
 #************************ DO NOT EDIT BELOW THIS LINE! ************************
 

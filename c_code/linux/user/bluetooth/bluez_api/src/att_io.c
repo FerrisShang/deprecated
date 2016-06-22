@@ -23,7 +23,7 @@ struct io_data {
 	int fd;
 	bdaddr_t addr;
 	void *pdata;
-}io_data[IO_DATA_NUM ];
+}io_data[IO_DATA_NUM];
 
 const struct att_io* register_att_io(int hdev, struct att_io_cb *io_cb, void *pdata)
 {
@@ -57,20 +57,21 @@ const struct att_io* register_att_io(int hdev, struct att_io_cb *io_cb, void *pd
 	return &att_io;
 }
 
-static int att_io_connect(bdaddr_t addr)
-{
-	return ATT_IO_SUCCESS;
-}
-static int att_io_send(bdaddr_t addr, UINT8 *dat, UINT32 len)
-{
-	return ATT_IO_SUCCESS;
-}
-
 static struct io_data* search_empty_io_data(void)
 {
 	int i;
 	for(i=0;i<IO_DATA_NUM;i++){
 		if(io_data[i].io == NULL){
+			return &io_data[i];
+		}
+	}
+	return NULL;
+}
+static struct io_data* search_io_data_by_addr(bdaddr_t *addr)
+{
+	int i;
+	for(i=0;i<IO_DATA_NUM;i++){
+		if(io_data[i].io && !bcmp(&io_data[i].addr, addr, sizeof(bdaddr_t))){
 			return &io_data[i];
 		}
 	}
@@ -136,7 +137,7 @@ static void connected_cb(int fd, bdaddr_t addr)
 	}
 	io_set_read_handler(io_data->io, io_read_callback, io_data, NULL);
 	io_set_disconnect_handler(io_data->io, io_destroy_callback, io_data, NULL);
-	dump_btaddr("ATT: Connected from:", &io_data->addr);
+	dump_btaddr("ATT: Connecte :", &io_data->addr);
 	att_io_cb.conn_change_cb(io_data->addr, ATT_IO_STATUS_CONNECTED, user_data);
 	return;
 }
@@ -151,4 +152,35 @@ static void *receive_thd(void *argv)
 	mainloop_init();
 	mainloop_run();
 	return NULL;
+}
+static int att_io_connect(bdaddr_t addr)
+{
+	struct io_data *io_data = search_io_data_by_addr(&addr);
+	if(io_data){
+		char dstaddr_str[18];
+		ba2str(&addr, dstaddr_str);
+		Log.v("LE device %s already connected", dstaddr_str);
+		return ATT_IO_SUCCESS;
+	}
+	int security = BT_SECURITY_LOW;
+	if(l2cap_le_att_connect(hci_device, &addr, security, connected_cb)<0){
+		return ATT_IO_FAILED_NOEXIST;
+	}
+	return ATT_IO_SUCCESS;
+}
+static int att_io_send(bdaddr_t addr, UINT8 *dat, UINT32 len)
+{
+	int ret;
+	struct iovec iov;
+	struct io_data *io_data = search_io_data_by_addr(&addr);
+	if(!io_data){
+		return ATT_IO_FAILED_NOEXIST;
+	}
+	iov.iov_base = dat;
+	iov.iov_len = len;
+	ret = io_send(io_data->io, &iov, 1);
+	if(ret<0){
+		return ATT_IO_FAILED_BUSY;
+	}
+	return ATT_IO_SUCCESS;
 }
