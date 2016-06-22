@@ -17,6 +17,17 @@ void receive(bdaddr_t addr, UINT8 *dat, UINT32 len, void *pdata)
 {
 	Log.v("message received length=%d", len);
 }
+void timeout_destroy_func(void *pdata)
+{
+	Log.v("timeout destroy ......");
+}
+int id;
+bool timeout_func(void *pdata)
+{
+	const struct att_io* att_io = pdata;
+	Log.v("timeout......");
+	return false;
+}
 int main(int argc, char *argv[])
 {
 	const struct att_io* att_io;
@@ -28,6 +39,9 @@ int main(int argc, char *argv[])
 	le_set_random_address(HCI_DEV_ID);
 	att_io = register_att_io(HCI_DEV_ID, &att_io_cb, NULL);
 	le_set_advertise_parameters(HCI_DEV_ID);
+
+	id = att_io->timeout_add(2000, timeout_func, (void*)att_io, timeout_destroy_func);
+	//att_io->timeout_remove(id);
 	while(1){
 		le_set_advertise_enable(HCI_DEV_ID);
 		usleep(5000000);

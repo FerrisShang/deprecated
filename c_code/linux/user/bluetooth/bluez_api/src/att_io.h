@@ -1,6 +1,7 @@
 #ifndef __ATT_IO_H__
 #define __ATT_IO_H__
 #include "bluetooth.h"
+#include "io.h"
 #include "types.h"
 enum{
 	ATT_IO_STATUS_CONNECTED,
@@ -18,6 +19,9 @@ struct att_io_cb {
 struct att_io {
 	int (*connect)(bdaddr_t addr);
 	int (*send)(bdaddr_t addr, UINT8 *dat, UINT32 len);
+	UINT32 (*timeout_add)(UINT32 timeout, timeout_func_t func,
+			void *user_data, timeout_destroy_func_t destroy);
+	void (*timeout_remove)(UINT32 id);
 };
 const struct att_io* register_att_io(int hdev, struct att_io_cb *io_cb, void *pdata);
 

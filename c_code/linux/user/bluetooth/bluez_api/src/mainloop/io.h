@@ -35,6 +35,7 @@
 #include <unistd.h>
 
 #include "mainloop.h"
+#include "timeout.h"
 #include "util.h"
 #include "mem_manage.h"
 

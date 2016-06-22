@@ -48,7 +48,7 @@ void mem_dump(void)
 	Log.v("Total:%d(freed included)", mem_record_cnt);
 	for(i=0;i<mem_record_cnt;i++){
 		if(mem_record[i].state != MEMORY_NOT_USE){
-			Log.v(" @%08x  %d  %32s:%d",
+			Log.v(" @%08x  %4d  %32s:%d",
 					mem_record[i].addr, 
 					mem_record[i].state,
 					mem_record[i].func,
@@ -61,7 +61,7 @@ void* _mem_malloc(int size, const char *func, int line)
 {
 	void *p;
 	p = malloc(size);
-	Log.v("%32s@%d => malloc:%8p", func, line, p);
+	Log.v("%32s@%4d => malloc:%8p", func, line, p);
 	add_rec((int)p, func, line);
 	return p;
 }
@@ -70,7 +70,7 @@ void* _mem_calloc(int size, int num, const char *func, int line)
 {
 	void *p;
 	p = calloc(size, num);
-	Log.v("%32s@%d => calloc:%8p", func, line, p);
+	Log.v("%32s@%4d => calloc:%8p", func, line, p);
 	add_rec((int)p, func, line);
 	return p;
 }
@@ -79,7 +79,7 @@ void _mem_free(void *ptr, const char *func, int line)
 {
 	rm_rec((int)ptr);
 	free(ptr);
-	Log.v("%32s@%d =>    free:%8p", func, line, ptr);
+	Log.v("%32s@%4d =>   free:%8p", func, line, ptr);
 	ptr = 0;
 }
 

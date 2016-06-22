@@ -3,7 +3,6 @@
 #include "att_io.h"
 #include "bt_util.h"
 #include "log.h"
-#include "io.h"
 
 static int att_io_connect(bdaddr_t addr);
 static int att_io_send(bdaddr_t addr, UINT8 *dat, UINT32 len);
@@ -15,7 +14,9 @@ static int hci_device;
 static struct att_io_cb att_io_cb;
 static struct att_io att_io = {
 	att_io_connect,
-	att_io_send
+	att_io_send,
+	timeout_add,
+	timeout_remove
 };
 #define IO_DATA_NUM 32
 struct io_data {
@@ -53,7 +54,8 @@ const struct att_io* register_att_io(int hdev, struct att_io_cb *io_cb, void *pd
 	if(ret){  
 		Log.e("create thread \"%s\" failed", "listen_thd");
 		return NULL;  
-	}  
+	}
+	usleep(50000);//wait for thread running
 	return &att_io;
 }
 

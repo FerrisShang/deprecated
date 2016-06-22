@@ -18,6 +18,7 @@ sources=src/main.c \
 	 src/common/log.c \
 	 src/common/mem_manage.c \
 	 src/mainloop/io-mainloop.c \
+	 src/mainloop/timeout-mainloop.c \
 	 src/mainloop/mainloop.c \
 	 src/mainloop/util.c \
 	 src/lib/mgmt.c \
