@@ -4,8 +4,9 @@
 #include "bt_util.h"
 #include "log.h"
 
-static int att_io_connect(bdaddr_t addr);
-static int att_io_send(bdaddr_t addr, UINT8 *dat, UINT32 len);
+static int att_io_connect(bdaddr_t *addr);
+static int att_io_disconnect(bdaddr_t *addr);
+static int att_io_send(bdaddr_t *addr, UINT8 *dat, UINT32 len);
 static void *listen_thd(void *argv);
 static void *receive_thd(void *argv);
 
@@ -14,6 +15,7 @@ static int hci_device;
 static struct att_io_cb att_io_cb;
 static struct att_io att_io = {
 	att_io_connect,
+	att_io_disconnect,
 	att_io_send,
 	timeout_add,
 	timeout_remove
@@ -155,26 +157,36 @@ static void *receive_thd(void *argv)
 	mainloop_run();
 	return NULL;
 }
-static int att_io_connect(bdaddr_t addr)
+static int att_io_connect(bdaddr_t *addr)
 {
-	struct io_data *io_data = search_io_data_by_addr(&addr);
+	struct io_data *io_data = search_io_data_by_addr(addr);
 	if(io_data){
 		char dstaddr_str[18];
-		ba2str(&addr, dstaddr_str);
+		ba2str(addr, dstaddr_str);
 		Log.v("LE device %s already connected", dstaddr_str);
 		return ATT_IO_SUCCESS;
 	}
 	int security = BT_SECURITY_LOW;
-	if(l2cap_le_att_connect(hci_device, &addr, security, connected_cb)<0){
+	if(l2cap_le_att_connect(hci_device, addr, security, connected_cb)<0){
 		return ATT_IO_FAILED_NOEXIST;
 	}
 	return ATT_IO_SUCCESS;
 }
-static int att_io_send(bdaddr_t addr, UINT8 *dat, UINT32 len)
+static int att_io_disconnect(bdaddr_t *addr)
+{
+	struct io_data *io_data = search_io_data_by_addr(addr);
+	if(io_data){
+		att_disconnect(hci_device, addr);
+		return ATT_IO_SUCCESS;
+	}else{
+		return ATT_IO_FAILED_NOEXIST;
+	}
+}
+static int att_io_send(bdaddr_t *addr, UINT8 *dat, UINT32 len)
 {
 	int ret;
 	struct iovec iov;
-	struct io_data *io_data = search_io_data_by_addr(&addr);
+	struct io_data *io_data = search_io_data_by_addr(addr);
 	if(!io_data){
 		return ATT_IO_FAILED_NOEXIST;
 	}

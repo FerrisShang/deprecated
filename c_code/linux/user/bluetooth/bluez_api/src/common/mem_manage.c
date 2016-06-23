@@ -3,7 +3,8 @@
 #include <stdlib.h>
 #include "mem_manage.h"
 
-#if 1
+#ifdef __MEMORY_DEBUG__
+
 #define MEMORY_IN_USE  1
 #define MEMORY_NOT_USE 0
 struct mem_record{
@@ -42,7 +43,7 @@ static void rm_rec(int addr)
 		}
 	}
 }
-void mem_dump(void)
+void _mem_dump(void)
 {
 	int i;
 	Log.v("Total:%d(freed included)", mem_record_cnt);
@@ -83,11 +84,5 @@ void _mem_free(void *ptr, const char *func, int line)
 	ptr = 0;
 }
 
-void mem_free_cb(void *ptr)
-{
-	rm_rec((int)ptr);
-	free(ptr);
-	ptr = 0;
-}
 #endif
 

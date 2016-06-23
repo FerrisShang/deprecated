@@ -17,8 +17,9 @@ struct att_io_cb {
 	void (*receive)(bdaddr_t addr, UINT8 *dat, UINT32 len, void *pdata);
 };
 struct att_io {
-	int (*connect)(bdaddr_t addr);
-	int (*send)(bdaddr_t addr, UINT8 *dat, UINT32 len);
+	int (*connect)(bdaddr_t *addr);
+	int (*disconnect)(bdaddr_t *addr);
+	int (*send)(bdaddr_t *addr, UINT8 *dat, UINT32 len);
 	UINT32 (*timeout_add)(UINT32 timeout, timeout_func_t func,
 			void *user_data, timeout_destroy_func_t destroy);
 	void (*timeout_remove)(UINT32 id);

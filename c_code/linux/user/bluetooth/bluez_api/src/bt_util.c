@@ -68,7 +68,7 @@ int l2cap_le_att_listen_and_accept(int hdev, int security,
 			goto fail;
 		}
 		ba2str(&addr.l2_bdaddr, ba);
-		Log.v("Connect from %s\n", ba);
+		Log.v("Connect from %s", ba);
 		connected_cb(nsk, addr.l2_bdaddr);
 	}
 fail:
@@ -191,9 +191,13 @@ int le_set_advertise_enable(int hdev)
 	hci_close_dev(dd);
 	return 0;
 }
-void dump_btaddr(char *prefix, bdaddr_t *addr){
+void dump_btaddr(char *prefix, bdaddr_t *addr)
+{
 	char ba[18];
 	ba2str(addr, ba);
 	Log.v("%s %s", prefix, ba);
 }
-
+void att_disconnect(int hdev, bdaddr_t *addr)
+{
+	mgmt_disconnect(hdev, addr, BDADDR_LE_RANDOM);
+}
