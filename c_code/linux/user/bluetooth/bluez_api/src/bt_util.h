@@ -12,7 +12,7 @@ int l2cap_le_att_connect(int hdev, bdaddr_t *dst, int security,
 int le_set_random_address(int hdev);
 int le_set_advertise_enable(int hdev);
 int le_set_advertise_parameters(int hdev);
-void att_disconnect(int hdev, bdaddr_t *addr);
+void le_disconnect(int hdev, bdaddr_t *addr);
 void dump_btaddr(char *prefix, bdaddr_t *addr);
 
 #endif /* __BT_UTIL_H__ */

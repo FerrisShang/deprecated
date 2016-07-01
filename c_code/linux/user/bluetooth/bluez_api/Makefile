@@ -13,10 +13,12 @@ libs = rt pthread
 libDir =
 
 sources=src/main.c \
+	 src/att.c \
 	 src/att_io.c \
 	 src/bt_util.c \
 	 src/common/log.c \
 	 src/common/mem_manage.c \
+	 src/common/bt_semaphore.c \
 	 src/mainloop/io-mainloop.c \
 	 src/mainloop/timeout-mainloop.c \
 	 src/mainloop/mainloop.c \

@@ -6,7 +6,7 @@
 
 static int att_io_connect(bdaddr_t *addr);
 static int att_io_disconnect(bdaddr_t *addr);
-static int att_io_send(bdaddr_t *addr, UINT8 *dat, UINT32 len);
+static int att_io_send(bdaddr_t *addr, UINT8 opcode, UINT8 *pdu, UINT32 len);
 static void *listen_thd(void *argv);
 static void *receive_thd(void *argv);
 
@@ -36,11 +36,11 @@ const struct att_io* register_att_io(int hdev, struct att_io_cb *io_cb, void *pd
 	if(io_cb == NULL || 
 			io_cb->conn_change_cb == NULL || 
 			io_cb->receive == NULL){
-		Log.e("regist callbacks failed");
+		Log.e("att_io regist callbacks failed");
 		return NULL;
 	}
 	if(att_io_cb.conn_change_cb != NULL && att_io_cb.receive != NULL){
-		Log.e("already registed");
+		Log.e("att_io already registed");
 		return NULL;
 	}
 	att_io_cb = *io_cb;
@@ -121,7 +121,7 @@ static bool io_read_callback(struct io *io, void *pdata)
 	read_num = read(io_data->fd, buf, 1024);
 	if(read_num < 0)return false;
 	//dump_btaddr("ATT: Read from:", &io_data->addr);
-	att_io_cb.receive(io_data->addr, (unsigned char*)buf, read_num, user_data);
+	att_io_cb.receive(io_data->addr, (UINT8)buf[0], (UINT8*)(buf+1), read_num-1, user_data);
 	return true;
 }
 static bool io_destroy_callback(struct io *io, void *pdata)
@@ -176,23 +176,25 @@ static int att_io_disconnect(bdaddr_t *addr)
 {
 	struct io_data *io_data = search_io_data_by_addr(addr);
 	if(io_data){
-		att_disconnect(hci_device, addr);
+		le_disconnect(hci_device, addr);
 		return ATT_IO_SUCCESS;
 	}else{
 		return ATT_IO_FAILED_NOEXIST;
 	}
 }
-static int att_io_send(bdaddr_t *addr, UINT8 *dat, UINT32 len)
+static int att_io_send(bdaddr_t *addr, UINT8 opcode, UINT8 *pdu, UINT32 len)
 {
 	int ret;
-	struct iovec iov;
+	struct iovec iov[2];
 	struct io_data *io_data = search_io_data_by_addr(addr);
 	if(!io_data){
 		return ATT_IO_FAILED_NOEXIST;
 	}
-	iov.iov_base = dat;
-	iov.iov_len = len;
-	ret = io_send(io_data->io, &iov, 1);
+	iov[0].iov_base = &opcode;
+	iov[0].iov_len = 1;
+	iov[1].iov_base = pdu;
+	iov[1].iov_len = len;
+	ret = io_send(io_data->io, iov, 2);
 	if(ret<0){
 		return ATT_IO_FAILED_BUSY;
 	}

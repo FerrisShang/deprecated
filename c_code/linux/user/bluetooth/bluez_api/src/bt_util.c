@@ -197,7 +197,7 @@ void dump_btaddr(char *prefix, bdaddr_t *addr)
 	ba2str(addr, ba);
 	Log.v("%s %s", prefix, ba);
 }
-void att_disconnect(int hdev, bdaddr_t *addr)
+void le_disconnect(int hdev, bdaddr_t *addr)
 {
 	mgmt_disconnect(hdev, addr, BDADDR_LE_RANDOM);
 }
