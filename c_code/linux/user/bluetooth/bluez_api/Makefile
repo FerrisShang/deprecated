@@ -13,6 +13,7 @@ libs = rt pthread
 libDir =
 
 sources=src/main.c \
+	 src/gatt.c \
 	 src/att.c \
 	 src/att_io.c \
 	 src/bt_util.c \
