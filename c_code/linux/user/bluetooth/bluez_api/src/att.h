@@ -34,6 +34,17 @@
 #define BT_ATT_OP_HANDLE_VAL_IND        0x1D
 #define BT_ATT_OP_HANDLE_VAL_CONF       0x1E
 
+/* GATT Characteristic Properties Bitfield values */
+#define BT_GATT_CHRC_PROP_BROADCAST          0x01
+#define BT_GATT_CHRC_PROP_READ               0x02
+#define BT_GATT_CHRC_PROP_WRITE_WITHOUT_RESP 0x04
+#define BT_GATT_CHRC_PROP_WRITE              0x08
+#define BT_GATT_CHRC_PROP_NOTIFY             0x10
+#define BT_GATT_CHRC_PROP_INDICATE           0x20
+#define BT_GATT_CHRC_PROP_AUTH               0x40
+#define BT_GATT_CHRC_PROP_EXT_PROP           0x80
+
+
 typedef enum {
 	ATT_SUCCESS         = 0,
 	ATT_FAILED_BUSY     = -1,
