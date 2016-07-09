@@ -41,8 +41,6 @@ static struct att_io_cb att_io_cb = {
 };
 
 static struct att_pending* new_att_pending(void);
-static void destroy_att_pending(struct att_pending *att_pending,
-		queue_destroy_func_t destroy_req_queue_cb);
 static att_status_t add_att_pending(struct att_pending *att_pending,
 		struct att_send_op *att_send_op);
 static void remove_att_pending(struct att_pending *att_pending, UINT8 opcode);
@@ -122,7 +120,7 @@ static const struct {
 	{ }
 };
 
-static UINT8 get_req_opcode(UINT8 rsp_opcode)
+UINT8 get_req_opcode(UINT8 rsp_opcode)
 {
 	int i;
 
@@ -149,11 +147,11 @@ void att_io_receive(bdaddr_t addr, UINT8 opcode, UINT8 *pdu, UINT32 len, void *p
 		case ATT_OP_TYPE_NOT  :
 		case ATT_OP_TYPE_IND  :
 		case ATT_OP_TYPE_CONF :
-			att_cb.onRequest(&addr, opcode, pdu, len, pdata);
+			att_cb.onReceive(&addr, opcode, pdu, len, pdata);
 			break;
 		case ATT_OP_TYPE_RSP  :
 			remove_att_pending(att_pending, opcode);
-			att_cb.onRequest(&addr, opcode, pdu, len, pdata);
+			att_cb.onReceive(&addr, opcode, pdu, len, pdata);
 			break;
 		default :
 			break;
@@ -164,11 +162,11 @@ const struct att* register_att(int hdev, struct att_cb *io_cb, void *pdata)
 {
 	if(io_cb == NULL ||
 			io_cb->conn_change_cb == NULL ||
-			io_cb->onRequest == NULL){
+			io_cb->onReceive== NULL){
 		Log.e("att regist callbacks failed");
 		return NULL;
 	}
-	if(att_cb.conn_change_cb != NULL && att_cb.onRequest != NULL){
+	if(att_cb.conn_change_cb != NULL && att_cb.onReceive!= NULL){
 		Log.e("att already registed");
 		return NULL;
 	}
@@ -239,6 +237,7 @@ malloc_att_pending_failed :
 	return NULL;
 }
 
+#if 0 /* not use */
 static void destroy_att_pending(struct att_pending *att_pending,
 		queue_destroy_func_t destroy_req_queue_cb)
 {
@@ -249,6 +248,7 @@ static void destroy_att_pending(struct att_pending *att_pending,
 	bt_sem_destroy(&att_pending->sem_att);
 	return;
 }
+#endif
 static att_status_t add_att_pending(struct att_pending *att_pending,
 		struct att_send_op *att_send_op)
 {

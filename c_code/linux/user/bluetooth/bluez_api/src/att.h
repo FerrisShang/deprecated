@@ -52,6 +52,13 @@ typedef enum {
 	ATT_FAILED_TIMEOUT  = -3,
 } att_status_t;
 
+typedef enum {
+	HANDLE_ATTR_DATA,
+	HANDLE_CHARACTER,
+	HANDLE_DESC_CONF,
+	HANDLE_TYPE_UNKNOWN,
+} handle_type_t;
+
 typedef void (*att_response_func_t)(bdaddr_t addr, UINT8 opcode, const void *pdu,
 		UINT16 length, void *pdata, att_status_t status);
 
@@ -69,7 +76,7 @@ enum{
 };
 struct att_cb {
 	void (*conn_change_cb)(bdaddr_t addr, int status, void *pdata);
-	int (*onRequest)(bdaddr_t *addr, UINT8 opcode,
+	int (*onReceive)(bdaddr_t *addr, UINT8 opcode,
 			const void *pdu, UINT16 length, void *pdata);
 };
 
@@ -79,5 +86,6 @@ struct att {
 	int (*send)(bdaddr_t *addr, struct att_send_op *att_send_op);
 };
 const struct att* register_att(int hdev, struct att_cb *io_cb, void *pdata);
+UINT8 get_req_opcode(UINT8 rsp_opcode);
 
 #endif /* __ATT_H__ */
