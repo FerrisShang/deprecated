@@ -33,7 +33,7 @@ struct gatt_client_cb {
 struct gatt_character {
 	UINT16 value_handle;
 	UINT16 desc_handle;
-	bt_uuid_t uuid;
+	bt_uuid_t *uuid;
 	UINT8 prop;
 };
 

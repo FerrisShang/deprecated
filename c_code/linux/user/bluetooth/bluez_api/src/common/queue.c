@@ -21,12 +21,8 @@
  *
  */
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
-#include "src/util.h"
-#include "src/queue.h"
+#include "util.h"
+#include "queue.h"
 
 struct queue {
 	int ref_count;

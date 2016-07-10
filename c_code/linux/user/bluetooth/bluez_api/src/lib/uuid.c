@@ -32,6 +32,7 @@
 
 #include "lib/bluetooth.h"
 #include "uuid.h"
+#include "mem_manage.h"
 
 static uint128_t bluetooth_base_uuid = {
 	.data = {	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00,
@@ -285,6 +286,38 @@ int bt_string_to_uuid(bt_uuid_t *uuid, const char *string)
 		return bt_string_to_uuid16(uuid, string);
 
 	return -EINVAL;
+}
+
+bt_uuid_t *bt_create_uuid_from_string(const char *string)
+{
+	bt_uuid_t *uuid;
+	uuid = mem_malloc(sizeof(bt_uuid_t));
+	if(!uuid){
+		return NULL;
+	}
+	if(is_base_uuid128(string)){
+		if(bt_string_to_uuid16(uuid, string + 4)<0){
+			goto create_uuid_from_string_failed;
+		}
+	}else if (is_uuid128(string)){
+		if(bt_string_to_uuid128(uuid, string)<0){
+			goto create_uuid_from_string_failed;
+		}
+	}else if (is_uuid32(string)){
+		if(bt_string_to_uuid32(uuid, string)<0){
+			goto create_uuid_from_string_failed;
+		}
+	}else if (is_uuid16(string)){
+		if(bt_string_to_uuid16(uuid, string)<0){
+			goto create_uuid_from_string_failed;
+		}
+	}else{
+		goto create_uuid_from_string_failed;
+	}
+	return uuid;
+create_uuid_from_string_failed :
+	mem_free(uuid);
+	return NULL;
 }
 
 int bt_uuid_strcmp(const void *a, const void *b)

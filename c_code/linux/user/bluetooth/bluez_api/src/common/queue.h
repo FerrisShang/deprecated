@@ -1,3 +1,5 @@
+#ifndef __QUEUE_H__
+#define __QUEUE_H__
 /*
  *
  *  BlueZ - Bluetooth protocol stack for Linux
@@ -63,3 +65,4 @@ const struct queue_entry *queue_get_entries(struct queue *queue);
 
 unsigned int queue_length(struct queue *queue);
 bool queue_isempty(struct queue *queue);
+#endif /* __QUEUE_H__ */

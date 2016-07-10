@@ -19,6 +19,7 @@ sources=src/main.c \
 	 src/bt_util.c \
 	 src/common/log.c \
 	 src/common/mem_manage.c \
+	 src/common/queue.c \
 	 src/common/bt_mutex.c \
 	 src/common/bt_semaphore.c \
 	 src/mainloop/io-mainloop.c \

@@ -34,6 +34,25 @@
 #define BT_ATT_OP_HANDLE_VAL_IND        0x1D
 #define BT_ATT_OP_HANDLE_VAL_CONF       0x1E
 
+/* Error codes for Error response PDU */
+#define BT_ATT_ERROR_INVALID_HANDLE                     0x01
+#define BT_ATT_ERROR_READ_NOT_PERMITTED	                0x02
+#define BT_ATT_ERROR_WRITE_NOT_PERMITTED                0x03
+#define BT_ATT_ERROR_INVALID_PDU                        0x04
+#define BT_ATT_ERROR_AUTHENTICATION                     0x05
+#define BT_ATT_ERROR_REQUEST_NOT_SUPPORTED              0x06
+#define BT_ATT_ERROR_INVALID_OFFSET                     0x07
+#define BT_ATT_ERROR_AUTHORIZATION                      0x08
+#define BT_ATT_ERROR_PREPARE_QUEUE_FULL                 0x09
+#define BT_ATT_ERROR_ATTRIBUTE_NOT_FOUND                0x0A
+#define BT_ATT_ERROR_ATTRIBUTE_NOT_LONG                 0x0B
+#define BT_ATT_ERROR_INSUFFICIENT_ENCRYPTION_KEY_SIZE   0x0C
+#define BT_ATT_ERROR_INVALID_ATTRIBUTE_VALUE_LEN        0x0D
+#define BT_ATT_ERROR_UNLIKELY                           0x0E
+#define BT_ATT_ERROR_INSUFFICIENT_ENCRYPTION            0x0F
+#define BT_ATT_ERROR_UNSUPPORTED_GROUP_TYPE             0x10
+#define BT_ATT_ERROR_INSUFFICIENT_RESOURCES             0x11
+
 /* GATT Characteristic Properties Bitfield values */
 #define BT_GATT_CHRC_PROP_BROADCAST          0x01
 #define BT_GATT_CHRC_PROP_READ               0x02
