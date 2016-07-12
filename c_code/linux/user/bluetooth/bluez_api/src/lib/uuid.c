@@ -134,6 +134,17 @@ int bt_uuid_cmp(const bt_uuid_t *uuid1, const bt_uuid_t *uuid2)
 	return bt_uuid128_cmp(&u1, &u2);
 }
 
+int bt_uuid_cmp_str(const bt_uuid_t *uuid1, const char *str)
+{
+	bt_uuid_t u1, u2, tmp;
+
+	bt_uuid_to_uuid128(uuid1, &u1);
+	bt_string_to_uuid(&tmp, str);
+	bt_uuid_to_uuid128(&tmp, &u2);
+
+	return bt_uuid128_cmp(&u1, &u2);
+}
+
 /*
  * convert the UUID to string, copying a maximum of n characters.
  */

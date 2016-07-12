@@ -111,6 +111,11 @@ extern "C" {
 #define GATT_SND_SVC_UUID				0x2801
 #define GATT_INCLUDE_UUID				0x2802
 #define GATT_CHARAC_UUID				0x2803
+#define GATT_PRIM_SVC_UUID_STR			"0x2800"
+#define GATT_SND_SVC_UUID_STR			"0x2801"
+#define GATT_INCLUDE_UUID_STR			"0x2802"
+#define GATT_CHARAC_UUID_STR			"0x2803"
+
 
 /* GATT Characteristic Types */
 #define GATT_CHARAC_DEVICE_NAME				0x2A00
@@ -160,6 +165,7 @@ int bt_uuid32_create(bt_uuid_t *btuuid, uint32_t value);
 int bt_uuid128_create(bt_uuid_t *btuuid, uint128_t value);
 
 int bt_uuid_cmp(const bt_uuid_t *uuid1, const bt_uuid_t *uuid2);
+int bt_uuid_cmp_str(const bt_uuid_t *uuid1, const char *str);
 void bt_uuid_to_uuid128(const bt_uuid_t *src, bt_uuid_t *dst);
 
 #define MAX_LEN_UUID_STR 37
