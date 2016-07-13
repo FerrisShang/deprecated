@@ -11,12 +11,14 @@ struct gatt_service {
 	UINT16 handle_end;
 	bt_uuid_t *uuid;
 	struct queue *character_list; /* type of struct gatt_character */
-	struct gatt_service_cb *io_cb;
+	struct gatts_cb *io_cb;
+	struct gatts_if io_if;
 	void *pdata;
 };
 struct common_rsp_func {
 	void (*mtu_rsp)(bdaddr_t *addr, UINT16 mtu, void *pdata);
-	void (*find_info_rsp)(bdaddr_t *addr, UINT16 start_handle, UINT16 end_handle, void *pdata);
+	void (*find_info_rsp)(bdaddr_t *addr,
+			UINT16 start_handle, UINT16 end_handle, void *pdata);
 	void (*read_by_type_rsp)(bdaddr_t *addr,
 			UINT16 start_handle, UINT16 end_handle, bt_uuid_t *uuid, void *pdata);
 	void (*read_by_grp_type_rsp)(bdaddr_t *addr,
@@ -31,11 +33,14 @@ struct gatt_services {
 
 static struct gatt_services* create_services(void);
 static void mtu_rsp(bdaddr_t *addr, UINT16 mtu, void *pdata);
-static void find_info_rsp(bdaddr_t *addr, UINT16 start_handle, UINT16 end_handle, void *pdata);
+static void find_info_rsp(bdaddr_t *addr,
+		UINT16 start_handle, UINT16 end_handle, void *pdata);
 static void read_by_type_rsp(bdaddr_t *addr,
 		UINT16 start_handle, UINT16 end_handle, bt_uuid_t *uuid, void *pdata);
 static void read_by_grp_type_rsp(bdaddr_t *addr,
 		UINT16 start_handle, UINT16 end_handle, bt_uuid_t *uuid, void *pdata);
+static int gatts_send_notification(bdaddr_t *addr, bt_uuid_t *chac_uuid,
+		char *buf, UINT16 len);
 
 static struct common_rsp_func common_rsp_func = {
 	mtu_rsp,
@@ -82,7 +87,27 @@ mutex_init_failed :
 create_services_failed :
 	return GATT_FAILED_NOMEM;
 }
-
+static void gatt_send(bdaddr_t *addr, struct gatt_services* gatt_services,
+		UINT16 opcode, UINT8 *rsp, UINT16 rsp_len)
+{
+	struct att_send_op send_op;
+	memset(&send_op, 0, sizeof(struct att_send_op));
+	send_op.opcode = opcode;
+	send_op.pdu = rsp;
+	send_op.len= rsp_len;
+	gatt_services->att_op->send(addr, &send_op);
+}
+static void send_att_error(bdaddr_t *addr, struct gatt_services* gatt_services,
+		UINT16 opcode, UINT16 handle, UINT8 err_code)
+{
+	UINT8 rsp[4], *p = rsp;
+	UINT16 rsp_len;
+	UINT8_TO_STREAM(p, opcode);
+	UINT16_TO_STREAM(p, handle);
+	UINT8_TO_STREAM(p, err_code);
+	rsp_len = p - rsp;
+	gatt_send(addr, gatt_services, BT_ATT_OP_ERROR_RSP, rsp, rsp_len);
+}
 struct device_status {
 	bdaddr_t *addr;
 	int status;
@@ -108,7 +133,7 @@ struct handle_info {
 	struct gatt_character *gatt_character;
 	handle_type_t type;
 };
-bool find_gatt_service_by_handle_cb(const void *data, const void *match_data)
+static bool find_gatt_service_by_handle_cb(const void *data, const void *match_data)
 {
 	struct gatt_service *gatt_service = (struct gatt_service*)data;
 	UINT16 *handle = (UINT16*) match_data;
@@ -119,7 +144,7 @@ bool find_gatt_service_by_handle_cb(const void *data, const void *match_data)
 		return false;
 	}
 }
-bool find_gatt_character_by_handle_cb(const void *data, const void *match_data)
+static bool find_gatt_character_by_handle_cb(const void *data, const void *match_data)
 {
 	struct gatt_character *gatt_character;
 	UINT16 *handle;
@@ -178,8 +203,8 @@ static int onReceive(bdaddr_t *addr, UINT8 opcode,
 		const void *pdu, UINT16 length, void *pdata)
 {
 	struct gatt_services *gatt_services = pdata;
-	//static UINT8 rsq_pdu[1024];
-	//static UINT16 rsq_len;
+	static UINT8 rsp_pdu[1024];
+	static UINT16 rsp_len;
 	//UINT8 req_opcode = get_req_opcode(opcode);
 	//rsq_len = 0;
 	UINT8 *p = (UINT8*)pdu;
@@ -255,6 +280,8 @@ static int onReceive(bdaddr_t *addr, UINT8 opcode,
 					//the end of read & write need process
 					case HANDLE_CHARACTER :
 						if(opcode == BT_ATT_OP_WRITE_REQ){
+							gatt_send(addr, gatt_services,
+									BT_ATT_OP_WRITE_RSP, NULL, 0);
 							handle_info.gatt_service->io_cb->onCharacterWrite(
 									addr,
 									handle_info.gatt_character->uuid,
@@ -262,13 +289,22 @@ static int onReceive(bdaddr_t *addr, UINT8 opcode,
 									length - ((UINT8*)p - (UINT8*)pdu),
 									handle_info.gatt_service->pdata);
 						}else if(opcode == BT_ATT_OP_READ_REQ){
+							rsp_len = 0;
 							handle_info.gatt_service->io_cb->onCharacterRead(
 									addr, handle_info.gatt_character->uuid,
-									handle_info.gatt_service->pdata);
+									handle_info.gatt_service->pdata,
+									rsp_pdu, &rsp_len);
+							if(rsp_len < 0){
+								rsp_len = 0;
+							}
+							gatt_send(addr, gatt_services,
+									BT_ATT_OP_READ_RSP, rsp_pdu, rsp_len);
 						}
 						break;
 					case HANDLE_DESC_CONF :
 						if(opcode == BT_ATT_OP_WRITE_REQ){
+							gatt_send(addr, gatt_services,
+									BT_ATT_OP_WRITE_RSP, NULL, 0);
 							handle_info.gatt_service->io_cb->onDescriptorWrite(
 									addr,
 									handle_info.gatt_character->uuid,
@@ -276,15 +312,23 @@ static int onReceive(bdaddr_t *addr, UINT8 opcode,
 									length - ((UINT8*)p - (UINT8*)pdu),
 									handle_info.gatt_service->pdata);
 						}else if(opcode == BT_ATT_OP_READ_REQ){
+							rsp_len = 0;
 							handle_info.gatt_service->io_cb->onDescriptorRead(
 									addr, handle_info.gatt_character->uuid,
-									handle_info.gatt_service->pdata);
+									handle_info.gatt_service->pdata,
+									rsp_pdu, &rsp_len);
+							if(rsp_len < 0){
+								rsp_len = 0;
+							}
+							gatt_send(addr, gatt_services,
+									BT_ATT_OP_READ_RSP, rsp_pdu, rsp_len);
 						}
 						break;
 					default :
 						break;
 				}
 			}else{
+
 				Log.e("handle not found");
 			}
 			}break;
@@ -308,19 +352,8 @@ static int onReceive(bdaddr_t *addr, UINT8 opcode,
 		case BT_ATT_OP_EXEC_WRITE_RSP :
 		case BT_ATT_OP_HANDLE_VAL_CONF :
 		default:{//not support
-			struct att_send_op send_op;
-			UINT8 rsp[32], *p = rsp;
-			UINT16 rsp_len;
-			UINT8_TO_STREAM(p, opcode);
-			UINT16_TO_STREAM(p, 0x0001);
-			UINT8_TO_STREAM(p, BT_ATT_ERROR_REQUEST_NOT_SUPPORTED);
-			rsp_len = p - rsp;
-			memset(&send_op, 0, sizeof(struct att_send_op));
-			send_op.opcode = BT_ATT_OP_ERROR_RSP;
-			send_op.pdu = rsp;
-			send_op.len = rsp_len;
-			send_op.len= rsp_len;
-			gatt_services->att_op->send(addr, &send_op);
+			send_att_error(addr, gatt_services, opcode, 0x0001,
+					BT_ATT_ERROR_REQUEST_NOT_SUPPORTED);
 			Log.e("ATT opcode not support : %d", opcode);
 			}break;
 	}
@@ -356,6 +389,7 @@ struct gatt_service* create_service(bt_uuid_t *uuid)//init uuid & character_list
 		goto malloc_character_list_failed;
 	}
 	gatt_service->uuid = uuid;
+	gatt_service->io_if.sendNotification = gatts_send_notification;
 	return gatt_service;
 malloc_character_list_failed :
 	mem_free(gatt_service);
@@ -387,10 +421,12 @@ void init_service_handle_value_cb(void *data, void *user_data)
 	struct gatt_service *gatt_service = user_data;
 	if(gatt_character->prop & BT_GATT_CHRC_PROP_NOTIFY ||
 		gatt_character->prop & BT_GATT_CHRC_PROP_INDICATE ){
+		gatt_character->type_handle = gatt_service->handle_end + 1;
 		gatt_character->value_handle = gatt_service->handle_end + 2;
 		gatt_character->desc_handle = gatt_service->handle_end + 3;
 		gatt_service->handle_end += 3;
 	}else{
+		gatt_character->type_handle = gatt_service->handle_end + 1;
 		gatt_character->value_handle = gatt_service->handle_end + 2;
 		gatt_character->desc_handle = 0;
 		gatt_service->handle_end += 2;
@@ -415,8 +451,8 @@ static int init_service_handle_value(struct gatt_services* gatt_services,
 	queue_foreach(gatt_service->character_list, init_service_handle_value_cb, gatt_service);
 	return GATT_SUCCESS;
 }
-const struct gatt_service* register_gatt_service(
-		struct gatt_service* gatt_service, struct gatt_service_cb *io_cb, void *pdata)
+const struct gatts_if* register_gatt_service(
+		struct gatt_service* gatt_service, struct gatts_cb *io_cb, void *pdata)
 {
 	bt_mutex_t *mutex;
 	if(!gatt_services){
@@ -434,7 +470,7 @@ const struct gatt_service* register_gatt_service(
 	gatt_service->pdata = pdata;
 	queue_push_tail(gatt_services->service_list, gatt_service);
 	bt_mutex_unlock(mutex);
-	return NULL;
+	return &gatt_service->io_if;
 }
 const struct gatt_client* register_gatt_client(struct gatt_client_cb *io_cb, void *pdata)
 {
@@ -458,56 +494,100 @@ static void mtu_rsp(bdaddr_t *addr, UINT16 mtu, void *pdata)
 {
 	struct gatt_services *gatt_services = pdata;
 	struct addr_mtu addr_mtu;
-	struct att_send_op send_op;
 	UINT8 rsp[8], *p = rsp;
 	UINT16 rsp_len;
 	UINT16_TO_STREAM(p, mtu);
 	rsp_len = p - rsp;
-	memset(&send_op, 0, sizeof(struct att_send_op));
-	send_op.opcode = BT_ATT_OP_MTU_RSP;
-	send_op.pdu = rsp;
-	send_op.len = rsp_len;
-	send_op.len= rsp_len;
-	gatt_services->att_op->send(addr, &send_op);
+	gatt_send(addr, gatt_services, BT_ATT_OP_MTU_RSP, rsp, rsp_len);
 
 	addr_mtu.addr = addr;
 	addr_mtu.mtu = mtu;
 	queue_foreach(gatt_services->service_list, mtu_change_cb, &addr_mtu);
-}
-static void find_info_rsp(bdaddr_t *addr,
-		UINT16 start_handle, UINT16 end_handle, void *pdata)
-{
-	Log.v("%s@%d, start=%d end=%d", __func__, __LINE__, start_handle, end_handle);
-}
-static void read_by_type_rsp(bdaddr_t *addr,
-		UINT16 start_handle, UINT16 end_handle, bt_uuid_t *uuid, void *pdata)
-{
-	char str[80];
-	bt_uuid_to_string(uuid, str, 80);
-	Log.v("%s@%d, start=%d end=%d uuid=%s", __func__, __LINE__,
-			start_handle, end_handle, str);
-
-	//for test
-	struct att_send_op send_op;
-	UINT8 rsp[32], *p = rsp;
-	UINT16 rsp_len;
-	UINT8_TO_STREAM(p, BT_ATT_OP_FIND_BY_TYPE_VAL_RSP);
-	UINT16_TO_STREAM(p, start_handle);
-	UINT8_TO_STREAM(p, BT_ATT_ERROR_ATTRIBUTE_NOT_FOUND);
-	rsp_len = p - rsp;
-	memset(&send_op, 0, sizeof(struct att_send_op));
-	send_op.opcode = BT_ATT_OP_ERROR_RSP;
-	send_op.pdu = rsp;
-	send_op.len = rsp_len;
-	send_op.len= rsp_len;
-	gatt_services->att_op->send(addr, &send_op);
 }
 
 struct handle_range {
 	UINT16 start_handle;
 	UINT16 end_handle;
 };
-static bool find_service_by_handle_range_cb(const void *data, const void *match_data)
+static bool find_gatt_descreptor_by_handle_range_cb(
+		const void *data, const void *match_data)
+{
+	const struct gatt_character *gatt_character = data;
+	const struct handle_range *handle_range = match_data;
+	if(gatt_character->desc_handle >= handle_range->start_handle &&
+			gatt_character->desc_handle <= handle_range->end_handle){
+		return true;
+	}else{
+		return false;
+	}
+}
+static bool find_desc_in_service_by_handle_range_cb(
+		const void *data, const void *match_data)
+{
+	const struct gatt_service *gatt_service = data;
+	const struct handle_range *handle_range = match_data;
+	if(gatt_service->handle_start <= handle_range->end_handle &&
+			gatt_service->handle_end >= handle_range->start_handle){
+		struct gatt_character *gatt_character;
+		gatt_character = queue_find(gatt_service->character_list,
+				find_gatt_descreptor_by_handle_range_cb, handle_range);
+		if(gatt_character){
+			return true;
+		}else{
+			return false;
+		}
+	}else{
+		return false;
+	}
+}
+static void find_info_rsp(bdaddr_t *addr,
+		UINT16 start_handle, UINT16 end_handle, void *pdata)
+{
+	struct gatt_service *gatt_service;
+	struct gatt_character *gatt_character;
+	UINT8 rsp[32], *p = rsp;
+	UINT16 rsp_len;
+
+		struct handle_range handle_range;
+		handle_range.start_handle = start_handle;
+		handle_range.end_handle = end_handle;
+		gatt_service = queue_find(gatt_services->service_list,
+				find_desc_in_service_by_handle_range_cb, &handle_range);
+		if(!gatt_service){
+			goto info_not_found_failed;
+		}
+		gatt_character = queue_find(gatt_service->character_list,
+				find_gatt_descreptor_by_handle_range_cb, &handle_range);
+		if(!gatt_character){
+			goto info_not_found_failed;
+		}
+		UINT8_TO_STREAM(p, FIND_INFO_UUID_TYPE_16_BIT);//all descreptor type UUID is 16 bit
+		UINT16_TO_STREAM(p, gatt_character->desc_handle);
+		//we only support character configure descreptor
+		UINT16_TO_STREAM(p, GATT_CLIENT_CHARAC_CFG_UUID);
+		rsp_len = p - rsp;
+		gatt_send(addr, gatt_services, BT_ATT_OP_FIND_INFO_RSP, rsp, rsp_len);
+		return;
+info_not_found_failed :
+	send_att_error(addr, gatt_services, BT_ATT_OP_FIND_INFO_REQ,
+			start_handle, BT_ATT_ERROR_ATTRIBUTE_NOT_FOUND);
+	return;
+}
+
+static bool find_gatt_character_by_handle_range_cb(
+		const void *data, const void *match_data)
+{
+	const struct gatt_character *gatt_character = data;
+	const struct handle_range *handle_range = match_data;
+	if(gatt_character->type_handle >= handle_range->start_handle &&
+			gatt_character->type_handle <= handle_range->end_handle){
+		return true;
+	}else{
+		return false;
+	}
+}
+static bool find_gatt_service_by_handle_range_cb(
+		const void *data, const void *match_data)
 {
 	const struct gatt_service *gatt_service = data;
 	const struct handle_range *handle_range = match_data;
@@ -518,12 +598,73 @@ static bool find_service_by_handle_range_cb(const void *data, const void *match_
 		return false;
 	}
 }
+static bool find_chac_in_service_by_handle_range_cb(
+		const void *data, const void *match_data)
+{
+	const struct gatt_service *gatt_service = data;
+	const struct handle_range *handle_range = match_data;
+	if(gatt_service->handle_start <= handle_range->end_handle &&
+			gatt_service->handle_end >= handle_range->start_handle){
+		struct gatt_character *gatt_character;
+		gatt_character = queue_find(gatt_service->character_list,
+				find_gatt_character_by_handle_range_cb, handle_range);
+		if(gatt_character){
+			return true;
+		}else{
+			return false;
+		}
+	}else{
+		return false;
+	}
+}
+static void read_by_type_rsp(bdaddr_t *addr,
+		UINT16 start_handle, UINT16 end_handle, bt_uuid_t *uuid, void *pdata)
+{
+	struct gatt_service *gatt_service;
+	struct gatt_character *gatt_character;
+	UINT8 rsp[32], *p = rsp;
+	UINT16 rsp_len;
+	if(!bt_uuid_cmp_str(uuid, GATT_CHARAC_UUID_STR)){
+		struct handle_range handle_range;
+		handle_range.start_handle = start_handle;
+		handle_range.end_handle = end_handle;
+		gatt_service = queue_find(gatt_services->service_list,
+				find_chac_in_service_by_handle_range_cb, &handle_range);
+		if(!gatt_service){
+			goto type_not_found_failed;
+		}
+		gatt_character = queue_find(gatt_service->character_list,
+				find_gatt_character_by_handle_range_cb, &handle_range);
+		if(!gatt_character){
+			goto type_not_found_failed;
+		}
+
+		UINT8_TO_STREAM(p, 2+1+2+gatt_character->uuid->type/8);
+		UINT16_TO_STREAM(p, gatt_character->type_handle);
+		UINT8_TO_STREAM(p, gatt_character->prop);
+		UINT16_TO_STREAM(p, gatt_character->value_handle);
+		if(gatt_character->uuid->type == BT_UUID16){
+			UINT16_TO_STREAM(p, gatt_character->uuid->value.u16);
+		}else if(gatt_service->uuid->type == BT_UUID128){
+			ARRAY_TO_STREAM(p, gatt_character->uuid->value.u128.data, 16);
+		}
+		rsp_len = p - rsp;
+		gatt_send(addr, gatt_services, BT_ATT_OP_READ_BY_TYPE_RSP, rsp, rsp_len);
+		return;
+	}else{//not support other uuid
+		goto type_not_found_failed;
+	}
+type_not_found_failed :
+	send_att_error(addr, gatt_services, BT_ATT_OP_READ_BY_TYPE_REQ,
+			start_handle, BT_ATT_ERROR_ATTRIBUTE_NOT_FOUND);
+	return;
+}
+
 static void read_by_grp_type_rsp(bdaddr_t *addr,
 		UINT16 start_handle, UINT16 end_handle, bt_uuid_t *uuid, void *pdata)
 {
 	struct gatt_services *gatt_services = pdata;
 	struct gatt_service *gatt_service;
-	struct att_send_op send_op;
 	char str[80];
 	UINT8 rsp[1024], *p = rsp;
 	UINT16 rsp_len;
@@ -535,7 +676,7 @@ static void read_by_grp_type_rsp(bdaddr_t *addr,
 		handle_range.start_handle = start_handle;
 		handle_range.end_handle = end_handle;
 		gatt_service = queue_find(gatt_services->service_list,
-				find_service_by_handle_range_cb, &handle_range);
+				find_gatt_service_by_handle_range_cb, &handle_range);
 		if(gatt_service){
 			UINT8_TO_STREAM(p, gatt_service->uuid->type/8 + 4);
 			UINT16_TO_STREAM(p, gatt_service->handle_start);
@@ -546,12 +687,8 @@ static void read_by_grp_type_rsp(bdaddr_t *addr,
 				ARRAY_TO_STREAM(p, gatt_service->uuid->value.u128.data, 16);
 			}
 			rsp_len = p - rsp;
-
-			memset(&send_op, 0, sizeof(struct att_send_op));
-			send_op.opcode = BT_ATT_OP_READ_BY_GRP_TYPE_RSP;
-			send_op.pdu = rsp;
-			send_op.len = rsp_len;
-			gatt_services->att_op->send(addr, &send_op);
+			gatt_send(addr, gatt_services,
+					BT_ATT_OP_READ_BY_GRP_TYPE_RSP, rsp, rsp_len);
 			return;
 		}else{
 			goto read_by_grp_type_rsp_not_found;
@@ -560,14 +697,59 @@ static void read_by_grp_type_rsp(bdaddr_t *addr,
 		goto read_by_grp_type_rsp_not_found;
 	}
 read_by_grp_type_rsp_not_found:
-	UINT8_TO_STREAM(p, BT_ATT_OP_READ_BY_GRP_TYPE_REQ);
-	UINT16_TO_STREAM(p, start_handle);
-	UINT8_TO_STREAM(p, BT_ATT_ERROR_ATTRIBUTE_NOT_FOUND);
+	send_att_error(addr, gatt_services, BT_ATT_OP_READ_BY_GRP_TYPE_REQ,
+			start_handle, BT_ATT_ERROR_ATTRIBUTE_NOT_FOUND);
+}
+
+static bool find_chac_by_uuid_cb(const void *data, const void *match_data)
+{
+	const struct gatt_character *gatt_character = data;
+	const bt_uuid_t *chac_uuid = match_data;
+	if(!bt_uuid_cmp(gatt_character->uuid, chac_uuid)){
+		return true;
+	}else{
+		return false;
+	}
+}
+static bool find_chac_is_in_service_by_uuid_cb(
+		const void *data, const void *match_data)
+{
+	const struct gatt_service *gatt_service = data;
+	const bt_uuid_t *chac_uuid = match_data;
+	struct gatt_character *gatt_character;
+	gatt_character = queue_find(gatt_service->character_list,
+			find_chac_by_uuid_cb, chac_uuid);
+	if(gatt_character){
+		return true;
+	}else{
+		return false;
+	}
+}
+static struct gatt_character* find_chac_by_uuid(
+		struct gatt_services *gatt_services, bt_uuid_t *chac_uuid)
+{
+	struct gatt_service *gatt_service;
+	gatt_service = queue_find(gatt_services->service_list,
+			find_chac_is_in_service_by_uuid_cb, chac_uuid);
+	if(!gatt_service){
+		return NULL;
+	}
+	return queue_find(gatt_service->character_list,
+			find_chac_by_uuid_cb, chac_uuid);
+}
+static int gatts_send_notification(bdaddr_t *addr, bt_uuid_t *chac_uuid,
+		char *buf, UINT16 len)
+{
+	UINT8 rsp[1024], *p = rsp;
+	UINT16 rsp_len;
+	struct gatt_character *gatt_character;
+	gatt_character = find_chac_by_uuid(gatt_services, chac_uuid);
+	if(!gatt_character){
+		return GATT_FAILED_NOEXIST;
+	}
+	UINT16_TO_STREAM(p, gatt_character->value_handle);
+	ARRAY_TO_STREAM(p, buf, len);
 	rsp_len = p - rsp;
-	memset(&send_op, 0, sizeof(struct att_send_op));
-	send_op.opcode = BT_ATT_OP_ERROR_RSP;
-	send_op.pdu = rsp;
-	send_op.len = rsp_len;
-	send_op.len= rsp_len;
-	gatt_services->att_op->send(addr, &send_op);
+	gatt_send(addr, gatt_services, BT_ATT_OP_HANDLE_VAL_NOT, rsp, rsp_len);
+	return GATT_SUCCESS;
 }

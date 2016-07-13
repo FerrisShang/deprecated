@@ -63,6 +63,8 @@
 #define BT_GATT_CHRC_PROP_AUTH               0x40
 #define BT_GATT_CHRC_PROP_EXT_PROP           0x80
 
+#define FIND_INFO_UUID_TYPE_16_BIT  0x01
+#define FIND_INFO_UUID_TYPE_128_BIT 0x02
 
 typedef enum {
 	ATT_SUCCESS         = 0,
