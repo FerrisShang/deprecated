@@ -15,6 +15,15 @@ struct gatt_service {
 	struct gatts_if io_if;
 	void *pdata;
 };
+
+struct gatt_character {
+	bt_uuid_t *uuid;
+	UINT16 type_handle;
+	UINT16 value_handle;
+	UINT16 desc_handle;
+	UINT8 prop;
+};
+
 struct common_rsp_func {
 	void (*mtu_rsp)(bdaddr_t *addr, UINT16 mtu, void *pdata);
 	void (*find_info_rsp)(bdaddr_t *addr,
@@ -40,7 +49,7 @@ static void read_by_type_rsp(bdaddr_t *addr,
 static void read_by_grp_type_rsp(bdaddr_t *addr,
 		UINT16 start_handle, UINT16 end_handle, bt_uuid_t *uuid, void *pdata);
 static int gatts_send_notification(bdaddr_t *addr, bt_uuid_t *chac_uuid,
-		char *buf, UINT16 len);
+		UINT8 *buf, UINT16 len);
 
 static struct common_rsp_func common_rsp_func = {
 	mtu_rsp,
@@ -303,25 +312,27 @@ static int onReceive(bdaddr_t *addr, UINT8 opcode,
 						break;
 					case HANDLE_DESC_CONF :
 						if(opcode == BT_ATT_OP_WRITE_REQ){
+							UINT16 desc_value;
 							gatt_send(addr, gatt_services,
 									BT_ATT_OP_WRITE_RSP, NULL, 0);
+							STREAM_TO_UINT16(desc_value, p);
 							handle_info.gatt_service->io_cb->onDescriptorWrite(
 									addr,
 									handle_info.gatt_character->uuid,
-									p,
-									length - ((UINT8*)p - (UINT8*)pdu),
+									desc_value,
 									handle_info.gatt_service->pdata);
 						}else if(opcode == BT_ATT_OP_READ_REQ){
+							UINT16 desc_value;
 							rsp_len = 0;
 							handle_info.gatt_service->io_cb->onDescriptorRead(
 									addr, handle_info.gatt_character->uuid,
 									handle_info.gatt_service->pdata,
-									rsp_pdu, &rsp_len);
+									&desc_value);
 							if(rsp_len < 0){
 								rsp_len = 0;
 							}
 							gatt_send(addr, gatt_services,
-									BT_ATT_OP_READ_RSP, rsp_pdu, rsp_len);
+									BT_ATT_OP_READ_RSP, (UINT8*)&desc_value, 2);
 						}
 						break;
 					default :
@@ -738,7 +749,7 @@ static struct gatt_character* find_chac_by_uuid(
 			find_chac_by_uuid_cb, chac_uuid);
 }
 static int gatts_send_notification(bdaddr_t *addr, bt_uuid_t *chac_uuid,
-		char *buf, UINT16 len)
+		UINT8 *buf, UINT16 len)
 {
 	UINT8 rsp[1024], *p = rsp;
 	UINT16 rsp_len;

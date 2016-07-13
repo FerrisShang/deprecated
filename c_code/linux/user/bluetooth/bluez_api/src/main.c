@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include "gatt.h"
 #include "mgmt.h"
@@ -10,7 +12,7 @@ const struct gatts_if *gatts;
 
 void onConnectionStateChange(bdaddr_t *addr, int newState, void *pdata)
 {
-	Log.v("%s@%d", __func__, __LINE__);
+	le_set_advertise_enable(HCI_DEV_ID);
 }
 void onCharacterRead(bdaddr_t *addr, bt_uuid_t *chac_uuid, void *pdata,
 		UINT8 *read_rsp_buf, UINT16 *read_rsp_buf_len)
@@ -24,18 +26,22 @@ void onCharacterWrite(bdaddr_t *addr, bt_uuid_t *chac_uuid,
 {
 	Log.v("%s@%d", __func__, __LINE__);
 }
-static UINT8 status = 0;
-void onDescriptorRead(bdaddr_t *addr, bt_uuid_t *desc_uuid, void *pdata,
-		UINT8 *read_rsp_buf, UINT16 *read_rsp_buf_len)
+static struct {
+	UINT16 status;
+	bdaddr_t addr;
+	bt_uuid_t desc_uuid;
+} device;
+void onDescriptorRead(bdaddr_t *addr, bt_uuid_t *desc_uuid,
+		void *pdata, UINT16 *ret_desc)
 {
-	*read_rsp_buf_len = 1;
-	read_rsp_buf[0] = status;
+	*ret_desc = device.status;
 }
 void onDescriptorWrite(bdaddr_t *addr, bt_uuid_t *desc_uuid,
-	  UINT8 *buf, UINT16 len, void *pdata)
+	  UINT16 desc, void *pdata)
 {
-	status = buf[0];
-	gatts->sendNotification(addr, desc_uuid, "hehehhe", 6);
+	device.status = desc;
+	device.addr = *addr;
+	device.desc_uuid = *desc_uuid;
 }
 void onMtuChanged(bdaddr_t *addr, int mtu, void *pdata)
 {
@@ -75,8 +81,15 @@ int main(int argc, char *argv[])
 	service_add_character(heart_rate, heart_rate_point);
 	gatts = register_gatt_service(heart_rate, &io_cb, NULL);
 	while(1){
-		le_set_advertise_enable(HCI_DEV_ID);
-		usleep(5000000);
+		static UINT16 ret_num;
+		ret_num++;
+		usleep(1000000);
+		if(device.status & DESCREPTOR_NOTIFICATION){
+			UINT8 ret_data[2];
+			sprintf((char*)ret_data, "%02d", ret_num%100);
+			gatts->sendNotification(&device.addr, &device.desc_uuid,
+					(UINT8*)ret_data, sizeof(ret_data));
+		}
 		mem_dump();
 	}
 	return 0;

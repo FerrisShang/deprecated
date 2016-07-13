@@ -10,6 +10,7 @@
 #define DESCREPTOR_INDICATION   0x0002
 
 struct gatt_service;
+struct gatt_character;
 
 typedef enum {
 	GATT_SUCCESS         = 0,
@@ -19,8 +20,13 @@ typedef enum {
 	GATT_FAILED_NOMEM    = -4,
 } gatt_status_t;
 
+enum{
+	GATT_STATUS_CONNECTED,
+	GATT_STATUS_DISCONNECTED,
+};
+
 struct gatts_if {
-	int (*sendNotification)(bdaddr_t *addr, bt_uuid_t *chac_uuid, char *buf, UINT16 len);
+	int (*sendNotification)(bdaddr_t *addr, bt_uuid_t *chac_uuid, UINT8 *buf, UINT16 len);
 	//int (*sendIndication)(bdaddr_t *addr, bt_uuid_t *chac_uuid, char *buf, UINT16 len);
 	///*, callback*/);
 };
@@ -32,21 +38,14 @@ struct gatts_cb {
 	void (*onCharacterWrite)(bdaddr_t *addr, bt_uuid_t *chac_uuid,
 			UINT8 *buf, UINT16 len, void *pdata);
 	void (*onDescriptorRead)(bdaddr_t *addr, bt_uuid_t *desc_uuid, void *pdata,
-			UINT8 *read_rsp_buf, UINT16 *read_rsp_buf_len);
+			UINT16 *ret_desc);
 	void (*onDescriptorWrite)(bdaddr_t *addr, bt_uuid_t *desc_uuid,
-			UINT8 *buf, UINT16 len, void *pdata);
+			UINT16 desc, void *pdata);
 	void (*onMtuChanged)(bdaddr_t *addr, int mtu, void *pdata);
 	//void onIndicationSent(bdaddr_t *addr, int status, void *pdata);
 };
 struct gatt_client_cb {
 	/* unfinished */
-};
-struct gatt_character {
-	UINT16 type_handle;
-	UINT16 value_handle;
-	UINT16 desc_handle;
-	bt_uuid_t *uuid;
-	UINT8 prop;
 };
 
 int init_gatt(int hdev);
