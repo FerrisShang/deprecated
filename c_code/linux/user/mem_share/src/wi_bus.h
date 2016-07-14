@@ -2,6 +2,8 @@
 #define __WI_BUS_H__
 
 #include <sys/shm.h>
+#include "ipc_sem.h"
+#include "ipc_shm.h"
 
 #define FLAG_PRIORITY_HIGH     (1 << 0)
 #define FLAG_PRIORITY_LOW      (0 << 0)

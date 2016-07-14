@@ -1,12 +1,15 @@
-#include "stdio.h"
+#include <stdio.h>
+#include <errno.h>
 #include "unistd.h"
-#include "ipc_shm.h"
+#include "wi_bus.h"
 
 #define SHMGET_KEY  0x5FD1
+#define IPC_SEM_KEY 0x5FD0
 #define SHMGET_SIZE 0x100000
 
 int main(int argc, char *argv[])
 {
+#if 0
 	char *buf;
 	int i, cnt = 10;
 #if 1
@@ -30,5 +33,20 @@ int main(int argc, char *argv[])
 	}
 #endif
 	destroy_ipc_shm(buf);
+#else
+#define NSEMS 10
+#if 0
+	int init_value[10] = {0,2,3,4,5,6,7,8,9,0};
+	int semid = create_ipc_sem(IPC_SEM_KEY, NSEMS, init_value);
+	printf("semid = %d\n", semid);
+	usleep(4000000);
+	ipc_sem_v(semid, 0);
+	destroy_ipc_sem(semid);
+#else
+	int semid = find_ipc_sem(IPC_SEM_KEY, NSEMS);
+	printf("%d e:%d\n", ipc_sem_p(semid, 0), errno);
+	printf("semid = %d\n", semid);
+#endif
+#endif
 	return 0;
 }

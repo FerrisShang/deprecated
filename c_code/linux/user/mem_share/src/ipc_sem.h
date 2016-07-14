@@ -1,11 +1,13 @@
 #ifndef __IPC_SEM_H__
 #define __IPC_SEM_H__
 
-#include <sys/shm.h>
+#include <sys/sem.h>
 
-void* create_ipc_sem(key_t key, size_t size);
-void* find_ipc_sem(key_t key, size_t size);
-int destroy_ipc_sem(void *shm);
+int create_ipc_sem(key_t key, int nsems, int *value);
+int find_ipc_sem(key_t key, int nsems);
+int destroy_ipc_sem(int semid);
+int ipc_sem_v(int semid, int nsems);
+int ipc_sem_p(int semid, int nsems);
 
 
 
