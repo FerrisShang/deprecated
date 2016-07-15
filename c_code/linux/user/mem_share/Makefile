@@ -15,6 +15,7 @@ libDir =
 sources=src/main.c \
 		src/ipc_sem.c \
 		src/ipc_shm.c \
+		src/ipc_cmd.c \
 		src/wi_bus.c \
 		src/common/queue.c \
 		src/common/log.c \

@@ -1,52 +1,74 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <errno.h>
 #include "unistd.h"
 #include "wi_bus.h"
+#include "ipc_cmd.h"
 
-#define SHMGET_KEY  0x5FD1
-#define IPC_SEM_KEY 0x5FD0
+#define IPC_SHM_KEY  0xdead
+#define IPC_SEM_KEY 0xdead
 #define SHMGET_SIZE 0x100000
 
+/******************************** ipc_cmd test ********************************/
+
+static int cnt;
+void server_cb(void *buf, void *pdata)
+{
+	int *b = buf;
+	*(b+1) = cnt;
+	cnt++;
+	//printf("%s@%d:%d\n", __func__, __LINE__, (unsigned char)b[0]);
+}
+void request_cb(void *buf, void *pdata)
+{
+	int *b = buf;
+	*b = cnt;
+	//printf("%s@%d:%d\n", __func__, __LINE__, (unsigned char)b[0]);
+}
+void response_cb(void *buf, void *pdata)
+{
+	int *b = buf;
+	if(*(b+1) != cnt){
+		printf("error\n");
+	}
+	cnt++;
+	//printf("%s@%d:%d\n", __func__, __LINE__, (unsigned char)b[0]);
+}
 int main(int argc, char *argv[])
 {
 #if 0
-	char *buf;
-	int i, cnt = 10;
-#if 1
-	buf = create_ipc_shm((key_t)(SHMGET_KEY), SHMGET_SIZE);
-	if(!buf){printf("create shared memory failed\n");return 0;}else{printf("%p\n", buf);}
-	while(cnt--){
-		usleep(500000);
-		for(i=0;i<32;i++){
-			buf[i] = (cnt+i)&0xFF;
+	struct ipc_cmd *ipc_cmd;
+	int i;
+	ipc_cmd = ipc_create_cmd(IPC_SEM_KEY, IPC_SHM_KEY, NULL);
+	if(!ipc_cmd){
+		printf("create cmd error\n");
+		return -1;
+	}
+	printf("%p,%p,%p\n", ipc_cmd, ipc_cmd->shm, ipc_cmd->sem);
+
+	for(i=0;i<1000000;i++){
+		ipc_recv_cmd(ipc_cmd, server_cb);
+	}
+	ipc_destroy_cmd(ipc_cmd);
+#else
+	struct ipc_cmd *ipc_cmd;
+	ipc_cmd = mem_malloc(sizeof(struct ipc_cmd));
+	ipc_cmd->shm = mem_malloc(sizeof(struct ipc_shm));
+	ipc_cmd->sem = mem_malloc(sizeof(struct ipc_sem));
+	ipc_cmd->shm->key = IPC_SHM_KEY;
+	ipc_cmd->sem->key = IPC_SEM_KEY;
+	int res = ipc_cmd_remote_init(ipc_cmd, NULL);
+	if(res < 0){
+		printf("init cmd error\n");
+		return -1;
+	}
+	printf("%p,%p,%p\n", ipc_cmd, ipc_cmd->shm, ipc_cmd->sem);
+	while(1){
+		res = ipc_send_cmd(ipc_cmd, request_cb, response_cb);
+		if(res < 0){
+			return -1;
 		}
 	}
-#else
-	buf = find_ipc_shm((key_t)(SHMGET_KEY), SHMGET_SIZE);
-	if(!buf){printf("find shared memory failed\n");return 0;}else{printf("%p\n", buf);}
-	while(cnt--){
-		for(i=0;i<32;i++){
-			printf("%02x ", (unsigned char)buf[i]);
-		}
-		printf("\n");
-		usleep(500000);
-	}
-#endif
-	destroy_ipc_shm(buf);
-#else
-#define NSEMS 10
-#if 0
-	int init_value[10] = {0,2,3,4,5,6,7,8,9,0};
-	int semid = create_ipc_sem(IPC_SEM_KEY, NSEMS, init_value);
-	printf("semid = %d\n", semid);
-	usleep(4000000);
-	ipc_sem_v(semid, 0);
-	destroy_ipc_sem(semid);
-#else
-	int semid = find_ipc_sem(IPC_SEM_KEY, NSEMS);
-	printf("%d e:%d\n", ipc_sem_p(semid, 0), errno);
-	printf("semid = %d\n", semid);
-#endif
 #endif
 	return 0;
 }
