@@ -6,20 +6,26 @@
 
 #define IPC_CMD_BUF_LEN 1024
 
-struct ipc_cmd {
+struct ipc_cmd_local {
 	struct ipc_sem *sem;
 	struct ipc_shm *shm;
-	void *buf;
-	void *pdata;
+};
+
+struct ipc_cmd_remote {
+	struct ipc_sem *sem;
+	struct ipc_shm *shm;
 };
 
 typedef void (*ipc_cmd_io_cb)(void *buf, void *pdata);
-
-struct ipc_cmd* ipc_create_cmd(key_t sem_key, key_t shm_key, void *pdata);
-int ipc_cmd_remote_init(struct ipc_cmd *ipc_cmd, void *pdata);
-int ipc_send_cmd(struct ipc_cmd *ipc_cmd,
-		ipc_cmd_io_cb request_cb, ipc_cmd_io_cb response_cb);
-int ipc_recv_cmd(struct ipc_cmd *ipc_cmd, ipc_cmd_io_cb callback);
-int ipc_destroy_cmd(struct ipc_cmd *ipc_cmd);
+//server api(local)
+struct ipc_cmd_local* ipc_create_cmd(
+		key_t sem_key, key_t shm_key, size_t size);
+int ipc_destroy_local_cmd(struct ipc_cmd_local *ipc_cmd);
+int ipc_recv_cmd(struct ipc_cmd_local *ipc_cmd, ipc_cmd_io_cb callback, void* pdata);
+//client api(remote)
+int ipc_cmd_remote_init(struct ipc_cmd_remote *ipc_cmd);
+int ipc_cmd_remote_detach(struct ipc_cmd_remote *ipc_cmd);
+int ipc_send_cmd(struct ipc_cmd_remote *ipc_cmd,
+		ipc_cmd_io_cb request_cb, ipc_cmd_io_cb response_cb, void* pdata);
 
 #endif /* __IPC_CMD_H__ */

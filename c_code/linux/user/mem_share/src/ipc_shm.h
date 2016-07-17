@@ -12,8 +12,9 @@ struct ipc_shm {
 };
 
 struct ipc_shm* ipc_create_shm(key_t key, size_t size);
+int ipc_destroy_shm(struct ipc_shm *ipc_shm);
 int ipc_find_shm_by_id(struct ipc_shm *shm);
 int ipc_find_shm_by_key(struct ipc_shm *shm);
-int ipc_destroy_shm(struct ipc_shm *ipc_shm);
+int ipc_detach_shm(struct ipc_shm *ipc_shm);
 
 #endif /* __IPC_SHM_H__ */

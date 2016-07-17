@@ -10,12 +10,12 @@
 #define SEM_NSEM_S_READ  2
 static const int cmd_sem_value[] = {1, 0, 0};
 
-struct ipc_cmd* ipc_create_cmd(key_t sem_key, key_t shm_key, void *pdata)
+struct ipc_cmd_local* ipc_create_cmd(key_t sem_key, key_t shm_key, size_t size)
 {
-	struct ipc_cmd *cmd;
+	struct ipc_cmd_local *cmd;
 	struct ipc_sem* sem;
 	struct ipc_shm* shm;
-	cmd = mem_malloc(sizeof(struct ipc_cmd));
+	cmd = mem_malloc(sizeof(struct ipc_cmd_local));
 	if(!cmd){
 		goto malloc_failed;
 	}
@@ -23,7 +23,7 @@ struct ipc_cmd* ipc_create_cmd(key_t sem_key, key_t shm_key, void *pdata)
 	if(!sem){
 		goto create_sem_failed;
 	}
-	shm = ipc_create_shm(shm_key, IPC_CMD_BUF_LEN);
+	shm = ipc_create_shm(shm_key, size);
 	if(!shm){
 		goto create_shm_failed;
 	}
@@ -32,8 +32,6 @@ struct ipc_cmd* ipc_create_cmd(key_t sem_key, key_t shm_key, void *pdata)
 	}
 	cmd->sem = sem;
 	cmd->shm = shm;
-	cmd->buf = shm->buf;
-	cmd->pdata = pdata;
 	return cmd;
 init_sem_failed :
 	ipc_destroy_shm(shm);
@@ -45,7 +43,7 @@ malloc_failed :
 	return NULL;
 }
 
-int ipc_cmd_remote_init(struct ipc_cmd *ipc_cmd, void *pdata)
+int ipc_cmd_remote_init(struct ipc_cmd_remote *ipc_cmd)
 {
 	int res;
 	if(!ipc_cmd || !ipc_cmd->sem || !ipc_cmd->shm){
@@ -57,13 +55,10 @@ int ipc_cmd_remote_init(struct ipc_cmd *ipc_cmd, void *pdata)
 		if(res < 0){
 			goto init_sem_failed;
 		}
-		ipc_cmd->shm->size = IPC_CMD_BUF_LEN;
 		res = ipc_find_shm_by_key(ipc_cmd->shm);
 		if(res < 0){
 			goto find_shm_failed;
 		}
-		ipc_cmd->buf = ipc_cmd->shm->buf;
-		ipc_cmd->pdata = pdata;
 		return 0;
 	}else if(ipc_cmd->sem->semid > 0 && ipc_cmd->sem->nsems > 0 &&
 			ipc_cmd->shm->shmid > 0 && ipc_cmd->shm->size > 0){//init by IDs
@@ -72,43 +67,50 @@ int ipc_cmd_remote_init(struct ipc_cmd *ipc_cmd, void *pdata)
 		if(res < 0){
 			goto find_shm_failed;
 		}
-		ipc_cmd->buf = ipc_cmd->shm->buf;
-		ipc_cmd->pdata = pdata;
 		return 0;
 	}
 find_shm_failed :
 init_sem_failed :
 	return -1;
 }
-int ipc_destroy_cmd(struct ipc_cmd *ipc_cmd)
+
+int ipc_cmd_remote_detach(struct ipc_cmd_remote *ipc_cmd)
+{
+	ipc_detach_shm(ipc_cmd->shm);
+	return 0;
+}
+
+int ipc_destroy_local_cmd(struct ipc_cmd_local *ipc_cmd)
 {
 	ipc_destroy_sem(ipc_cmd->sem);
 	ipc_destroy_shm(ipc_cmd->shm);
 	mem_free(ipc_cmd);
 	return 0;
 }
-int ipc_send_cmd(struct ipc_cmd *ipc_cmd,
-		ipc_cmd_io_cb request_cb, ipc_cmd_io_cb response_cb)
+int ipc_send_cmd(struct ipc_cmd_remote *ipc_cmd,
+		ipc_cmd_io_cb request_cb, ipc_cmd_io_cb response_cb, void *pdata)
 {
 	int res;
 	res = ipc_sem_p(ipc_cmd->sem->semid, SEM_NSEM_SEND);
 	if(res < 0){return res;}
-	request_cb(ipc_cmd->buf, ipc_cmd->pdata);
+	request_cb(ipc_cmd->shm->buf, pdata);
 	res = ipc_sem_v(ipc_cmd->sem->semid, SEM_NSEM_S_READ);
 	if(res < 0){return res;}
 	res = ipc_sem_p(ipc_cmd->sem->semid, SEM_NSEM_C_READ);
 	if(res < 0){return res;}
-	response_cb(ipc_cmd->buf, ipc_cmd->pdata);
+	if(response_cb){
+		response_cb(ipc_cmd->shm->buf, pdata);
+	}
 	res = ipc_sem_v(ipc_cmd->sem->semid, SEM_NSEM_SEND);
 	if(res < 0){return res;}
 	return 0;
 }
-int ipc_recv_cmd(struct ipc_cmd *ipc_cmd, ipc_cmd_io_cb callback)
+int ipc_recv_cmd(struct ipc_cmd_local *ipc_cmd, ipc_cmd_io_cb callback, void *pdata)
 {
 	int res;
 	res = ipc_sem_p(ipc_cmd->sem->semid, SEM_NSEM_S_READ);
 	if(res < 0){return res;}
-	callback(ipc_cmd->buf, ipc_cmd->pdata);
+	callback(ipc_cmd->shm->buf, pdata);
 	res = ipc_sem_v(ipc_cmd->sem->semid, SEM_NSEM_C_READ);
 	if(res < 0){return res;}
 	return 0;

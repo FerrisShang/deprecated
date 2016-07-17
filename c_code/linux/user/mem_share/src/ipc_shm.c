@@ -82,13 +82,18 @@ static int ipc_free_shm(int shmid, void *shm)
 	}
 	return 0;
 }
-int ipc_destroy_shm(struct ipc_shm *ipc_shm)
+int ipc_detach_shm(struct ipc_shm *ipc_shm)
 {
 	int res;
-	res = ipc_free_shm(ipc_shm->shmid, ipc_shm->buf);
+	res = shmdt(ipc_shm->buf);
 	if(res < 0){
 		return res;
 	}
+	return 0;
+}
+int ipc_destroy_shm(struct ipc_shm *ipc_shm)
+{
+	ipc_free_shm(ipc_shm->shmid, ipc_shm->buf);
 	mem_free(ipc_shm);
 	return 0;
 }
