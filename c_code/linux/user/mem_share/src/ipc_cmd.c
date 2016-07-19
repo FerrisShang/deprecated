@@ -91,7 +91,7 @@ int ipc_send_cmd(struct ipc_cmd_remote *ipc_cmd,
 		ipc_cmd_io_cb request_cb, ipc_cmd_io_cb response_cb, void *pdata)
 {
 	int res;
-	res = ipc_sem_p(ipc_cmd->sem->semid, SEM_NSEM_SEND);
+	res = ipc_sem_p_undo(ipc_cmd->sem->semid, SEM_NSEM_SEND);
 	if(res < 0){return res;}
 	request_cb(ipc_cmd->shm->buf, pdata);
 	res = ipc_sem_v(ipc_cmd->sem->semid, SEM_NSEM_S_READ);
@@ -101,7 +101,7 @@ int ipc_send_cmd(struct ipc_cmd_remote *ipc_cmd,
 	if(response_cb){
 		response_cb(ipc_cmd->shm->buf, pdata);
 	}
-	res = ipc_sem_v(ipc_cmd->sem->semid, SEM_NSEM_SEND);
+	res = ipc_sem_v_undo(ipc_cmd->sem->semid, SEM_NSEM_SEND);
 	if(res < 0){return res;}
 	return 0;
 }

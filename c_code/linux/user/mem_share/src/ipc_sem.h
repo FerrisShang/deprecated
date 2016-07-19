@@ -16,5 +16,7 @@ int ipc_find_sem(struct ipc_sem* sem);
 int ipc_destroy_sem(struct ipc_sem* sem);
 int ipc_sem_v(int semid, int nsem);
 int ipc_sem_p(int semid, int nsem);
+int ipc_sem_v_undo(int semid, int nsem);
+int ipc_sem_p_undo(int semid, int nsem);
 
 #endif /* __IPC_SEM_H__ */

@@ -86,11 +86,29 @@ int ipc_sem_v(int semid, int nsem)
 	struct sembuf v_buf;
 	v_buf.sem_num = nsem;
 	v_buf.sem_op  = 1;
-	v_buf.sem_flg = SEM_UNDO;
+	v_buf.sem_flg = 0;
 	return semop(semid, &v_buf, 1);
 }
 
 int ipc_sem_p(int semid, int nsem)
+{
+	struct sembuf v_buf;
+	v_buf.sem_num = nsem;
+	v_buf.sem_op  = -1;
+	v_buf.sem_flg = 0;
+	return semop(semid, &v_buf, 1);
+}
+
+int ipc_sem_v_undo(int semid, int nsem)
+{
+	struct sembuf v_buf;
+	v_buf.sem_num = nsem;
+	v_buf.sem_op  = 1;
+	v_buf.sem_flg = SEM_UNDO;
+	return semop(semid, &v_buf, 1);
+}
+
+int ipc_sem_p_undo(int semid, int nsem)
 {
 	struct sembuf v_buf;
 	v_buf.sem_num = nsem;

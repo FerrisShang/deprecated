@@ -2,13 +2,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <pthread.h>
 #include "unistd.h"
 #include "wi_bus.h"
-#include "ipc_cmd.h"
-
-#define IPC_SHM_KEY  0xdead
-#define IPC_SEM_KEY 0xdead
-#define SHMGET_SIZE 4000
+#include "proc_comm.h"
+#include "types.h"
+#define IPC_SHM_KEY ((key_t)0X005FC0DE)
+#define IPC_SEM_KEY ((key_t)0X005FC0DE)
+#define SHMGET_SIZE 2000
 
 /******************************** ipc_cmd test ********************************/
 
@@ -29,62 +30,62 @@ void request_cb(void *buf, void *pdata)
 	*b = rand()&0x00FFFFFF;
 	cnt = *b;
 	//printf("%s@%d:%d\n", __func__, __LINE__, (unsigned char)b[0]);
+	*b++ = 0;
+	srand((int)time(0));
+	*b++ = rand();
+	*b++ = rand();
+	*b++ = rand();
+	*b++ = rand();
+	int i;
+	for(i=0;i<16;i++){
+		printf("%02x ", ((UINT8*)buf)[i]);
+	}
+	printf("  send\n");
 }
 void response_cb(void *buf, void *pdata)
 {
-	int *b = buf;
-	if(*b != ~cnt){
-		printf("error\n");
-	}
+	//int *b = buf;
+	//if(*b != ~cnt){
+	//	printf("error\n");
+	//}
 	//printf("%s@%d:%d\n", __func__, __LINE__, (unsigned char)b[0]);
+	int i;
+	for(i=0;i<16;i++){
+		printf("%02x ", ((UINT8*)buf)[i]);
+	}
+	printf("  recv\n");
+}
+
+void* close_server(void *pdata)
+{
+	struct pc_server *server = pdata;
+	usleep(10000000);
+	pc_destroy_server(server);
+	return NULL;
 }
 int main(int argc, char *argv[])
 {
-#if 0
-	struct ipc_cmd_local *ipc_cmd;
-	int i;
-	ipc_cmd = ipc_create_cmd(IPC_SEM_KEY, IPC_SHM_KEY, SHMGET_SIZE);
-	if(!ipc_cmd){
-		printf("create cmd error\n");
-		return -1;
+	pthread_t server_t;
+	struct pc_server *server;
+	struct pc_c_client *client;
+	server = pc_create_server(IPC_SEM_KEY, IPC_SHM_KEY, SHMGET_SIZE,
+			NULL, NULL, NULL);
+	if(server){
+		pthread_create(&server_t, NULL, close_server, server);
+		pc_server_run(server);
+		pthread_join(server_t, NULL);
+		mem_dump();
+		return 0;
 	}
-	printf("%p,%p,%p\n", ipc_cmd, ipc_cmd->shm, ipc_cmd->sem);
+	Log.e("pc_create_server failed");
 
-	for(i=0;i<1000000;i++){
-		ipc_recv_cmd(ipc_cmd, server_cb, NULL);
+	client = pc_req_create_client(IPC_SEM_KEY, IPC_SHM_KEY, SHMGET_SIZE,
+		"1234567890123456", 16, NULL, NULL);
+	if(!client){
+		Log.e("pc_req_create_client failed");
+		return 0;
 	}
-	ipc_destroy_local_cmd(ipc_cmd);
+	pc_req_destroy_client(client);
 	mem_dump();
-#else
-	struct ipc_cmd_remote *ipc_cmd;
-	ipc_cmd = mem_malloc(sizeof(struct ipc_cmd_remote));
-	ipc_cmd->shm = mem_malloc(sizeof(struct ipc_shm));
-	ipc_cmd->sem = mem_malloc(sizeof(struct ipc_sem));
-	ipc_cmd->shm->key = IPC_SHM_KEY;
-	ipc_cmd->shm->size = SHMGET_SIZE;
-	ipc_cmd->sem->key = IPC_SEM_KEY;
-	int res = ipc_cmd_remote_init(ipc_cmd);
-	if(res < 0){
-		printf("init cmd error\n");
-		return -1;
-	}
-	/*
-	ipc_cmd_remote_detach(ipc_cmd);
-	res = ipc_cmd_remote_init(ipc_cmd);
-	if(res < 0){
-		printf("init cmd error second\n");
-		return -1;
-	}
-	*/
-	printf("%p,%p,%p\n", ipc_cmd, ipc_cmd->shm, ipc_cmd->sem);
-	while(1){
-		res = ipc_send_cmd(ipc_cmd, request_cb, response_cb, NULL);
-		if(res < 0){
-			break;
-		}
-	}
-	ipc_cmd_remote_detach(ipc_cmd);
-	mem_dump();
-#endif
 	return 0;
 }
