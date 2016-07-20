@@ -38,3 +38,24 @@ void log_e(const char* fmt, ...)
 	va_end(args);
 	printf("\n");
 }
+
+char *hex2str(void *p, int len)
+{
+	static unsigned char buf[1024];
+	unsigned char c, *hex = p;
+	int i;
+	for(i=0;i<len;i++){
+		c = hex[i]>>4;
+		if(c > 9)
+			buf[i*2] = c-10+'A';
+		else
+			buf[i*2] = c+'0';
+		c = hex[i]&0x0F;
+		if(c > 9)
+			buf[i*2+1] = c-10+'A';
+		else
+			buf[i*2+1] = c+'0';
+	}
+	buf[i*2] = '\0';
+	return (char*)buf;
+}

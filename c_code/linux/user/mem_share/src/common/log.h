@@ -8,5 +8,6 @@ struct log {
 	void (*e)(const char* fmt, ...);
 };
 extern struct log Log;
+char *hex2str(void *p, int len);
 
 #endif /* __LOG_H__ */
