@@ -1,24 +1,27 @@
 #ifndef __PROC_COMM_H__
 #define __PROC_COMM_H__
 
+#include <stdbool.h>
 #include "ipc_cmd.h"
 #define MAX_CLIENT_ID_LEN 16
 
 struct pc_c_client;
-struct pc_s_client;
 struct pc_server;
-typedef void (*pc_recv_cb)(void *buf, void *pdata);
-typedef void (*pc_send_out_cb)(void *buf, void *pdata);
-typedef void (*pc_send_return_cb)(void *buf, void *pdata);
-typedef void (*pc_change_req_cb)(struct pc_s_client *client, int status, void *pdata);
 
 //server api
-struct pc_server* pc_create_server(key_t sem_key, key_t shm_key, int buffer_size);
+typedef bool (*pc_is_broadcast_cb)(void *id, int id_len);
+typedef bool (*pc_is_bc_match_cb)(void *id_bc, void *id, int id_len);
+struct pc_server* pc_create_server(
+		key_t sem_key, key_t shm_key, int buffer_size,
+		pc_is_broadcast_cb is_broadcase_cb,
+		pc_is_bc_match_cb is_bc_match_cb);
 int pc_server_run(struct pc_server *server);
 int pc_destroy_server(struct pc_server* server);
-int pc_destroy_client(struct pc_s_client* client);
 
 //client api
+typedef void (*pc_recv_cb)(void *id, int id_len, void *buf, int buf_len, void *pdata);
+typedef void (*pc_send_out_cb)(void *buf, int *buf_len, void *pdata);
+typedef void (*pc_send_return_cb)(int status, void *pdata);
 struct pc_c_client* pc_req_create_client(key_t sem_key, key_t shm_key,
 		int buffer_size,
 		void *client_id, int id_len,

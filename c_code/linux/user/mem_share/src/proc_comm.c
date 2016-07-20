@@ -33,11 +33,13 @@ enum{
 	CMD_DATA_SEND_REQ,
 	CMD_DATA_SEND_RSP,
 };
-#define RESERVE_SIZE (MAX_CLIENT_ID_LEN*2+sizeof(int)*2)
+#define RESERVE_SIZE (64) //lager than header of request & recevie
 #define CMD_DATA_SEND_REQ_RESERVICE_SIZE 16
 
 struct pc_server {
 	struct ipc_cmd *cmd;
+	pc_is_broadcast_cb is_broadcase_cb;
+	pc_is_bc_match_cb is_bc_match_cb;
 	//client data
 	struct queue *client_list; /* struct pc_s_client */
 };
@@ -60,7 +62,7 @@ struct pc_s_client {
 };
 
 
-struct pc_s_send_data {
+struct pc_comm_data {
 	UINT32 *id_len;
 	void *s_id;
 	void *d_id;
@@ -72,14 +74,16 @@ struct pc_s_send_data {
 static struct pc_s_client* create_remote_server(
 		struct pc_server* server, int buffer_size, void *id, int id_len, pid_t pid);
 static int destroy_remote_server(struct pc_server* server ,void *id, int id_len);
-static int pc_s_send(struct pc_s_client* client, struct pc_s_send_data *data_send);
+static int pc_destroy_client(struct pc_server* server, struct pc_s_client* client);
+static int pc_s_send(struct pc_s_client* client, struct pc_comm_data *data_send);
+static void broadcast_send(struct pc_server *server, struct pc_comm_data *data_send);
+static struct pc_s_client* find_client(struct pc_server *server, void *id, int id_len);
+static int add_client(struct pc_server *server, struct pc_s_client *client);
+static int remove_client(struct pc_server *server, struct pc_s_client *client);
 
-static int list_add_client(struct queue *list, struct pc_s_client *client);
-static struct pc_s_client* list_find_client(
-		struct queue *list, void *id, int id_len);
-static int list_remove_client(struct queue *list, struct pc_s_client *client);
-
-struct pc_server* pc_create_server(key_t sem_key, key_t shm_key, int buffer_size)
+struct pc_server* pc_create_server(key_t sem_key, key_t shm_key, int buffer_size,
+		pc_is_broadcast_cb is_broadcase_cb,
+		pc_is_bc_match_cb is_bc_match_cb)
 {
 	struct pc_server* server;
 	server = mem_malloc(sizeof(struct pc_server));
@@ -94,6 +98,8 @@ struct pc_server* pc_create_server(key_t sem_key, key_t shm_key, int buffer_size
 	if(!server->cmd){
 		goto ipc_create_cmd_failed;
 	}
+	server->is_broadcase_cb = is_broadcase_cb;
+	server->is_bc_match_cb = is_bc_match_cb;
 	return server;
 ipc_create_cmd_failed :
 	queue_destroy(server->client_list, NULL);
@@ -107,7 +113,7 @@ static struct pc_s_client* create_remote_server(
 		struct pc_server* server, int buffer_size, void *id, int id_len, pid_t pid)
 {
 	struct pc_s_client* client;
-	client = list_find_client(server->client_list, id, id_len);
+	client = find_client(server, id, id_len);
 	if(client){
 		Log.e("client id exsit");
 		return NULL;
@@ -133,7 +139,7 @@ static struct pc_s_client* create_remote_server(
 		Log.e("create client failed");
 		goto ipc_create_cmd_failed;
 	}
-	if(list_add_client(server->client_list, client) < 0){
+	if(add_client(server, client) < 0){
 		Log.e("add new client to list failed");
 		goto add_client_failed;
 	}
@@ -151,11 +157,11 @@ malloc_client_failed :
 static int destroy_remote_server(struct pc_server* server ,void *id, int id_len)
 {
 	struct pc_s_client *client;
-	client = list_find_client(server->client_list, id, id_len);
+	client = find_client(server, id, id_len);
 	if(!client){
 		return -1;
 	}
-	list_remove_client(server->client_list, client);
+	remove_client(server, client);
 	ipc_destroy_local_cmd(client->client_cmd);
 	mem_free(client->id);
 	mem_free(client);
@@ -180,7 +186,6 @@ static void pc_server_recv_cb(void *buf, void *pdata)
 	UINT32 cmd;
 	p = buf;
 	STREAM_TO_UINT32(cmd, p);
-	Log.v("%s@%d : CMD = %d", __func__, __LINE__, cmd);
 	switch(cmd){
 		case CMD_GET_SERVER_REQ :{// | cmd | id_len | id | mem_size | pid |
 			struct pc_s_client *pc_s_client;
@@ -237,7 +242,7 @@ static void pc_server_recv_cb(void *buf, void *pdata)
 		case CMD_DATA_SEND_REQ :{
 			/* | cmd | id_len | s_id | d_id | reserve | d_len | data | */
 			struct pc_s_client *client;
-			struct pc_s_send_data data_send;
+			struct pc_comm_data data_send;
 			data_send.id_len = (UINT32*)p;
 			p += sizeof(UINT32);
 			data_send.s_id = p;
@@ -248,19 +253,30 @@ static void pc_server_recv_cb(void *buf, void *pdata)
 			data_send.data_len = (UINT32*)p;
 			p += sizeof(UINT32);
 			data_send.data = p;
-			client = list_find_client(server->client_list,
-					data_send.d_id, *data_send.id_len);
-			if(!client){
+
+			if(server->is_broadcase_cb &&
+					server->is_broadcase_cb(data_send.d_id, *data_send.id_len)){
+				//broadcast
+				broadcast_send(server, &data_send);
 				p = buf;
 				UINT32_TO_STREAM(p, CMD_DATA_SEND_RSP);
-				UINT32_TO_STREAM(p, CMD_CLIENT_NOT_FOUNT);
-				return;
+				UINT32_TO_STREAM(p, CMD_SUCCESS);
+				break;
 			}else{
-				pc_s_send(client, &data_send);
-				p = buf;
-				UINT32_TO_STREAM(p, CMD_DATA_SEND_RSP);
-				UINT32_TO_STREAM(p, data_send.err);
-				return;
+				//p2p
+				client = find_client(server, data_send.d_id, *data_send.id_len);
+				if(!client){
+					p = buf;
+					UINT32_TO_STREAM(p, CMD_DATA_SEND_RSP);
+					UINT32_TO_STREAM(p, CMD_CLIENT_NOT_FOUNT);
+					return;
+				}else{
+					pc_s_send(client, &data_send);
+					p = buf;
+					UINT32_TO_STREAM(p, CMD_DATA_SEND_RSP);
+					UINT32_TO_STREAM(p, data_send.err);
+					return;
+				}
 			}
 			}break;
 		default :
@@ -302,7 +318,7 @@ int pc_destroy_server(struct pc_server* server)
 	return 0;
 }
 
-int pc_destroy_client(struct pc_s_client* client)
+static int pc_destroy_client(struct pc_server* server, struct pc_s_client* client)
 {
 	/*
 	if(!client){
@@ -362,6 +378,10 @@ struct pc_c_client* pc_req_create_client(key_t sem_key, key_t shm_key,
 	struct pc_c_client *client;
 	if(id_len == 0 || id_len > MAX_CLIENT_ID_LEN){
 		Log.e("Invailed id length");
+		return NULL;
+	}
+	if(!callback){
+		Log.e("Invailed client callback");
 		return NULL;
 	}
 	client = mem_malloc(sizeof(struct pc_c_client));
@@ -487,16 +507,38 @@ int pc_req_destroy_client(struct pc_c_client* client)
 }
 static void pc_client_recv_cb(void *buf, void *pdata)
 {
-	//struct pc_c_client* client = pdata;
-	//UINT8 *p = buf;
+	struct pc_c_client* client = pdata;
+	struct pc_comm_data data_recv;
+	UINT32 cmd;
+	UINT8 *p = buf;
+	/* | cmd | id_len | s_id | d_id | reserve | d_len | data | */
 
-	int i;//test
-	for(i=0;i<128;i++){
-		if((i%16)==0)printf("\n");
-		printf("%02x ", *(UINT8*)(buf+i));
+	STREAM_TO_UINT32(cmd, p);
+	switch(cmd){
+		case CMD_DATA_SEND_REQ :
+			data_recv.id_len = (UINT32*)p;
+			p += sizeof(UINT32);
+			data_recv.s_id = p;
+			p += MAX_CLIENT_ID_LEN;
+			data_recv.d_id = p;
+			p += MAX_CLIENT_ID_LEN;
+			p += CMD_DATA_SEND_REQ_RESERVICE_SIZE;
+			data_recv.data_len = (UINT32*)p;
+			p += sizeof(UINT32);
+			data_recv.data = p;
+			client->recv_cb(data_recv.d_id, *data_recv.id_len,
+					data_recv.data, *data_recv.data_len, client->pdata);
+			p = buf;
+			UINT32_TO_STREAM(p, CMD_DATA_SEND_RSP);
+			UINT32_TO_STREAM(p, CMD_SUCCESS);
+			break;
+		default :
+			Log.v("%s@%d : receive data error", __func__, __LINE__);
+			p = buf;
+			UINT32_TO_STREAM(p, CMD_DATA_SEND_RSP);
+			UINT32_TO_STREAM(p, CMD_FAILED);
+			break;
 	}
-	printf("    client recevie done.\n");//test done
-
 }
 int pc_client_run(struct pc_c_client* client)
 {
@@ -505,48 +547,53 @@ int pc_client_run(struct pc_c_client* client)
 		return -1;
 	}
 	while(1){
-		res = ipc_recv_cmd(client->cmd_l, pc_client_recv_cb, NULL);
+		res = ipc_recv_cmd(client->cmd_l, pc_client_recv_cb, client);
 		if(res < 0){
 			return res;
 		}
 	}
 }
-static int list_add_client(struct queue *list, struct pc_s_client *client)
+static int add_client(struct pc_server *server, struct pc_s_client *client)
 {
+	struct queue *list = server->client_list;
 	if(queue_push_tail(list, client) == false){
 		return -1;
 	}
 	return 0;
 }
 
-struct id_data {
+struct find_client_data {
+	struct pc_server *server;
 	void *id;
 	int len;
 };
 bool list_find_client_cb(const void *data, const void *match_data)
 {
 	const struct pc_s_client *client = data;
-	const struct id_data *id_data = match_data;
-	if(client->id->len != id_data->len){
+	const struct find_client_data *d = match_data;
+	if(client->id->len != d->len){
 		return false;
 	}
-	if(!memcmp(client->id->data, id_data->id, id_data->len)){
+	if(!memcmp(client->id->data, d->id, d->len)){
 		return true;
 	}
 	return false;
 }
-static struct pc_s_client* list_find_client(
-		struct queue *list, void *id, int id_len)
+static struct pc_s_client* find_client(
+		struct pc_server *server, void *id, int id_len)
 {
+	struct queue *list = server->client_list;
 	struct pc_s_client *client;
-	struct id_data id_data;
-	id_data.id = id;
-	id_data.len = id_len;
-	client = queue_find(list, list_find_client_cb, &id_data);
+	struct find_client_data d;
+	d.server = server;
+	d.id = id;
+	d.len = id_len;
+	client = queue_find(list, list_find_client_cb, &d);
 	return client;
 }
-static int list_remove_client(struct queue *list, struct pc_s_client *client)
+static int remove_client(struct pc_server *server, struct pc_s_client *client)
 {
+	struct queue *list = server->client_list;
 	if(queue_remove(list, client) == false){
 		return -1;
 	}
@@ -556,15 +603,15 @@ static int list_remove_client(struct queue *list, struct pc_s_client *client)
 
 static void send_out_cb(void *buf, void *pdata)
 {
-	struct pc_s_send_data *data_send = pdata;
+	struct pc_comm_data *data_send = pdata;
 	UINT8 *p = buf;
 	UINT8 id[MAX_CLIENT_ID_LEN] = {0};
 	/* | cmd | id_len | s_id | d_id | reserve | d_len | data | */
 	UINT32_TO_STREAM(p, CMD_DATA_SEND_REQ);
 	UINT32_TO_STREAM(p, *data_send->id_len);
-	memcpy(id, data_send->s_id, *data_send->id_len);
+	memcpy(id, data_send->d_id, *data_send->id_len);//send & recv id is opposite
 	ARRAY_TO_STREAM(p, id, MAX_CLIENT_ID_LEN);
-	memcpy(id, data_send->d_id, *data_send->id_len);
+	memcpy(id, data_send->s_id, *data_send->id_len);
 	ARRAY_TO_STREAM(p, id, MAX_CLIENT_ID_LEN);
 	p += CMD_DATA_SEND_REQ_RESERVICE_SIZE;
 	UINT32_TO_STREAM(p, *data_send->data_len);
@@ -572,7 +619,7 @@ static void send_out_cb(void *buf, void *pdata)
 }
 static void send_ret_cb(void *buf, void *pdata)
 {
-	struct pc_s_send_data *data_send = pdata;
+	struct pc_comm_data *data_send = pdata;
 	UINT8 *p = buf;
 	int cmd, state;
 	/* | cmd | state | */
@@ -584,11 +631,46 @@ static void send_ret_cb(void *buf, void *pdata)
 	}
 	data_send->err = state;
 }
-static int pc_s_send(struct pc_s_client* client, struct pc_s_send_data *data_send)
+static int pc_s_send(struct pc_s_client* client, struct pc_comm_data *data_send)
 {
-	return ipc_send_cmd(client->client_cmd, send_out_cb, send_ret_cb, data_send);
+	int res;
+	res = ipc_send_cmd(client->client_cmd, send_out_cb, send_ret_cb, data_send);
+	if(res < 0){
+		data_send->err = CMD_FAILED;
+	}
+	return res;
 }
 
+struct broadcast_data {
+	struct pc_server *server;
+	struct pc_s_client *client;
+	struct pc_comm_data *data;
+};
+
+static void broadcast_send_cb(void *data, void *user_data)
+{
+	struct broadcast_data *bc_data = user_data;
+	struct pc_server *server = bc_data->server;
+	struct pc_comm_data *d = bc_data->data;
+	struct pc_s_client *client = data;
+	if(client != bc_data->client){
+		if(!server->is_bc_match_cb ||
+				server->is_bc_match_cb(d->d_id, client->id->data, *d->id_len)){
+			pc_s_send(client, bc_data->data);
+		}
+	}else{
+	}
+}
+static void broadcast_send(struct pc_server *server, struct pc_comm_data *data_send)
+{
+	struct pc_s_client *s_client;
+	struct broadcast_data bc_data;
+	s_client = find_client(server, data_send->s_id, *data_send->id_len);
+	bc_data.server = server;
+	bc_data.client = s_client;
+	bc_data.data = data_send;
+	queue_foreach(server->client_list, broadcast_send_cb, &bc_data);
+}
 struct pc_c_send_data {
 	struct pc_c_client* client;
 	char *id;
@@ -602,6 +684,7 @@ static void pc_c_send_out_cb(void *buf, void *pdata)
 {
 	struct pc_c_send_data *data = pdata;
 	UINT8 *p = buf;
+	int *data_len;
 	UINT8 id[MAX_CLIENT_ID_LEN] = {0};
 	/* | cmd | id_len | s_id | d_id | reserve | d_len | data | */
 	UINT32_TO_STREAM(p, CMD_DATA_SEND_REQ);
@@ -611,28 +694,33 @@ static void pc_c_send_out_cb(void *buf, void *pdata)
 	memcpy(id, data->id, data->id_len);
 	ARRAY_TO_STREAM(p, id, MAX_CLIENT_ID_LEN);
 	p += CMD_DATA_SEND_REQ_RESERVICE_SIZE;
-	data->out_cb(p, data->pdata);
-
+	data_len = (int*)p;
+	p += sizeof(UINT32);
+	data->out_cb(p, data_len, data->pdata);
+#if 0
 	Log.v("request send data:");
 	Log.v("\tfrom:0x%s to 0x%s",
 			hex2str(data->client->id->data, data->client->id->len),
 			hex2str(data->id, data->id_len));
-	Log.v("\tlength:%d", *(UINT32*)p);
-	Log.v("\tdata:%s", hex2str(p+sizeof(int), 32));
-	Log.v("\t     %s", hex2str(p+sizeof(int)+32, 32));
+	Log.v("\tlength:%d", *data_len);
+	Log.v("\tdata:%s", hex2str(p, 32));
+	Log.v("\t     %s", hex2str(p+32, 32));
+#endif
 }
 static void pc_c_send_ret_cb(void *buf, void *pdata)
 {
 	struct pc_c_send_data *data = pdata;
 	UINT8 *p = buf;
-	int cmd;
+	UINT32 cmd;
+	UINT32 status;
 	/* | cmd | state | */
 	STREAM_TO_UINT32(cmd, p);
+	STREAM_TO_UINT32(status, p);
 	if(cmd != CMD_DATA_SEND_RSP){
-		Log.e("receive data error");
+		Log.e("%s@%d : %receive data error", __func__, __LINE__);
 		return;
 	}
-	data->ret_cb(p, data->pdata);
+	data->ret_cb(status, data->pdata);
 }
 
 int pc_c_send(struct pc_c_client* client, char *id, int id_len,
@@ -640,6 +728,14 @@ int pc_c_send(struct pc_c_client* client, char *id, int id_len,
 {
 	struct pc_c_send_data data;
 	if(!client){
+		return -1;
+	}
+	if(id_len == 0 || id_len > MAX_CLIENT_ID_LEN){
+		Log.e("Invailed id length");
+		return -1;
+	}
+	if(!out_cb || !ret_cb){
+		Log.e("Invailed client callback");
 		return -1;
 	}
 	data.client = client;
