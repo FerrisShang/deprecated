@@ -60,6 +60,10 @@ void ipcs_rm_cb(FILE *pf, void *pdata)
 
 int main(int argc, char *argv[])
 {
-	process_cmd(IPCS_ALL, ipcs_rm_cb, ID_FLAG);
+	if(argc == 1){
+		process_cmd(IPCS_ALL, ipcs_rm_cb, ID_FLAG);
+	}else{
+		process_cmd(IPCS_ALL, ipcs_rm_cb, argv[1]);
+	}
 	return 0;
 }

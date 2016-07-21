@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 #include "ipc_cmd.h"
-#define MAX_CLIENT_ID_LEN 16
+#define MAX_CLIENT_ID_LEN 8
 
 struct pc_c_client;
 struct pc_server;

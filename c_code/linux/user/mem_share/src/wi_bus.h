@@ -1,25 +1,33 @@
 #ifndef __WI_BUS_H__
 #define __WI_BUS_H__
 
-#include <sys/shm.h>
-#include "ipc_sem.h"
-#include "ipc_shm.h"
+#include <stdint.h>
 
-#define FLAG_PRIORITY_HIGH     (1 << 0)
-#define FLAG_PRIORITY_LOW      (0 << 0)
-#define FLAG_SEND_BLOCK        (1 << 2)
-#define FLAG_SEND_NONBLOCK     (0 << 2)
+#define WI_FLAG_PRIORITY_HIGH  (1 << 0)
+#define WI_FLAG_PRIORITY_LOW   (0 << 0)
+#define WI_FLAG_SEND_BLOCK     (1 << 2)
+#define WI_FLAG_SEND_NONBLOCK  (0 << 2)
 
-#define MEM_RET_SUCCESS         0
-#define MEM_RET_NO_MEM         -1
-#define MEM_RET_NO_ADDR        -2
-#define MEM_RET_ADDR_EXSIT     -3
+#define WI_RET_SUCCESS         0
+#define WI_RET_FAILED         -1
+#define WI_RET_NO_ADDR        -2
+#define WI_RET_ADDR_EXSIT     -3
 
 #define BROADCASE_ID           0xFFFFFFFF
 
-int mem_send(int local_id, int remote_id, char *buf, int len, int flag);
-int mem_register(int local_id,
-		void (*callback)(int remote_id, char *buf, int len, void *user_data),
+typedef struct {
+	uint8_t d[8];
+}wiaddr_t;
+
+//wi_bus server api
+int wi_bus_server_run();
+
+//wi_bus client api
+int wi_register(
+		wiaddr_t *local_id,
+		void (*recv_cb)(wiaddr_t *remote_id, char *buf, int len, void *user_data),
+		void (*disc_cb)(void *user_data),
 		void *user_data);
+int wi_send(wiaddr_t *remote_id, char *buf, int len, int flag);
 
 #endif /* __WI_BUS_H__ */

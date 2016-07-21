@@ -74,7 +74,7 @@ struct pc_comm_data {
 static struct pc_s_client* create_remote_server(
 		struct pc_server* server, int buffer_size, void *id, int id_len, pid_t pid);
 static int destroy_remote_server(struct pc_server* server ,void *id, int id_len);
-static int pc_destroy_client(struct pc_server* server, struct pc_s_client* client);
+//static int pc_destroy_client(struct pc_server* server, struct pc_s_client* client);
 static int pc_s_send(struct pc_s_client* client, struct pc_comm_data *data_send);
 static void broadcast_send(struct pc_server *server, struct pc_comm_data *data_send);
 static struct pc_s_client* find_client(struct pc_server *server, void *id, int id_len);
@@ -318,25 +318,12 @@ int pc_destroy_server(struct pc_server* server)
 	return 0;
 }
 
+/*
 static int pc_destroy_client(struct pc_server* server, struct pc_s_client* client)
 {
-	/*
-	if(!client){
-		return -1;
-	}
-	if(client->id){
-		mem_free(client->id);
-	}
-	if(client->cmd_l){
-		ipc_destroy_cmd(client->cmd_l);
-	}
-	if(client->cmd_r){
-		ipc_destroy_cmd(client->cmd_r);
-	}
-	mem_free(client);
-	*/
 	return 0;
 }
+*/
 
 static void pc_req_create_client_req_cb(void *buf, void *pdata)
 {
