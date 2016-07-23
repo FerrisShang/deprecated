@@ -324,7 +324,7 @@ int pc_server_run(struct pc_server *server)
 	}
 }
 
-void client_list_destroy_cb(void *data)
+static void client_list_destroy_cb(void *data)
 {
 	struct pc_s_client *client = data;
 	ipc_destroy_local_cmd(client->client_cmd);
@@ -518,6 +518,15 @@ static void pc_req_destroy_client_rsp_cb(void *buf, void *pdata)
 		return;
 	}
 }
+
+static void client_list_free_cb(void *data)
+{
+	struct pc_s_client *r_dev = data;
+	ipc_cmd_remote_detach(r_dev->client_cmd);
+	destroy_empty_ipc_cmd(r_dev->client_cmd);
+	mem_free(r_dev->id);
+	mem_free(r_dev);
+}
 int pc_req_destroy_client(struct pc_c_client* client)
 {
 	if(!client || !client->cmd_l || !client->cmd_server){
@@ -530,7 +539,7 @@ int pc_req_destroy_client(struct pc_c_client* client)
 	destroy_empty_ipc_cmd(client->cmd_l);
 	destroy_empty_ipc_cmd(client->cmd_server);
 	mem_free(client->id);
-	queue_destroy(client->dev_list, client_list_destroy_cb);
+	queue_destroy(client->dev_list, client_list_free_cb);
 	mem_free(client);
 	return 0;
 }
@@ -852,10 +861,7 @@ int pc_c_send(struct pc_c_client* client, char *id, int id_len,
 		if(res < 0){
 			//send failed, maybe remote closed, remove device from list
 			queue_remove(client->dev_list, r_dev);
-			ipc_cmd_remote_detach(r_dev->client_cmd);
-			destroy_empty_ipc_cmd(r_dev->client_cmd);
-			mem_free(r_dev->id);
-			mem_free(r_dev);
+			client_list_free_cb(r_dev);
 			return CMD_FAILED;
 		}
 		return data.err;

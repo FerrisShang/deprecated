@@ -7,6 +7,12 @@
 #define IPC_SEM_KEY ((key_t)0X005FC0DE)
 #define SHMGET_SIZE 1800
 
+struct wi_bus_data {
+	struct pc_c_client *client;
+	void (*recv_cb)(wiaddr_t *remote_id, char *buf, int len, void *user_data);
+	void (*disconnect_cb)(void *user_data);
+	void *pdata;
+};
 struct wi_bus_data wi_bus;
 
 static bool is_broadcast_cb(void *id, int id_len)
@@ -43,12 +49,6 @@ int wi_bus_server_run(void)
 	}
 }
 
-struct wi_bus_data {
-	struct pc_c_client *client;
-	void (*recv_cb)(wiaddr_t *remote_id, char *buf, int len, void *user_data);
-	void (*disconnect_cb)(void *user_data);
-	void *pdata;
-};
 static void* wi_bus_client_run(void *pdata)
 {
 	struct wi_bus_data *wi_bus = pdata;
@@ -116,12 +116,6 @@ int wi_send(wiaddr_t *remote_id, char *buf, int len, int flag)
 }
 int wi_unregister(void)
 {
-	struct wi_bus_data {
-		struct pc_c_client *client;
-		void (*recv_cb)(wiaddr_t *remote_id, char *buf, int len, void *user_data);
-		void (*disconnect_cb)(void *user_data);
-		void *pdata;
-	};
 	if(!wi_bus.client){
 		return -1;
 	}
