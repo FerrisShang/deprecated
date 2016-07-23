@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <signal.h>
 #include "queue.h"
 #include "proc_comm.h"
 #include "types.h"
@@ -9,14 +10,6 @@
  * format:
  *     command | data
  * command | data:
- *     req: CMD_GET_SERVER_REQ  | null
- *     rsp: CMD_GET_SERVER_RSP  | result
- *     req: CMD_FREE_SERVER_REQ | null
- *     rsp: CMD_FREE_SERVER_RSP | null
- *     req: CMD_SEND_DATA_REQ   | null
- *     rsp: CMD_SEND_DATA_RSP   | null
- *
- *
  *
  */
 
@@ -30,6 +23,8 @@ enum{
 	CMD_GET_SERVER_RSP,
 	CMD_CLOSE_SERVER_REQ,
 	CMD_CLOSE_SERVER_RSP,
+	CMD_GET_CLIENT_REQ,
+	CMD_GET_CLIENT_RSP,
 	CMD_DATA_SEND_REQ,
 	CMD_DATA_SEND_RSP,
 };
@@ -49,8 +44,10 @@ struct client_id {
 };
 struct pc_c_client {
 	struct ipc_cmd *cmd_l;
-	struct ipc_cmd *cmd_r;
+	struct ipc_cmd *cmd_server;
 	struct client_id *id;
+	struct queue *dev_list; /* struct pc_s_client */
+	pc_is_broadcast_cb is_broadcase_cb;
 	pc_recv_cb recv_cb;
 	void *pdata;
 	pid_t pid;
@@ -60,7 +57,6 @@ struct pc_s_client {
 	struct client_id *id;
 	pid_t pid;
 };
-
 
 struct pc_comm_data {
 	UINT32 *id_len;
@@ -77,7 +73,7 @@ static int destroy_remote_server(struct pc_server* server ,void *id, int id_len)
 //static int pc_destroy_client(struct pc_server* server, struct pc_s_client* client);
 static int pc_s_send(struct pc_s_client* client, struct pc_comm_data *data_send);
 static void broadcast_send(struct pc_server *server, struct pc_comm_data *data_send);
-static struct pc_s_client* find_client(struct pc_server *server, void *id, int id_len);
+static struct pc_s_client* find_client(struct queue *list, void *id, int id_len);
 static int add_client(struct pc_server *server, struct pc_s_client *client);
 static int remove_client(struct pc_server *server, struct pc_s_client *client);
 
@@ -113,7 +109,7 @@ static struct pc_s_client* create_remote_server(
 		struct pc_server* server, int buffer_size, void *id, int id_len, pid_t pid)
 {
 	struct pc_s_client* client;
-	client = find_client(server, id, id_len);
+	client = find_client(server->client_list, id, id_len);
 	if(client){
 		Log.e("client id exsit");
 		return NULL;
@@ -157,7 +153,7 @@ malloc_client_failed :
 static int destroy_remote_server(struct pc_server* server ,void *id, int id_len)
 {
 	struct pc_s_client *client;
-	client = find_client(server, id, id_len);
+	client = find_client(server->client_list, id, id_len);
 	if(!client){
 		return -1;
 	}
@@ -239,6 +235,30 @@ static void pc_server_recv_cb(void *buf, void *pdata)
 				UINT32_TO_STREAM(p, CMD_SUCCESS);
 			}
 			}break;
+		case CMD_GET_CLIENT_REQ :{// | cmd | id_len | id |
+			struct pc_s_client *client;
+			void *id;
+			UINT32 id_len;
+			STREAM_TO_UINT32(id_len, p);
+			id = p;
+			p += MAX_CLIENT_ID_LEN;
+			client = find_client(server->client_list, id, id_len);
+			if(!client){
+				//client id not exsit
+				p = buf;
+				UINT32_TO_STREAM(p, CMD_GET_CLIENT_RSP);
+				UINT32_TO_STREAM(p, CMD_FAILED);
+				return;
+			}
+			/* | cmd | state | semid | size | shmid | size | */
+			p = buf;
+			UINT32_TO_STREAM(p, CMD_GET_CLIENT_RSP);
+			UINT32_TO_STREAM(p, CMD_SUCCESS);
+			UINT32_TO_STREAM(p, client->client_cmd->sem->semid);
+			UINT32_TO_STREAM(p, client->client_cmd->sem->nsems);
+			UINT32_TO_STREAM(p, client->client_cmd->shm->shmid);
+			UINT32_TO_STREAM(p, client->client_cmd->shm->size);
+			}break;
 		case CMD_DATA_SEND_REQ :{
 			/* | cmd | id_len | s_id | d_id | reserve | d_len | data | */
 			struct pc_s_client *client;
@@ -264,7 +284,8 @@ static void pc_server_recv_cb(void *buf, void *pdata)
 				break;
 			}else{
 				//p2p
-				client = find_client(server, data_send.d_id, *data_send.id_len);
+				client = find_client(server->client_list,
+						data_send.d_id, *data_send.id_len);
 				if(!client){
 					p = buf;
 					UINT32_TO_STREAM(p, CMD_DATA_SEND_RSP);
@@ -284,8 +305,13 @@ static void pc_server_recv_cb(void *buf, void *pdata)
 	}
 	return;
 }
+static void signal_handler_fun(int signal_num)
+{
+	return;
+}
 int pc_server_run(struct pc_server *server)
 {
+	signal(SIGINT, signal_handler_fun);
 	int res;
 	if(!server || !server->cmd){
 		return -1;
@@ -335,7 +361,7 @@ static void pc_req_create_client_req_cb(void *buf, void *pdata)
 	UINT32_TO_STREAM(p, client->id->len);
 	memcpy(client_id, client->id->data, client->id->len);
 	ARRAY_TO_STREAM(p, client_id, MAX_CLIENT_ID_LEN);
-	UINT32_TO_STREAM(p, client->cmd_r->shm->size);
+	UINT32_TO_STREAM(p, client->cmd_server->shm->size);
 	UINT32_TO_STREAM(p, client->pid);
 }
 static void pc_req_create_client_rsp_cb(void *buf, void *pdata)
@@ -356,9 +382,45 @@ static void pc_req_create_client_rsp_cb(void *buf, void *pdata)
 	STREAM_TO_UINT32(client->cmd_l->shm->shmid, p);
 	STREAM_TO_UINT32(client->cmd_l->shm->size, p);
 }
+static struct ipc_cmd* create_empty_ipc_cmd(void)
+{
+	struct ipc_cmd *cmd;
+	cmd = mem_malloc(sizeof(struct ipc_cmd));
+	if(!cmd){
+		goto malloc_cmd_failed;
+	}
+	cmd->sem = mem_malloc(sizeof(struct ipc_sem));
+	if(!cmd->sem){
+		goto malloc_sem_failed;
+	}
+	cmd->shm = mem_malloc(sizeof(struct ipc_shm));
+	if(!cmd->shm){
+		goto malloc_shm_failed;
+	}
+	return cmd;
+malloc_shm_failed :
+	mem_free(cmd->sem);
+malloc_sem_failed :
+	mem_free(cmd);
+malloc_cmd_failed :
+	return NULL;
+}
+static void destroy_empty_ipc_cmd(struct ipc_cmd* ipc_cmd)
+{
+	if(ipc_cmd){
+		if(ipc_cmd->sem){
+			mem_free(ipc_cmd->sem);
+		}
+		if(ipc_cmd->shm){
+			mem_free(ipc_cmd->shm);
+		}
+		mem_free(ipc_cmd);
+	}
+}
 struct pc_c_client* pc_req_create_client(key_t sem_key, key_t shm_key,
 		int buffer_size,
 		void *client_id, int id_len,
+		pc_is_broadcast_cb is_broadcase_cb,
 		pc_recv_cb callback, void *pdata)
 {
 	int res;
@@ -375,29 +437,17 @@ struct pc_c_client* pc_req_create_client(key_t sem_key, key_t shm_key,
 	if(!client){
 		goto malloc_client_failed;
 	}
-	client->cmd_r = mem_malloc(sizeof(struct ipc_cmd));
-	if(!client->cmd_r){
+	client->dev_list = queue_new();
+	if(!client->dev_list){
+		goto queue_new_failed;
+	}
+	client->cmd_server = create_empty_ipc_cmd();
+	if(!client->cmd_server){
 		goto malloc_cmd_r_failed;
 	}
-	client->cmd_r->sem = mem_malloc(sizeof(struct ipc_sem));
-	if(!client->cmd_r->sem){
-		goto malloc_sem_r_failed;
-	}
-	client->cmd_r->shm = mem_malloc(sizeof(struct ipc_shm));
-	if(!client->cmd_r->shm){
-		goto malloc_shm_r_failed;
-	}
-	client->cmd_l = mem_malloc(sizeof(struct ipc_cmd));
+	client->cmd_l = create_empty_ipc_cmd();
 	if(!client->cmd_l){
 		goto malloc_cmd_l_failed;
-	}
-	client->cmd_l->sem = mem_malloc(sizeof(struct ipc_sem));
-	if(!client->cmd_l->sem){
-		goto malloc_sem_l_failed;
-	}
-	client->cmd_l->shm = mem_malloc(sizeof(struct ipc_shm));
-	if(!client->cmd_l->shm){
-		goto malloc_shm_l_failed;
 	}
 	client->id = mem_malloc(sizeof(struct client_id));
 	if(!client->id){
@@ -405,10 +455,10 @@ struct pc_c_client* pc_req_create_client(key_t sem_key, key_t shm_key,
 	}
 	//init remote server
 	client->pdata = pdata;
-	client->cmd_r->sem->key = sem_key;
-	client->cmd_r->shm->key = shm_key;
-	client->cmd_r->shm->size = RESERVE_SIZE + buffer_size;
-	res = ipc_cmd_remote_init(client->cmd_r);
+	client->cmd_server->sem->key = sem_key;
+	client->cmd_server->shm->key = shm_key;
+	client->cmd_server->shm->size = RESERVE_SIZE + buffer_size;
+	res = ipc_cmd_remote_init(client->cmd_server);
 	if(res < 0){
 		goto ipc_cmd_r_init_failed;
 	}
@@ -417,10 +467,11 @@ struct pc_c_client* pc_req_create_client(key_t sem_key, key_t shm_key,
 	memset(client->cmd_l->shm, 0, sizeof(struct ipc_shm));
 	memcpy(client->id->data, client_id, id_len);
 	client->id->len = id_len;
+	client->is_broadcase_cb = is_broadcase_cb;
 	client->recv_cb = callback;
 	client->pdata = pdata;
 	client->pid = getpid();
-	res = ipc_send_cmd(client->cmd_r,
+	res = ipc_send_cmd(client->cmd_server,
 			pc_req_create_client_req_cb, pc_req_create_client_rsp_cb, client);
 	if(res < 0 ){
 		goto request_local_server_failed;
@@ -434,18 +485,12 @@ request_local_server_failed :
 ipc_cmd_r_init_failed :
 	mem_free(client->id);
 malloc_id_failed :
-	mem_free(client->cmd_l->shm);
-malloc_shm_l_failed :
-	mem_free(client->cmd_l->sem);
-malloc_sem_l_failed :
-	mem_free(client->cmd_l);
+	destroy_empty_ipc_cmd(client->cmd_l);
 malloc_cmd_l_failed :
-	mem_free(client->cmd_r->shm);
-malloc_shm_r_failed :
-	mem_free(client->cmd_r->sem);
-malloc_sem_r_failed :
-	mem_free(client->cmd_r);
+	destroy_empty_ipc_cmd(client->cmd_server);
 malloc_cmd_r_failed :
+	queue_destroy(client->dev_list, NULL);
+queue_new_failed :
 	mem_free(client);
 malloc_client_failed :
 	return NULL;
@@ -475,20 +520,17 @@ static void pc_req_destroy_client_rsp_cb(void *buf, void *pdata)
 }
 int pc_req_destroy_client(struct pc_c_client* client)
 {
-	if(!client || !client->cmd_l || !client->cmd_r){
+	if(!client || !client->cmd_l || !client->cmd_server){
 		return -1;
 	}
-	ipc_send_cmd(client->cmd_r,
+	ipc_send_cmd(client->cmd_server,
 			pc_req_destroy_client_req_cb,
 			pc_req_destroy_client_rsp_cb, client);
-	ipc_cmd_remote_detach(client->cmd_r);
-	mem_free(client->cmd_l->sem);
-	mem_free(client->cmd_l->shm);
-	mem_free(client->cmd_r->sem);
-	mem_free(client->cmd_r->shm);
-	mem_free(client->cmd_l);
-	mem_free(client->cmd_r);
+	ipc_cmd_remote_detach(client->cmd_server);
+	destroy_empty_ipc_cmd(client->cmd_l);
+	destroy_empty_ipc_cmd(client->cmd_server);
 	mem_free(client->id);
+	queue_destroy(client->dev_list, client_list_destroy_cb);
 	mem_free(client);
 	return 0;
 }
@@ -554,7 +596,7 @@ struct find_client_data {
 	void *id;
 	int len;
 };
-bool list_find_client_cb(const void *data, const void *match_data)
+static bool list_find_client_cb(const void *data, const void *match_data)
 {
 	const struct pc_s_client *client = data;
 	const struct find_client_data *d = match_data;
@@ -567,12 +609,10 @@ bool list_find_client_cb(const void *data, const void *match_data)
 	return false;
 }
 static struct pc_s_client* find_client(
-		struct pc_server *server, void *id, int id_len)
+		struct queue *list, void *id, int id_len)
 {
-	struct queue *list = server->client_list;
 	struct pc_s_client *client;
 	struct find_client_data d;
-	d.server = server;
 	d.id = id;
 	d.len = id_len;
 	client = queue_find(list, list_find_client_cb, &d);
@@ -652,7 +692,7 @@ static void broadcast_send(struct pc_server *server, struct pc_comm_data *data_s
 {
 	struct pc_s_client *s_client;
 	struct broadcast_data bc_data;
-	s_client = find_client(server, data_send->s_id, *data_send->id_len);
+	s_client = find_client(server->client_list, data_send->s_id, *data_send->id_len);
 	bc_data.server = server;
 	bc_data.client = s_client;
 	bc_data.data = data_send;
@@ -684,15 +724,6 @@ static void pc_c_send_out_cb(void *buf, void *pdata)
 	data_len = (int*)p;
 	p += sizeof(UINT32);
 	data->out_cb(p, data_len, data->pdata);
-#if 0
-	Log.v("request send data:");
-	Log.v("\tfrom:0x%s to 0x%s",
-			hex2str(data->client->id->data, data->client->id->len),
-			hex2str(data->id, data->id_len));
-	Log.v("\tlength:%d", *data_len);
-	Log.v("\tdata:%s", hex2str(p, 32));
-	Log.v("\t     %s", hex2str(p+32, 32));
-#endif
 }
 static void pc_c_send_ret_cb(void *buf, void *pdata)
 {
@@ -704,12 +735,76 @@ static void pc_c_send_ret_cb(void *buf, void *pdata)
 	STREAM_TO_UINT32(cmd, p);
 	STREAM_TO_UINT32(status, p);
 	if(cmd != CMD_DATA_SEND_RSP){
-		Log.e("%s@%d : %receive data error", __func__, __LINE__);
+		Log.e("%s@%d : send data response error", __func__, __LINE__);
 		return;
 	}
 	data->ret_cb(status, data->pdata);
 }
+static void pc_c_get_client_req_cb(void *buf, void *pdata)
+{
+	struct pc_c_send_data *data = pdata;
+	UINT8 *p = buf;
+	UINT8 id[MAX_CLIENT_ID_LEN] = {0};
+	/* | cmd | id_len | id | */
+	UINT32_TO_STREAM(p, CMD_GET_CLIENT_REQ);
+	UINT32_TO_STREAM(p, data->id_len);
+	memcpy(id, data->id, data->id_len);
+	ARRAY_TO_STREAM(p, id, MAX_CLIENT_ID_LEN);
+}
+static void pc_c_get_client_rsp_cb(void *buf, void *pdata)
+{
+	struct pc_c_send_data *data = pdata;
+	struct pc_c_client *client = data->client;
+	struct pc_s_client *dev;
+	int cmd, res;
 
+	/* | cmd | state | semid | size | shmid | size | */
+	UINT8 *p = buf;
+	STREAM_TO_UINT32(cmd, p);
+	STREAM_TO_UINT32(data->err, p);
+	if(cmd != CMD_GET_CLIENT_RSP || data->err != CMD_SUCCESS){
+		Log.e("%s@%d:request client failed", __func__, __LINE__);
+		return;
+	}
+
+	dev = mem_malloc(sizeof(struct pc_s_client));
+	if(!dev){
+		goto malloc_dev_failed;
+	}
+	dev->client_cmd = create_empty_ipc_cmd();
+	if(!dev->client_cmd){
+		goto create_ipc_cmd_failed;
+	}
+	dev->id = mem_malloc(sizeof(struct client_id));
+	if(!dev->id){
+		goto malloc_id_failed;
+	}
+	STREAM_TO_UINT32(dev->client_cmd->sem->semid, p);
+	STREAM_TO_UINT32(dev->client_cmd->sem->nsems, p);
+	STREAM_TO_UINT32(dev->client_cmd->shm->shmid, p);
+	STREAM_TO_UINT32(dev->client_cmd->shm->size, p);
+	dev->client_cmd->sem->key = 0;
+	dev->client_cmd->shm->key = 0;
+	res = ipc_cmd_remote_init(dev->client_cmd);
+	if(res < 0){
+		goto remote_init_failed;
+	}
+	dev->id->len = data->id_len;
+	memcpy(dev->id->data, data->id, dev->id->len);
+	if(true != queue_push_head(client->dev_list, dev)){
+		goto remote_init_failed;
+	}
+	data->err = CMD_SUCCESS;
+	return;
+remote_init_failed :
+	mem_free(dev->id);
+malloc_id_failed :
+	destroy_empty_ipc_cmd(dev->client_cmd);
+create_ipc_cmd_failed :
+	mem_free(dev);
+malloc_dev_failed :
+	data->err = CMD_FAILED;
+}
 int pc_c_send(struct pc_c_client* client, char *id, int id_len,
 		pc_send_out_cb out_cb, pc_send_return_cb ret_cb, void *pdata)
 {
@@ -731,5 +826,38 @@ int pc_c_send(struct pc_c_client* client, char *id, int id_len,
 	data.out_cb = out_cb;
 	data.ret_cb = ret_cb;
 	data.pdata = pdata;
-	return ipc_send_cmd(client->cmd_r, pc_c_send_out_cb, pc_c_send_ret_cb, &data);
+	if(client->is_broadcase_cb &&
+			client->is_broadcase_cb(id, id_len)){
+		//broadcast
+		return ipc_send_cmd(client->cmd_server, pc_c_send_out_cb,
+				pc_c_send_ret_cb, &data);
+	}else{
+		//p2p
+		int res;
+		struct pc_s_client *r_dev;
+		r_dev = find_client(client->dev_list, id, id_len);
+		if(!r_dev){
+			res = ipc_send_cmd(client->cmd_server, pc_c_get_client_req_cb,
+					pc_c_get_client_rsp_cb, &data);
+			if(res < 0){
+				return res;
+			}
+			r_dev = find_client(client->dev_list, id, id_len);
+			if(!r_dev){
+				return CMD_FAILED;
+			}
+		}
+		res = ipc_send_cmd(r_dev->client_cmd, pc_c_send_out_cb,
+				pc_c_send_ret_cb, &data);
+		if(res < 0){
+			//send failed, maybe remote closed, remove device from list
+			queue_remove(client->dev_list, r_dev);
+			ipc_cmd_remote_detach(r_dev->client_cmd);
+			destroy_empty_ipc_cmd(r_dev->client_cmd);
+			mem_free(r_dev->id);
+			mem_free(r_dev);
+			return CMD_FAILED;
+		}
+		return data.err;
+	}
 }

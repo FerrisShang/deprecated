@@ -25,6 +25,7 @@ typedef void (*pc_send_return_cb)(int status, void *pdata);
 struct pc_c_client* pc_req_create_client(key_t sem_key, key_t shm_key,
 		int buffer_size,
 		void *client_id, int id_len,
+		pc_is_broadcast_cb is_broadcase_cb,
 		pc_recv_cb callback, void *pdata);
 int pc_client_run(struct pc_c_client* client);
 int pc_req_destroy_client(struct pc_c_client* client);

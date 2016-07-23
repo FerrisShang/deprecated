@@ -4,7 +4,7 @@
 #include "stdlib.h"
 #include "log.h"
 
-//#define __MEMORY_DEBUG__
+#define __MEMORY_DEBUG__
 
 #ifdef __MEMORY_DEBUG__
 void* _mem_malloc(int size, const char *func, int line);

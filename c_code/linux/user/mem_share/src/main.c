@@ -5,16 +5,8 @@
 #include <errno.h>
 #include <unistd.h>
 #include "wi_bus.h"
+#include "mem_manage.h"
 #include "log.h"
-/*
-	Log.v("request send data:");
-	Log.v("\tfrom:self to 0x%s",
-			hex2str(msg->id, msg->len));
-	Log.v("\tlength:%d", 16);
-	Log.v("\tdata:%s", hex2str(buf, 32));
-	Log.v("\t     %s", hex2str(buf+32, 32));
-*/
-
 void recv_cb(wiaddr_t *remote_id, char *buf, int len, void *user_data)
 {
 	Log.v("length:%d", len);
@@ -23,7 +15,10 @@ void recv_cb(wiaddr_t *remote_id, char *buf, int len, void *user_data)
 }
 void disc_cb(void *user_data)
 {
-	Log.v("exit");
+	Log.d("wi_bus disconnected");
+	usleep(500000);
+	wi_unregister();
+	mem_dump();
 	exit(0);
 }
 int main(int argc, char *argv[])
@@ -32,12 +27,24 @@ int main(int argc, char *argv[])
 	wi_bus_server_run();
 #else
 	wiaddr_t addr;
-	memcpy(&addr, "12345678", 8);
-	wi_register(&addr, recv_cb, disc_cb, NULL);
-	wi_send(&addr, "123123123", 10, 0);
-	while(1){
-		usleep(10000000);
+	if(argc == 1){
+		return 0;
 	}
+	memcpy(&addr, argv[1], 8);
+	wi_register(&addr, recv_cb, disc_cb, NULL);
+	while(1){
+		char r_addr[12], buf[80];
+		if(scanf("%s %s", r_addr, buf) == EOF){
+			return 0;
+		}
+		memcpy(&addr, r_addr, sizeof(wiaddr_t));
+		if(!strcmp(buf, "exit")){
+			break;
+		}
+		wi_send(&addr, buf, strlen(buf), 0);
+	}
+	wi_unregister();
+	mem_dump();
 #endif
 	return 0;
 }

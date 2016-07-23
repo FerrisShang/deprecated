@@ -13,8 +13,6 @@
 #define WI_RET_NO_ADDR        -2
 #define WI_RET_ADDR_EXSIT     -3
 
-#define BROADCASE_ID           0xFFFFFFFF
-
 typedef struct {
 	uint8_t d[8];
 }wiaddr_t;
@@ -29,5 +27,6 @@ int wi_register(
 		void (*disc_cb)(void *user_data),
 		void *user_data);
 int wi_send(wiaddr_t *remote_id, char *buf, int len, int flag);
+int wi_unregister(void);
 
 #endif /* __WI_BUS_H__ */

@@ -33,6 +33,7 @@ int wi_bus_server_run(void)
 			is_broadcast_cb, is_bc_match_cb);
 	if(server){
 		pc_server_run(server);
+		pc_destroy_server(server);
 		Log.d("wi_bus server closed");
 		mem_dump();
 		return 0;
@@ -52,18 +53,12 @@ static void* wi_bus_client_run(void *pdata)
 {
 	struct wi_bus_data *wi_bus = pdata;
 	pc_client_run(wi_bus->client);
-	Log.d("wi_bus disconnected");
 	wi_bus->disconnect_cb(wi_bus->pdata);
 	return NULL;
 }
 
 static void wi_bus_recv_cb(void *id, int id_len, void *buf, int buf_len, void *pdata)
 {
-
-
-	Log.v("length:%d", buf_len);
-	Log.v("data:%s", hex2str(buf, 32));
-	Log.v("     %s", hex2str(buf+32, 32));
 	wi_bus.recv_cb((wiaddr_t*)id, buf, buf_len, pdata);
 }
 int wi_register(
@@ -75,7 +70,8 @@ int wi_register(
 	struct pc_c_client *client;
 	pthread_t client_t;
 	client = pc_req_create_client(IPC_SEM_KEY, IPC_SHM_KEY, SHMGET_SIZE,
-			(void*)local_id, sizeof(wiaddr_t), wi_bus_recv_cb, user_data);
+			(void*)local_id, sizeof(wiaddr_t), is_broadcast_cb,
+			wi_bus_recv_cb, user_data);
 	if(!client){
 		Log.e("wi_bus register failed");
 		return WI_RET_FAILED;
@@ -97,6 +93,7 @@ struct wi_send_data {
 static void out_cb(void *buf, int *buf_len, void *pdata)
 {
 	struct wi_send_data *wi_send = pdata;
+	*buf_len = wi_send->len;
 	memcpy(buf, wi_send->buf, wi_send->len);
 }
 static void ret_cb(int status, void *pdata)
@@ -116,4 +113,19 @@ int wi_send(wiaddr_t *remote_id, char *buf, int len, int flag)
 	pc_c_send(wi_bus.client, (char*)remote_id, sizeof(wiaddr_t),
 			out_cb, ret_cb, &wi_send);
 	return wi_send.res;
+}
+int wi_unregister(void)
+{
+	struct wi_bus_data {
+		struct pc_c_client *client;
+		void (*recv_cb)(wiaddr_t *remote_id, char *buf, int len, void *user_data);
+		void (*disconnect_cb)(void *user_data);
+		void *pdata;
+	};
+	if(!wi_bus.client){
+		return -1;
+	}
+	pc_req_destroy_client(wi_bus.client);
+	memset(&wi_bus, 0, sizeof(wi_bus));
+	return 0;
 }
