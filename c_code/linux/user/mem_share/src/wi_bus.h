@@ -3,15 +3,15 @@
 
 #include <stdint.h>
 
-#define WI_FLAG_PRIORITY_HIGH  (1 << 0)
-#define WI_FLAG_PRIORITY_LOW   (0 << 0)
+#define WI_FLAG_PRIORITY_HIGH  (1 << 1)
+#define WI_FLAG_PRIORITY_LOW   (1 << 0)
 #define WI_FLAG_SEND_BLOCK     (1 << 2)
 #define WI_FLAG_SEND_NONBLOCK  (0 << 2)
 
 #define WI_RET_SUCCESS         0
 #define WI_RET_FAILED         -1
-#define WI_RET_NO_ADDR        -2
-#define WI_RET_ADDR_EXSIT     -3
+
+#define WI_BUS_MAX_BUFFER_SIZE 1800
 
 typedef struct {
 	uint8_t d[8];

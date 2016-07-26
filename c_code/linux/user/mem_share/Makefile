@@ -18,6 +18,8 @@ sources=src/main.c \
 		src/ipc_cmd.c \
 		src/proc_comm.c \
 		src/wi_bus.c \
+		src/common/wi_sem.c \
+		src/common/wi_mutex.c \
 		src/common/queue.c \
 		src/common/log.c \
 		src/common/mem_manage.c \

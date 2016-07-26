@@ -41,7 +41,20 @@ int main(int argc, char *argv[])
 		if(!strcmp(buf, "exit")){
 			break;
 		}
-		wi_send(&addr, buf, strlen(buf), 0);
+		if(!strcmp(buf, "test")){
+			int i;
+			Log.v("begin send");
+			for(i=0;i<100000;i++){
+				sprintf(buf, "%d", i);
+				if(wi_send(&addr, buf, 1000, (i%10) == 0?
+							WI_FLAG_PRIORITY_HIGH : WI_FLAG_PRIORITY_LOW)<0){
+					break;
+				}
+			}
+			Log.v("send done");
+		}else{
+			wi_send(&addr, buf, strlen(buf), 0);
+		}
 	}
 	wi_unregister();
 	mem_dump();
