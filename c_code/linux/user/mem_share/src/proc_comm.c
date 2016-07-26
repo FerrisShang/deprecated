@@ -564,7 +564,7 @@ static void pc_client_recv_cb(void *buf, void *pdata)
 			data_recv.data_len = (UINT32*)p;
 			p += sizeof(UINT32);
 			data_recv.data = p;
-			client->recv_cb(data_recv.d_id, *data_recv.id_len,
+			client->recv_cb(data_recv.s_id, *data_recv.id_len,
 					data_recv.data, *data_recv.data_len, client->pdata);
 			p = buf;
 			UINT32_TO_STREAM(p, CMD_DATA_SEND_RSP);
@@ -645,9 +645,9 @@ static void send_out_cb(void *buf, void *pdata)
 	/* | cmd | id_len | s_id | d_id | reserve | d_len | data | */
 	UINT32_TO_STREAM(p, CMD_DATA_SEND_REQ);
 	UINT32_TO_STREAM(p, *data_send->id_len);
-	memcpy(id, data_send->d_id, *data_send->id_len);//send & recv id is opposite
-	ARRAY_TO_STREAM(p, id, MAX_CLIENT_ID_LEN);
 	memcpy(id, data_send->s_id, *data_send->id_len);
+	ARRAY_TO_STREAM(p, id, MAX_CLIENT_ID_LEN);
+	memcpy(id, data_send->d_id, *data_send->id_len);
 	ARRAY_TO_STREAM(p, id, MAX_CLIENT_ID_LEN);
 	p += CMD_DATA_SEND_REQ_RESERVICE_SIZE;
 	UINT32_TO_STREAM(p, *data_send->data_len);

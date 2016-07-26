@@ -32,7 +32,7 @@ static void process_cmd(char *cmd,
 	return;
 }
 
-void ipcs_rm_cb(FILE *pf, void *pdata)
+static void ipcs_rm_cb(FILE *pf, void *pdata)
 {
 	char *id_flag = pdata;
 	char str_buf[DATA_SIZE];

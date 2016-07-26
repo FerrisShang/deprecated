@@ -9,6 +9,7 @@
 #include "log.h"
 void recv_cb(wiaddr_t *remote_id, char *buf, int len, void *user_data)
 {
+	Log.v("From ID:%s", hex2str(remote_id, 8));
 	Log.v("length:%d", len);
 	Log.v("data:%s", hex2str(buf, 32));
 	Log.v("     %s", hex2str(buf+32, 32));
