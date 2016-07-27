@@ -10,6 +10,7 @@
 void recv_cb(wiaddr_t *remote_id, char *buf, int len, void *user_data)
 {
 	Log.v("From ID:%s", hex2str(remote_id, 8));
+	usleep(500000);
 	Log.v("length:%d", len);
 	Log.v("data:%s", hex2str(buf, 32));
 	Log.v("     %s", hex2str(buf+32, 32));
@@ -42,9 +43,9 @@ int main(int argc, char *argv[])
 		if(!strcmp(buf, "exit")){
 			break;
 		}
+		Log.v("begin send");
 		if(!strcmp(buf, "test")){
 			int i;
-			Log.v("begin send");
 			for(i=0;i<100000;i++){
 				sprintf(buf, "%d", i);
 				if(wi_send(&addr, buf, 1000, (i%10) == 0?
@@ -52,10 +53,10 @@ int main(int argc, char *argv[])
 					break;
 				}
 			}
-			Log.v("send done");
 		}else{
 			wi_send(&addr, buf, strlen(buf), 0);
 		}
+		Log.v("send done");
 	}
 	wi_unregister();
 	mem_dump();

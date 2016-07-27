@@ -1,7 +1,9 @@
 app = mem_share
 
-#CC = mips-linux-gnu-gcc
-CC = gcc
+CC = mips-linux-gnu-gcc
+AR = mips-linux-gnu-ar
+#CC = gcc
+#AR = ar
 srcExt = c
 objDir = obj
 binDir = .
@@ -9,10 +11,10 @@ inc = $(shell find . -name '*.h' -exec dirname {} \; | uniq)
 
 CFlags = -Wall -O2 -fdata-sections -ffunction-sections
 LDFlags = -Wl,--gc-sections
-libs = rt pthread
-libDir =
-
-sources=src/main.c \
+libs = pthread
+libDir = .
+main = src/main.c
+sources = \
 		src/ipc_sem.c \
 		src/ipc_shm.c \
 		src/ipc_cmd.c \
@@ -40,8 +42,11 @@ all: $(binDir)/$(app)
 
 $(binDir)/$(app): buildrepo $(objects)
 	@mkdir -p `dirname $@`
+	@echo "Create lib$@.a"
+	@$(AR) -cr lib$@.a $(objects)
 	@echo "Linking $@..."
-	@$(CC) $(objects) $(LDFlags) -o $@
+	@$(CC) $(main) -l$@ $(libs) $(libDir) $(inc) -o $@
+
 
 sinclude $(sources:%.$(srcExt)=$(objDir)/%.d)
 $(objDir)/%.o: %.$(srcExt)

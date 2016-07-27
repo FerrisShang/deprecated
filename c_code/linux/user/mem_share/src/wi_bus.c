@@ -11,6 +11,9 @@
 #define IPC_SEM_KEY ((key_t)0X005FC0DE)
 #define SHMGET_SIZE WI_BUS_MAX_BUFFER_SIZE
 
+#define SEND_NONBLOCK 0
+
+#if SEND_NONBLOCK == 1
 struct recv_data {
 	wiaddr_t remote_id;
 	char *buf;
@@ -242,3 +245,126 @@ int wi_unregister(void)
 	mem_free(wi_bus);
 	return 0;
 }
+#else /* SEND_BLOCK */
+struct wi_bus_data {
+	struct pc_c_client *client;
+	void (*recv_cb)(wiaddr_t *remote_id, char *buf, int len, void *user_data);
+	void (*disconnect_cb)(void *user_data);
+	void *pdata;
+};
+struct wi_bus_data wi_bus;
+
+static bool is_broadcast_cb(void *id, int id_len)
+{
+	const static char bc_addr[] = "ffffff";//{0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
+	if(!memcmp(bc_addr, id+2, sizeof(wiaddr_t)-2)){
+		return true;
+	}else{
+		return false;
+	}
+}
+static bool is_bc_match_cb(void *id_bc, void *id, int id_len)
+{
+	if((*(char*)id == *(char*)id_bc && *(char*)(id+1) == *(char*)(id_bc+1)) ||
+			(*(char*)id_bc== 'f' && *(char*)(id_bc+1) == 'f')){
+		return true;
+	}else{
+		return false;
+	}
+}
+int wi_bus_server_run(void)
+{
+	struct pc_server *server;
+	server = pc_create_server(IPC_SEM_KEY, IPC_SHM_KEY, SHMGET_SIZE,
+			is_broadcast_cb, is_bc_match_cb);
+	if(server){
+		pc_server_run(server);
+		pc_destroy_server(server);
+		Log.d("wi_bus server closed");
+		mem_dump();
+		return 0;
+	}else{
+		return -1;
+		Log.e("create wi_bus server failed");
+	}
+}
+
+static void* wi_bus_client_run(void *pdata)
+{
+	struct wi_bus_data *wi_bus = pdata;
+	if(!wi_bus){
+		Log.e("wi_bus not registed");
+		return NULL;
+	}
+	pc_client_run(wi_bus->client);
+	wi_bus->disconnect_cb(wi_bus->pdata);
+	return NULL;
+}
+
+static void wi_bus_recv_cb(void *id, int id_len, void *buf, int buf_len, void *pdata)
+{
+	wi_bus.recv_cb((wiaddr_t*)id, buf, buf_len, pdata);
+}
+int wi_register(
+		wiaddr_t *local_id,
+		void (*recv_cb)(wiaddr_t *remote_id, char *buf, int len, void *user_data),
+		void (*disc_cb)(void *user_data),
+		void *user_data)
+{
+	struct pc_c_client *client;
+	pthread_t client_t;
+	client = pc_req_create_client(IPC_SEM_KEY, IPC_SHM_KEY, SHMGET_SIZE,
+			(void*)local_id, sizeof(wiaddr_t), is_broadcast_cb,
+			wi_bus_recv_cb, user_data);
+	if(!client){
+		Log.e("wi_bus register failed");
+		return WI_RET_FAILED;
+	}
+	wi_bus.client = client;
+	wi_bus.recv_cb = recv_cb;
+	wi_bus.disconnect_cb = disc_cb;
+	wi_bus.pdata = user_data;
+	pthread_create(&client_t, NULL, wi_bus_client_run, &wi_bus);
+	return WI_RET_SUCCESS;
+}
+
+struct wi_send_data {
+	char *buf;
+	int len;
+	int flag;
+	int res;
+};
+static void out_cb(void *buf, int *buf_len, void *pdata)
+{
+	struct wi_send_data *wi_send = pdata;
+	*buf_len = wi_send->len;
+	memcpy(buf, wi_send->buf, wi_send->len);
+}
+static void ret_cb(int status, void *pdata)
+{
+	struct wi_send_data *wi_send = pdata;
+	wi_send->res = status;
+}
+int wi_send(wiaddr_t *remote_id, char *buf, int len, int flag)
+{
+	struct wi_send_data wi_send;
+	if(!wi_bus.client){
+		Log.e("wi_bus not registered");
+	}
+	wi_send.buf = buf;
+	wi_send.len = len;
+	wi_send.flag = flag;
+	pc_c_send(wi_bus.client, (char*)remote_id, sizeof(wiaddr_t),
+			out_cb, ret_cb, &wi_send);
+	return wi_send.res;
+}
+int wi_unregister(void)
+{
+	if(!wi_bus.client){
+		return -1;
+	}
+	pc_req_destroy_client(wi_bus.client);
+	memset(&wi_bus, 0, sizeof(wi_bus));
+	return 0;
+}
+#endif /* SEND_NONBLOCK */
