@@ -11,7 +11,7 @@ inc = $(shell find . -name '*.h' -exec dirname {} \; | uniq)
 
 CFlags = -Wall -O2 -fdata-sections -ffunction-sections
 LDFlags = -Wl,--gc-sections
-libs = pthread
+libs = rt pthread
 libDir = .
 main = src/main.c
 sources = \
@@ -31,7 +31,7 @@ sources = \
 inc := $(addprefix -I,$(inc))
 libs := $(addprefix -l,$(libs))
 libDir := $(addprefix -L,$(libDir))
-CFlags += -c $(inc) $(libDir) $(libs)
+CFlags += $(inc) $(libDir) $(libs)
 LDFlags += $(libs)
 srcDirs := $(shell find . -name '*.$(srcExt)' -exec dirname {} \; | uniq)
 objects := $(patsubst %.$(srcExt),$(objDir)/%.o,$(sources))
@@ -39,27 +39,37 @@ objects := $(patsubst %.$(srcExt),$(objDir)/%.o,$(sources))
 .phony: all clean distclean
 
 all: $(binDir)/$(app)
-
 $(binDir)/$(app): buildrepo $(objects)
 	@mkdir -p `dirname $@`
-	@echo "Create lib$@.a"
-	@$(AR) -cr lib$@.a $(objects)
 	@echo "Linking $@..."
-	@$(CC) $(main) -l$@ $(libs) $(libDir) $(inc) -o $@
+	@$(CC) $(main) -l$@ $(CFlags) -o $@
 
+so: $(binDir)/lib$(app).so
+$(binDir)/lib$(app).so: buildrepo $(objects)
+	@mkdir -p `dirname $@`
+	@echo "Create $@"
+	@$(CC) $(sources) $(CFlags) -shared -fPIC -o $@
+
+a: $(binDir)/lib$(app).a
+$(binDir)/lib$(app).a: buildrepo $(objects)
+	@mkdir -p `dirname $@`
+	@echo "Create $@"
+	@$(AR) -cr $@ $(objects)
 
 sinclude $(sources:%.$(srcExt)=$(objDir)/%.d)
 $(objDir)/%.o: %.$(srcExt)
 #	@echo "Generating dependencies for $<..."
 	@$(call make-depend,$<,$@,$(subst .o,.d,$@))
 	@echo "Compiling $<..."
-	@$(CC) $(CFlags) $< -o $@
+	@$(CC) -c $(CFlags) $< -o $@
 
 clean:
 	@$(RM) -r $(objDir)
 
 distclean: clean
 	@$(RM) -r $(binDir)/$(app)
+	@$(RM) -r $(binDir)/lib$(app).a
+	@$(RM) -r $(binDir)/lib$(app).so
 
 buildrepo:
 	@$(call make-repo)
@@ -78,6 +88,6 @@ define make-depend
         -MF $3    \
         -MP       \
         -MT $2    \
-        $(CFlags) \
+        -c $(CFlags) \
         $1
 endef

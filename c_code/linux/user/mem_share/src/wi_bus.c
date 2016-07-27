@@ -37,7 +37,7 @@ struct wi_bus_data *wi_bus;
 
 static bool is_broadcast_cb(void *id, int id_len)
 {
-	const static char bc_addr[] = "ffffff";//{0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
+	const static char bc_addr[] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
 	if(!memcmp(bc_addr, id+2, sizeof(wiaddr_t)-2)){
 		return true;
 	}else{
@@ -47,7 +47,7 @@ static bool is_broadcast_cb(void *id, int id_len)
 static bool is_bc_match_cb(void *id_bc, void *id, int id_len)
 {
 	if((*(char*)id == *(char*)id_bc && *(char*)(id+1) == *(char*)(id_bc+1)) ||
-			(*(char*)id_bc== 'f' && *(char*)(id_bc+1) == 'f')){
+			(*(char*)id_bc== 0xff && *(char*)(id_bc+1) == 0xff)){
 		return true;
 	}else{
 		return false;
@@ -78,7 +78,9 @@ static void* wi_bus_client_run(void *pdata)
 		return NULL;
 	}
 	pc_client_run(wi_bus->client);
-	wi_bus->disconnect_cb(wi_bus->pdata);
+	if(wi_bus->disconnect_cb){
+		wi_bus->disconnect_cb(wi_bus->pdata);
+	}
 	return NULL;
 }
 

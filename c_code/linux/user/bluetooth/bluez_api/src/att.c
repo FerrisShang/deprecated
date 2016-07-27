@@ -202,16 +202,19 @@ int att_send(bdaddr_t *addr, struct att_send_op *att_send_op)
 		case ATT_OP_TYPE_IND  :
 		case ATT_OP_TYPE_CONF :
 			add_att_pending(att_pending, att_send_op);
-			att_io->send(addr, att_send_op->opcode, att_send_op->pdu, att_send_op->len);
+			res = att_io->send(addr, att_send_op->opcode, att_send_op->pdu, att_send_op->len);
+			if(res != ATT_IO_SUCCESS){
+				remove_att_pending(att_pending, att_send_op);
+			}
 			break;
 		case ATT_OP_TYPE_RSP  :
 		case ATT_OP_TYPE_NOT  :
-			att_io->send(addr, att_send_op->opcode, att_send_op->pdu, att_send_op->len);
+			res = att_io->send(addr, att_send_op->opcode, att_send_op->pdu, att_send_op->len);
 			break;
 		default :
 			break;
 	}
-	return ATT_SUCCESS;
+	return res;
 }
 
 struct att_pending* new_att_pending(void)
