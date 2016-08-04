@@ -5,6 +5,6 @@ CP=scp
 
 cd ramdisk
 find . | cpio -o -H newc | gzip > ../$RANDISK_NAME
-cd ../ 
+cd ../
 
 $CP $RANDISK_NAME $TARGET_FILE_NAME

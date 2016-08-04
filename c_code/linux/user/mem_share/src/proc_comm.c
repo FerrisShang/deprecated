@@ -853,6 +853,7 @@ int pc_c_send(struct pc_c_client* client, char *id, int id_len,
 			}
 			r_dev = find_client(client->dev_list, id, id_len);
 			if(!r_dev){
+				Log.d("Destination client(%s) not exsit", hex2str(id,id_len));
 				return CMD_FAILED;
 			}
 		}

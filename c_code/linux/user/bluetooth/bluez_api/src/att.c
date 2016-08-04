@@ -195,6 +195,7 @@ int att_disconnect(bdaddr_t *addr)
 }
 int att_send(bdaddr_t *addr, struct att_send_op *att_send_op)
 {
+	int res;
 	enum att_op_type type;
 	type = get_op_type(att_send_op->opcode);
 	switch(type){
@@ -204,7 +205,7 @@ int att_send(bdaddr_t *addr, struct att_send_op *att_send_op)
 			add_att_pending(att_pending, att_send_op);
 			res = att_io->send(addr, att_send_op->opcode, att_send_op->pdu, att_send_op->len);
 			if(res != ATT_IO_SUCCESS){
-				remove_att_pending(att_pending, att_send_op);
+				remove_att_pending(att_pending, att_send_op->opcode);
 			}
 			break;
 		case ATT_OP_TYPE_RSP  :
@@ -212,6 +213,7 @@ int att_send(bdaddr_t *addr, struct att_send_op *att_send_op)
 			res = att_io->send(addr, att_send_op->opcode, att_send_op->pdu, att_send_op->len);
 			break;
 		default :
+			res = -1;
 			break;
 	}
 	return res;

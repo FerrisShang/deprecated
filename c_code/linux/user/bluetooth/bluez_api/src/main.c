@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
 	mgmt_setup(HCI_DEV_ID);
 	le_set_random_address(HCI_DEV_ID);
 	le_set_advertise_parameters(HCI_DEV_ID);
-	Log.v("start:%d", init_gatt(HCI_DEV_ID));
+	init_gatt(HCI_DEV_ID);
 	heart_rate = create_service(bt_create_uuid_from_string(
 				"12312312-1234-4321-3456-292929929292"));
 	heart_rate_value = create_character(
@@ -80,6 +80,7 @@ int main(int argc, char *argv[])
 	service_add_character(heart_rate, heart_rate_value);
 	service_add_character(heart_rate, heart_rate_point);
 	gatts = register_gatt_service(heart_rate, &io_cb, NULL);
+	le_set_advertise_enable(HCI_DEV_ID);
 	while(1){
 		static UINT16 ret_num;
 		ret_num++;
