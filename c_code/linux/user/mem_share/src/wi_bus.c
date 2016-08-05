@@ -63,6 +63,7 @@ int wi_bus_server_run(void)
 		pc_destroy_server(server);
 		Log.d("wi_bus server closed");
 		mem_dump();
+		exit(0);
 		return 0;
 	}else{
 		return -1;
@@ -284,6 +285,7 @@ int wi_bus_server_run(void)
 		pc_destroy_server(server);
 		Log.d("wi_bus server closed");
 		mem_dump();
+		exit(0);
 		return 0;
 	}else{
 		return -1;

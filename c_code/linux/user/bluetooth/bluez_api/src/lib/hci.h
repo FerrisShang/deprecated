@@ -2453,6 +2453,7 @@ int hci_le_set_advertise_parameters(int dd,
 	uint8_t  direct_bdaddr_type, bdaddr_t direct_bdaddr,
 	uint8_t  chan_map,           uint8_t  filter, int to);
 int hci_le_set_advertise_enable(int dd, uint8_t enable, int to);
+int hci_le_set_advertise_data(int dd, char *data, int to);
 
 #ifdef __cplusplus
 }

@@ -178,6 +178,20 @@ int le_set_advertise_parameters(int hdev)
 	return 0;
 }
 
+int le_set_advertise_data(int hdev, char *data)
+{
+	int timeout = 1000;
+	int dd;
+	dd = hci_open_dev(hdev);
+	if (dd < 0) {
+		Log.e("Could not open device");
+		return -1;
+	}
+	hci_le_set_advertise_data(dd, data, timeout);
+	hci_close_dev(dd);
+	return 0;
+}
+
 int le_set_advertise_enable(int hdev)
 {
 	int timeout = 1000;

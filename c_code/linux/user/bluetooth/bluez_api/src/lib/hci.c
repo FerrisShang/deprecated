@@ -3183,3 +3183,27 @@ int hci_le_get_random_address(bdaddr_t *bdaddr)
 	Log.v("Get random address:%s\n", ba);
 	return 0;
 }
+int hci_le_set_advertise_data(int dd, char *data, int to)
+{
+	struct hci_request rq;
+	le_set_advertising_data_cp cp;
+	uint8_t status;
+	int ret, length = 31;
+	cp.length = length;
+	memcpy(cp.data, data, length);
+
+	memset(&rq, 0, sizeof(rq));
+	rq.ogf = OGF_LE_CTL;
+	rq.ocf = OCF_LE_SET_ADVERTISING_DATA;
+	rq.cparam = &cp;
+	rq.clen = LE_SET_ADVERTISING_DATA_CP_SIZE;
+	rq.rparam = &status;
+	rq.rlen = 1;
+
+	ret = hci_send_req(dd, &rq, to);
+	if (status || ret < 0) {
+		fprintf(stderr, "Can't set advertising data");
+		return -1;
+	}
+	return 0;
+}
