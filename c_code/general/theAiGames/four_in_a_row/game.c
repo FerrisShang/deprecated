@@ -92,7 +92,7 @@ int isFinish(struct data *data, int id, int last_col)
 
 int judgement(struct data *data, int id, int col)
 {
-	return (rand() & 0x3F);
+	return (rand()&0xFFFF);
 }
 
 void update_data(struct data* data, struct command* cmd)
@@ -162,11 +162,11 @@ void clear_field(struct data *data)
 }
 void add_field(struct data *data, int id, int col)
 {
+	int tx,ty;
 	int row = data->nextPosMap[
 		(unsigned char)data->field_v[id][col] |
 		(unsigned char)data->field_v[op_id(id)][col]
 		];
-	int tx,ty;
 	data->field_h[id][row] |= 1<<col;
 	data->field_v[id][col] |= 1<<row;
 	tx = data->fieldSxMap[row][col];
@@ -193,6 +193,30 @@ void remove_field(struct data *data, int id, int col)
 	ty = data->fieldBsyMap[row][col];
 	data->field_bs[id][ty] &= ~(1<<tx);
 }
+void get_field_str(char *str, struct data *data)
+{
+	char *p;
+	int i, j, idx;
+	sprintf(str, "update game field ");
+	p = str + strlen("update game field ");
+	for(j=0;j<data->field_rows;j++){
+		for(i=0;i<data->field_columns;i++){
+			idx = 2 * (data->field_columns*(j) + i);
+			if((data->field_h[1][data->field_rows-1-j]>>i)&1){
+				p[idx] = '1';
+			}else if((data->field_h[2][data->field_rows-1-j]>>i)&1){
+				p[idx] = '2';
+			}else{
+				p[idx] = '0';
+			}
+			p[idx+1] = ',';
+		}
+	}
+	idx = 2 * (data->field_columns*5 + 6);
+	p[idx+2] = '\0';
+	strcat(p, "\n");
+}
+
 void dump_field(struct data *data)
 {
 	int x=data->field_columns;
@@ -228,5 +252,3 @@ void action_move(struct data* data)
 	fprintf(stdout,"place_disc %d\n", cal_col(data));
 	fflush(stdout);
 }
-
-

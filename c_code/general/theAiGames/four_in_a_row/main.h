@@ -15,7 +15,7 @@
 #define GAME_MAX    1000000
 #define STEP_MINIUS 10000
 
-#define DEBUG 1
+//#define DEBUG 1
 enum{
 	TYPE_SETTINGS,
 	TYPE_UPDATE,
@@ -81,5 +81,6 @@ void update_data(struct data* data, struct command* cmd);
 int isColFull(struct data *data, int col);
 int isFinish(struct data *data, int id, int last_col);
 int judgement(struct data *data, int id, int col);
+void get_field_str(char *str, struct data *data);
 
 #endif
