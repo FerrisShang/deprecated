@@ -75,11 +75,12 @@ void test(struct data *data, int col);
 int cal_col(struct data *data);
 void action_move(struct data* data);
 void clear_field(struct data *data);
-void add_field(struct data *data, int id, int col);
+int add_field(struct data *data, int id, int col);
 void remove_field(struct data *data, int id, int col);
 void update_data(struct data* data, struct command* cmd);
 int isColFull(struct data *data, int col);
 int isFinish(struct data *data, int id, int last_col);
+int isFull(struct data *data);
 int judgement(struct data *data, int id, int col);
 void get_field_str(char *str, struct data *data);
 

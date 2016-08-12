@@ -71,6 +71,17 @@ int isColFull(struct data *data, int col)
 	else return 0;
 }
 
+int isFull(struct data *data)
+{
+	if(
+			(data->field_h[1][data->field_rows-1] |
+			 data->field_h[2][data->field_rows-1]) == ((1<<data->field_columns)-1)){
+		return 1;
+	}else{
+		return 0;
+	}
+}
+
 int isFinish(struct data *data, int id, int last_col)
 {
 	unsigned short line;
@@ -160,21 +171,25 @@ void clear_field(struct data *data)
 	memset(data->field_s,  0, sizeof(data->field_s));
 	memset(data->field_bs, 0, sizeof(data->field_bs));
 }
-void add_field(struct data *data, int id, int col)
+int add_field(struct data *data, int id, int col)
 {
 	int tx,ty;
 	int row = data->nextPosMap[
 		(unsigned char)data->field_v[id][col] |
 		(unsigned char)data->field_v[op_id(id)][col]
 		];
-	data->field_h[id][row] |= 1<<col;
-	data->field_v[id][col] |= 1<<row;
-	tx = data->fieldSxMap[row][col];
-	ty = data->fieldSyMap[row][col];
-	data->field_s[id][ty] |= 1<<tx;
-	tx = data->fieldBsxMap[row][col];
-	ty = data->fieldBsyMap[row][col];
-	data->field_bs[id][ty] |= 1<<tx;
+	if(row >= data->field_rows || col >= data->field_columns || col < 0){
+		return -1;
+	}else{
+		data->field_h[id][row] |= 1<<col;
+		data->field_v[id][col] |= 1<<row;
+		tx = data->fieldSxMap[row][col];
+		ty = data->fieldSyMap[row][col];
+		data->field_s[id][ty] |= 1<<tx;
+		tx = data->fieldBsxMap[row][col];
+		ty = data->fieldBsyMap[row][col];
+		data->field_bs[id][ty] |= 1<<tx;
+	}
 }
 
 void remove_field(struct data *data, int id, int col)

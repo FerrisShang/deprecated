@@ -18,7 +18,7 @@ int cal_col(struct data *data)
 	int score[STEP_LEN+1] = {0};
 	struct timeval t_start, t_cal, t_end;
 	gettimeofday(&t_start, NULL);
-	for(step=7;step<STEP_LEN;step++){
+	for(step=8;step<STEP_LEN;step++){
 		gettimeofday(&t_cal, NULL);
 		memset(idx, -1, STEP_LEN+1);
 		max_score(data, data->your_botid, step, score, idx);
@@ -84,16 +84,6 @@ int max_score(struct data *data, int id, int steps, int *value, int *idx)
 			remove_field(data, id, i);
 		}
 	}
-	int full_flag = 1;
-	for(i=0;i<data->field_columns;i++){
-		if(pos[i].state != -1){
-			full_flag = 0;
-			break;
-		}
-	}
-	if(full_flag){
-		return -1;
-	}
 	//select best col
 	for(i=0;i<data->field_columns-1;i++){
 		for(j=data->field_columns-1;j>i;j--){
@@ -114,5 +104,5 @@ int max_score(struct data *data, int id, int steps, int *value, int *idx)
 			return 0;
 		}
 	}
-	return -1;//should not reach here
+	return 0;//must be draw
 }

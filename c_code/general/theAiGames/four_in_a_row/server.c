@@ -66,10 +66,11 @@ void stdio_write(struct stdio_pipe* pipe, char *data, int len)
 /************************** pipes I/O end *****************************/
 int main(int argc, char *argv[])
 {
-	int i, res;
+	int i, res, winner;
 	char str[1024];
 	struct stdio_pipe *app1, *app2;
 	struct stdio_pipe *id1, *id2;
+	int score[3] = {0};
 	struct data data;
 	if(argc != 3){
 		return -1;
@@ -116,18 +117,20 @@ int main(int argc, char *argv[])
 			stdio_write(id1, str, strlen(str));
 			len = stdio_read(id1, str, 1024);
 			sscanf(str, "%s %d", tmp, &pos);
-			if(pos<0||pos>6){
-				printf("app%d pos error, fail,", id1 == app1?1:2);
-				break;
-			}
 			if(add_field(&data, 1, pos)<0){
+				winner = (id1==app1?2:1);
 				printf("app%d fail due to error place(%d),", id1 == app1?1:2, pos);
 				break;
 			}
 			record[record_cnt++] = pos;
 			//res = system("clear");dump_field(&data);usleep(100000);
 			if(isFinish(&data, 1, pos)){
+				winner = (id1==app1?1:2);
 				printf("app%d win,", id1 == app1?1:2);
+				break;
+			}
+			if(isFull(&data)){
+				winner = 0;
 				break;
 			}
 			//id 2
@@ -137,21 +140,32 @@ int main(int argc, char *argv[])
 			stdio_write(id2, str, strlen(str));
 			len = stdio_read(id2, str, 1024);
 			sscanf(str, "%s %d", tmp, &pos);
-			if(pos<0||pos>6){
-				printf("app%d pos error, fail,", id2 == app1?1:2);
-				break;
-			}
 			if(add_field(&data, 2, pos)<0){
+				winner = (id2==app1?2:1);
 				printf("app%d fail due to error place(%d),", id2 == app1?1:2, pos);
 				break;
 			}
 			record[record_cnt++] = pos;
 			//res = system("clear");dump_field(&data);usleep(100000);
 			if(isFinish(&data, 2, pos)){
+				winner = (id2==app1?1:2);
 				printf("app%d win,", id2 == app1?1:2);
 				break;
 			}
+			if(isFull(&data)){
+				winner = 0;
+				break;
+			}
 		}
+		if(winner == 1){
+			score[0]++;
+		}else if(winner == 2){
+			score[2]++;
+		}else if(winner == 0){
+			score[1]++;
+		}
+		printf("%d : %d : %d\n", score[0], score[1], score[2]);
+		/*
 		printf("app%d place first\n", id1 == app1?1:2);
 		//dump_field(&data);
 		for(i=0;i<record_cnt;i++){
@@ -164,5 +178,6 @@ int main(int argc, char *argv[])
 			}
 		}
 		printf("\n");
+		*/
 	}
 }
