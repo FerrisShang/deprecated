@@ -72,6 +72,8 @@ int main(int argc, char *argv[])
 	struct stdio_pipe *id1, *id2;
 	int score[3] = {0};
 	struct data data;
+	FILE *fp;
+	fp = fopen("./four.log", "a"); if(fp == NULL){ return -1; }
 	if(argc != 3){
 		return -1;
 	}
@@ -165,6 +167,15 @@ int main(int argc, char *argv[])
 			score[1]++;
 		}
 		printf("%d : %d : %d\n", score[0], score[1], score[2]);
+		//output to log file
+		sprintf(str, "%d ", record_cnt);
+		for(i=0;i<record_cnt;i++){
+			sprintf(str, "%s%d", str, record[i]);
+		}
+		sprintf(str, "%s\n", str);
+		fputs(str, fp);
+		fflush(fp);
+
 		/*
 		printf("app%d place first\n", id1 == app1?1:2);
 		//dump_field(&data);

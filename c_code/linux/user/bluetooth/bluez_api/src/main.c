@@ -12,7 +12,13 @@ const struct gatts_if *gatts;
 
 void onConnectionStateChange(bdaddr_t *addr, int newState, void *pdata)
 {
-	le_set_advertise_enable(HCI_DEV_ID);
+	if(GATT_STATUS_DISCONNECTED == newState){
+		le_set_advertise_enable(HCI_DEV_ID);
+	}else{
+		//usleep(5000000);
+		//le_disconnect(HCI_DEV_ID, addr);
+	}
+
 }
 void onCharacterRead(bdaddr_t *addr, bt_uuid_t *chac_uuid, void *pdata,
 		UINT8 *read_rsp_buf, UINT16 *read_rsp_buf_len)
@@ -50,9 +56,14 @@ void onMtuChanged(bdaddr_t *addr, int mtu, void *pdata)
 
 int main(int argc, char *argv[])
 {
-	struct gatt_service *heart_rate;
-	struct gatt_character* heart_rate_value;
-	struct gatt_character* heart_rate_point;
+	char adv_data[31]= {
+		0x02, 0x01, 0x1a, 0x02, 0x0a, 0x0c, 0x03, 0x03,
+		0xe7, 0xfe, 0x0a, 0x08, 0x4a, 0x7a, 0x41, 0x69,
+		0x72, 0x73, 0x79, 0x6e, 0x63, 0x09, 0xff, 0x4a,
+		0x5a, 0x78, 0x43, 0xb0, 0x12, 0x1f, 0xac,
+	};
+	struct gatt_service *wechat;
+	struct gatt_character *wechat_read, *wechat_write, *wechat_indicate;
 	struct gatts_cb io_cb = {
 		onConnectionStateChange,
 		onCharacterRead,
@@ -65,22 +76,19 @@ int main(int argc, char *argv[])
 	le_set_random_address(HCI_DEV_ID);
 	le_set_advertise_parameters(HCI_DEV_ID);
 	init_gatt(HCI_DEV_ID);
-	heart_rate = create_service(bt_create_uuid_from_string(
-				"12312312-1234-4321-3456-292929929292"));
-	heart_rate_value = create_character(
-			bt_create_uuid_from_string(
-				"12312312-1234-4321-3456-292929929999"),
-			BT_GATT_CHRC_PROP_READ | BT_GATT_CHRC_PROP_WRITE);
-	heart_rate_point = create_character(
-			bt_create_uuid_from_string(
-				"12312312-1234-4321-3456-292929966666"),
-			BT_GATT_CHRC_PROP_READ  |
-			BT_GATT_CHRC_PROP_WRITE |
-			BT_GATT_CHRC_PROP_NOTIFY);
-	service_add_character(heart_rate, heart_rate_value);
-	service_add_character(heart_rate, heart_rate_point);
-	gatts = register_gatt_service(heart_rate, &io_cb, NULL);
+	wechat = create_service(bt_create_uuid_from_string("FEE7"));
+	wechat_read = create_character(bt_create_uuid_from_string("FEC7"),
+			BT_GATT_CHRC_PROP_WRITE);
+	wechat_write = create_character(bt_create_uuid_from_string("FEC8"),
+			BT_GATT_CHRC_PROP_INDICATE);
+	wechat_indicate = create_character(bt_create_uuid_from_string("FEC9"),
+			BT_GATT_CHRC_PROP_READ);
+	service_add_character(wechat, wechat_write);
+	service_add_character(wechat, wechat_indicate);
+	service_add_character(wechat, wechat_read);
+	gatts = register_gatt_service(wechat, &io_cb, NULL);
 	le_set_advertise_enable(HCI_DEV_ID);
+	le_set_advertise_data(HCI_DEV_ID, adv_data);
 	while(1){
 		static UINT16 ret_num;
 		ret_num++;
