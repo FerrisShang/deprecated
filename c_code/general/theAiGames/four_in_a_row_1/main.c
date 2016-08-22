@@ -14,7 +14,6 @@ static void settings(char *type, char *value);
 static void update(char *field);
 static void action(char *time_limit);
 static void test(char *args1, char *args2, char *args3);
-static void dump_field(struct ai_four *ai);
 
 int main(int argc, char *argv[])
 {
@@ -50,10 +49,10 @@ int main(int argc, char *argv[])
 
 	}
 }
-static void settings(char *type, char *time_limit)
+static void settings(char *type, char *id)
 {
 	if(!strcmp(type, STR_YOUR_BOTID)){
-		ai_set_id(ai, atoi(time_limit));
+		ai_set_id(ai, atoi(id));
 		ai_reset(ai, DEFAULT_TIMEBANK, DEFAULT_TIME_PER_MOVE);
 	}
 }
@@ -69,31 +68,4 @@ static void action(char *time_limit)
 }
 static void test(char *args1, char *args2, char *args3)
 {
-	int col = atoi(args1);
-	int id = atoi(args2);
-	int win;
-	ai_set_id(ai, four_op_id(id));
-	four_add(ai->four, id, col);
-	col = ai_move(ai, 1000);
-	four_add(ai->four, four_op_id(id), col);
-	dump_field(ai);
-}
-static void dump_field(struct ai_four *ai)
-{
-	int i,j;
-	for(i=FOUR_ROW-1;i>=0;i--){
-		for(j=0;j<FOUR_COL;j++){
-			/*
-			if(((ai->four->field_h[1][i] >> j) & 1)){
-				dbg_printf("1");
-			}else if(((ai->four->field_h[2][i] >> j) & 1)){
-				dbg_printf("2");
-			}else{
-				dbg_printf("0");
-			}
-			*/
-		}
-		dbg_printf("\n");
-	}
-	dbg_printf("\n");
 }
