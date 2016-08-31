@@ -1,19 +1,31 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <sys/time.h>
 #include "ai_core.h"
 
-#define VALUE_INF     100000000
-#define GAME_MAX      1000000
-#define STEP_MINIUS   10000
-
 #define MAX_STEP      42
-#define TOTAL_TIME_MS 2000
+#define MIN_STEP      8
+#define TOTAL_TIME_MS 2500
+#define MIN_HASH_DEEP     4
+
+enum {
+	ERROR = 0,
+	TIED = 1,
+	NORMAL_MIM = 16,
+	NORMAL_MAX = NORMAL_MIM + 0x40,
+#define rand_normal() (NORMAL_MIM+(rand()&(0x40-1)))
+	WIN = 127,
+};
 
 static int max_score(struct ai_four *ai, int id, int steps, int *value, int *idx);
 static int judgement(struct ai_four *ai, int id, int col);
+int get_hash(char *h, struct ai_four *ai, int step, int *score);
+int set_hash(char *h, struct ai_four *ai, int step, int *score);
+
 static int timediff_ms(struct timeval *start, struct timeval *end);
+char *h = NULL;
 
 int cal_col(struct ai_four *ai, int time_limit_ms)
 {
@@ -21,13 +33,16 @@ int cal_col(struct ai_four *ai, int time_limit_ms)
 	int score[MAX_STEP+1] = {0};
 	int used_time;
 	struct timeval t_cal, t_end;
-	for(step=8;step<MAX_STEP;step++){
+	for(step=MIN_STEP;step<MAX_STEP;step++){
 		gettimeofday(&t_cal, NULL);
 		memset(idx, -1, MAX_STEP+1);
+		h = calloc(1, 1ull<<30);
 		max_score(ai, ai->id, step, score, idx);
+		free(h);
 		gettimeofday(&t_end, NULL);
 		used_time = timediff_ms(&t_cal, &t_end);
-		if(idx[step] > GAME_MAX || idx[step] < -GAME_MAX ||
+		if(score[step] == WIN || score[step] == -WIN ||
+				score[step] == TIED || score[step] == -TIED ||
 				used_time*8 > TOTAL_TIME_MS-used_time){
 			break;
 		}
@@ -44,33 +59,32 @@ static int max_score(struct ai_four *ai, int id, int steps, int *value, int *idx
 	struct {
 		int col;
 		int value;
-		int state;//1:win 0:normal -1:col_full
 	} pos[FOUR_COL], tmp;
 	for(i=0;i<FOUR_COL;i++){
 		pos[i].col = i;
-		pos[i].state = -1;
-		pos[i].value = -VALUE_INF;
+		pos[i].value = ERROR;
 	}
 	for(i=0;i<FOUR_COL;i++){
 		if(four_add(ai->four, id, i) < 0){
-			pos[i].state = -1;
 			continue;
 		}
-		if(four_isFinish(ai->four, id, i)){
-			idx[steps] = i;
-			value[steps] = VALUE_INF;
-			value[steps] = - value[steps];
-			four_remove(ai->four, id, i);
-			return 1;
-		}else{
-			if(steps == 1){
-				pos[i].value = judgement(ai, id, i);
-				pos[i].state = 0;
+		if(steps <= MIN_HASH_DEEP || get_hash(h, ai, steps, &pos[i].value) < 0){
+			if(four_isFinish(ai->four, id, i)){
+				pos[i].value = WIN;
 			}else{
-				pos[i].state = max_score(ai, four_op_id(id), steps-1, value, idx);
-				pos[i].value = value[steps-1];
+				if(steps == 1){
+					pos[i].value = judgement(ai, id, i);
+				}else{
+					pos[i].value = max_score(ai, four_op_id(id), steps-1, value, idx);
+				}
 			}
-			four_remove(ai->four, id, i);
+			if(steps > MIN_HASH_DEEP){
+				set_hash(h, ai, steps, &pos[i].value);
+			}
+		}
+		four_remove(ai->four, id, i);
+		if(pos[i].value == WIN){
+			break;
 		}
 	}
 	//select best col
@@ -86,21 +100,81 @@ static int max_score(struct ai_four *ai, int id, int steps, int *value, int *idx
 		}
 	}
 	for(i=0;i<FOUR_COL;i++){
-		if(pos[i].state >= 0){
+		if(pos[i].value != 0){
 			value[steps] = pos[i].value;
 			value[steps] = -value[steps];
 			idx[steps] = pos[i].col;
-			return 0;
+			return value[steps];
 		}
 	}
-	return 0;//must be tied
+	//must be tied
+	value[steps] = TIED;
+	value[steps] = -value[steps];
+	return value[steps];
 }
 static int timediff_ms(struct timeval *start, struct timeval *end)
 {
 	return (end->tv_sec-start->tv_sec)*1000+(end->tv_usec-start->tv_usec)/1000;
 }
+
+uint32_t hash(void *key, size_t len)
+{
+	uint32_t hash, i;
+	for(hash = i = 0; i < len; ++i)
+	{
+		hash += ((char*)key)[i];
+		hash += (hash << 10);
+		hash ^= (hash >> 6);
+	}
+	hash += (hash << 3);
+	hash ^= (hash >> 11);
+	hash += (hash << 15);
+	return hash;
+}
+
+uint32_t get_hash_idx(struct ai_four *ai, int step)
+{
+	uint32_t h_idx, i;
+	char buf[13];
+	unsigned short *f1 = ai->four->field_h[1];
+	unsigned short *f2 = ai->four->field_h[2];
+	for(i=0;i<6;i++){
+		buf[i] = (char)f1[i];
+		buf[i+6] = (char)f2[i];
+	}
+	buf[12] = step;
+	h_idx = hash(buf, 13);
+	return h_idx & ((1ull<<30)-1);
+}
+int get_hash(char *h, struct ai_four *ai, int step, int *score)
+{
+	uint32_t h_idx;
+	char value;
+	h_idx = get_hash_idx(ai, step);
+	value = h[h_idx];
+	if(value == 0){
+		return -1;
+	}else{
+		*score = value;
+	}
+	return 0;
+}
+
+int set_hash(char *h, struct ai_four *ai, int step, int *score)
+{
+	uint32_t h_idx;
+	h_idx = get_hash_idx(ai, step);
+#if 1
+	if(h[h_idx]!=0){
+		dbg_printf("hash replaced.\n");
+	}
+#endif
+	h[h_idx] = *score;
+	return 0;
+}
+
 static int judgement(struct ai_four *ai, int id, int col)
 {
-	return (rand()&0xFFFF);
+	return rand_normal();
 }
 

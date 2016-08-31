@@ -10,7 +10,21 @@
 #define ID_P2    2
 #define four_op_id(id) (3-id)
 
-struct four;
+struct four {
+	int timebank;
+	int time_per_move;
+	int id;
+	unsigned short field_h[3][FOUR_ROW];
+	unsigned short field_v[3][FOUR_COL];
+	unsigned short field_s[3][FOUR_ROW+FOUR_COL];
+	unsigned short field_bs[3][FOUR_ROW+FOUR_COL];
+	char finishMap[1<<16];
+	char nextPosMap[1<<8];
+	char fieldSxMap[FOUR_ROW][FOUR_COL];
+	char fieldSyMap[FOUR_ROW][FOUR_COL];
+	char fieldBsxMap[FOUR_ROW][FOUR_COL];
+	char fieldBsyMap[FOUR_ROW][FOUR_COL];
+};
 
 struct four* four_create(void);
 void four_destory(struct four *four);

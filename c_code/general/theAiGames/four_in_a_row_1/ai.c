@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include "ai.h"
+#include "ai_core.h"
 
 struct ai_four* ai_create(void)
 {
