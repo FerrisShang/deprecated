@@ -105,6 +105,7 @@ int four_add(struct four *four, int id, int col)
 		tx = four->fieldBsxMap[row][col];
 		ty = four->fieldBsyMap[row][col];
 		four->field_bs[id][ty] |= 1<<tx;
+		return 0;
 	}
 }
 
@@ -123,6 +124,7 @@ int four_remove(struct four *four, int id, int col)
 	tx = four->fieldBsxMap[row][col];
 	ty = four->fieldBsyMap[row][col];
 	four->field_bs[id][ty] &= ~(1<<tx);
+	return 0;
 }
 
 int four_isFinish(struct four *four, int id, int last_col)
@@ -137,9 +139,9 @@ int four_isFinish(struct four *four, int id, int last_col)
 	if(four->finishMap[line] != 0){return 1;}
 	line = four->field_v[id][col];
 	if(four->finishMap[line] != 0){return 1;}
-	line = four->field_s[id][four->fieldSyMap[row][col]];
+	line = four->field_s[id][(unsigned char)four->fieldSyMap[row][col]];
 	if(four->finishMap[line] != 0){return 1;}
-	line = four->field_bs[id][four->fieldBsyMap[row][col]];
+	line = four->field_bs[id][(unsigned char)four->fieldBsyMap[row][col]];
 	if(four->finishMap[line] != 0){return 1;}
 	return 0;
 }
@@ -156,8 +158,10 @@ int four_set_field(struct four *four, char field[FOUR_ROW][FOUR_COL])
 			}
 		}
 	}
+	return 0;
 }
 int four_get_field(struct four *four, char field[FOUR_ROW][FOUR_COL])
 {
+	return 0;
 	//unfinished
 }

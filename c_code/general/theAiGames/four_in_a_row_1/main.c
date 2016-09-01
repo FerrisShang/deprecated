@@ -50,6 +50,7 @@ int main(int argc, char *argv[])
         }
 
 	}
+	return 0;
 }
 static void settings(char *type, char *time_limit)
 {
@@ -72,7 +73,6 @@ static void test(char *args1, char *args2, char *args3)
 {
 	int col = atoi(args1);
 	int id = atoi(args2);
-	int win;
 	ai_set_id(ai, four_op_id(id));
 	four_add(ai->four, id, col);
 	col = ai_move(ai, 1000);

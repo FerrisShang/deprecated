@@ -94,9 +94,9 @@ int isFinish(struct data *data, int id, int last_col)
 	if(data->finishMap[line] != 0){return 1;}
 	line = data->field_v[id][col];
 	if(data->finishMap[line] != 0){return 1;}
-	line = data->field_s[id][data->fieldSyMap[row][col]];
+	line = data->field_s[id][(unsigned char)data->fieldSyMap[row][col]];
 	if(data->finishMap[line] != 0){return 1;}
-	line = data->field_bs[id][data->fieldBsyMap[row][col]];
+	line = data->field_bs[id][(unsigned char)data->fieldBsyMap[row][col]];
 	if(data->finishMap[line] != 0){return 1;}
 	return 0;
 }
@@ -190,6 +190,7 @@ int add_field(struct data *data, int id, int col)
 		ty = data->fieldBsyMap[row][col];
 		data->field_bs[id][ty] |= 1<<tx;
 	}
+	return 0;
 }
 
 void remove_field(struct data *data, int id, int col)

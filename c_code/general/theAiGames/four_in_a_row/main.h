@@ -83,5 +83,6 @@ int isFinish(struct data *data, int id, int last_col);
 int isFull(struct data *data);
 int judgement(struct data *data, int id, int col);
 void get_field_str(char *str, struct data *data);
+void init_para(struct data *data);
 
 #endif

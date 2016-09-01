@@ -3,7 +3,7 @@
 #include <time.h>
 #include <sys/time.h>
 
-#define TIMEDIFF (0x00E03AB44A676000LL - 0x00035D013B441D58LL)
+#define TIMEDIFF (0x00dcddb30f2f8000ULL)
 #define bswap(dat) _bswap((char*)&dat, sizeof(dat))
 static void _bswap(char *dat,int len)
 {

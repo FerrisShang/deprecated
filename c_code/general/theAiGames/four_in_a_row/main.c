@@ -22,7 +22,10 @@ void get_lines(struct command* cmd)
 		cmd->type = TYPE_PLAY_TEST;
 		res = scanf("%s", cmd->play_test.value);
 	}else{
-		cmd->type == TYPE_UNKNOWN;
+		cmd->type = TYPE_UNKNOWN;
+	}
+	if(res<0){
+		printf("scanf error\n");
 	}
 }
 

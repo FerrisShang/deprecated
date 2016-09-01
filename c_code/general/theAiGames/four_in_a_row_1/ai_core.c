@@ -8,7 +8,8 @@
 #define MAX_STEP      42
 #define MIN_STEP      8
 #define TOTAL_TIME_MS 2500
-#define MIN_HASH_DEEP     4
+#define HASH_BIT_SIZE 25
+#define MIN_HASH_DEEP 4
 
 enum {
 	ERROR = 0,
@@ -36,7 +37,10 @@ int cal_col(struct ai_four *ai, int time_limit_ms)
 	for(step=MIN_STEP;step<MAX_STEP;step++){
 		gettimeofday(&t_cal, NULL);
 		memset(idx, -1, MAX_STEP+1);
-		h = calloc(1, 1ull<<30);
+		h = calloc(1, 1ull<<HASH_BIT_SIZE);
+		if(!h){
+			dbg_printf("calloc memory failed\n");
+		}
 		max_score(ai, ai->id, step, score, idx);
 		free(h);
 		gettimeofday(&t_end, NULL);
@@ -144,7 +148,7 @@ uint32_t get_hash_idx(struct ai_four *ai, int step)
 	}
 	buf[12] = step;
 	h_idx = hash(buf, 13);
-	return h_idx & ((1ull<<30)-1);
+	return h_idx & ((1ull<<HASH_BIT_SIZE)-1);
 }
 int get_hash(char *h, struct ai_four *ai, int step, int *score)
 {

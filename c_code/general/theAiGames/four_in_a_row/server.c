@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <time.h>
 #include "main.h"
 
 /************************** pipes I/O begin ***************************/
@@ -34,6 +35,9 @@ struct stdio_pipe* stdio_open(char *app, char *argv[])
 	// pipes for parent to write and read
 	res = pipe(stdio_pipe->pipes[PARENT_READ_PIPE]);
 	res = pipe(stdio_pipe->pipes[PARENT_WRITE_PIPE]);
+	if(res<0){
+		printf("init pipes error\n");
+	}
 
 	if(!fork()) {
 		dup2(CHILD_READ_FD(stdio_pipe->pipes), STDIN_FILENO);
@@ -51,6 +55,7 @@ struct stdio_pipe* stdio_open(char *app, char *argv[])
 		close(CHILD_WRITE_FD(stdio_pipe->pipes));
 		return stdio_pipe;
 	}
+	return NULL;
 }
 int stdio_read(struct stdio_pipe* pipe, char *buf, int len)
 {
@@ -62,11 +67,14 @@ int stdio_read(struct stdio_pipe* pipe, char *buf, int len)
 void stdio_write(struct stdio_pipe* pipe, char *data, int len)
 {
 	int res = write(PARENT_WRITE_FD(pipe->pipes), data, len);
+	if(res < 0){
+		printf("write pipes erroror\n");
+	}
 }
 /************************** pipes I/O end *****************************/
 int main(int argc, char *argv[])
 {
-	int i, res, winner;
+	int i, winner;
 	char str[1024];
 	struct stdio_pipe *app1, *app2;
 	struct stdio_pipe *id1, *id2;
@@ -110,14 +118,14 @@ int main(int argc, char *argv[])
 		stdio_write(id2, str, strlen(str));
 		//begin battle
 		while(1){
-			int len, pos;
+			int pos;
 			char tmp[80];
 			//id 1
 			get_field_str(str, &data);
 			stdio_write(id1, str, strlen(str));
 			sprintf(str, "action move 10000\n");
 			stdio_write(id1, str, strlen(str));
-			len = stdio_read(id1, str, 1024);
+			stdio_read(id1, str, 1024);
 			sscanf(str, "%s %d", tmp, &pos);
 			if(add_field(&data, 1, pos)<0){
 				winner = (id1==app1?2:1);
@@ -125,7 +133,6 @@ int main(int argc, char *argv[])
 				break;
 			}
 			record[record_cnt++] = pos;
-			//res = system("clear");dump_field(&data);usleep(100000);
 			if(isFinish(&data, 1, pos)){
 				winner = (id1==app1?1:2);
 				printf("app%d win,", id1 == app1?1:2);
@@ -140,7 +147,7 @@ int main(int argc, char *argv[])
 			stdio_write(id2, str, strlen(str));
 			sprintf(str, "action move 10000\n");
 			stdio_write(id2, str, strlen(str));
-			len = stdio_read(id2, str, 1024);
+			stdio_read(id2, str, 1024);
 			sscanf(str, "%s %d", tmp, &pos);
 			if(add_field(&data, 2, pos)<0){
 				winner = (id2==app1?2:1);
@@ -148,7 +155,6 @@ int main(int argc, char *argv[])
 				break;
 			}
 			record[record_cnt++] = pos;
-			//res = system("clear");dump_field(&data);usleep(100000);
 			if(isFinish(&data, 2, pos)){
 				winner = (id2==app1?1:2);
 				printf("app%d win,", id2 == app1?1:2);
