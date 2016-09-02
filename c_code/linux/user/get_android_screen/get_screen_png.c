@@ -9,15 +9,6 @@ static char *file_org_buf;
 static char *file_new_buf;
 
 static int get_file_size(const char *path);
-typedef unsigned int UINT32;
-typedef unsigned char UINT8;
-#define STREAM_TO_UINT32(u32, p) {\
-	u32 = (((UINT32)(UINT8)(*(p))) +\
-			((((UINT32)(UINT8)(*((p) + 1)))) << 8) +\
-			((((UINT32)(UINT8)(*((p) + 2)))) << 16) +\
-			((((UINT32)(UINT8)(*((p) + 3)))) << 24));\
-		(p) += 4;\
-}
 
 struct screen_png* get_screen_png(void)
 {
@@ -58,7 +49,8 @@ struct screen_png* get_screen_png(void)
 		q++;
 	}
 	*p = *q; //last byte
-	screen.size = size;
+	p++;
+	screen.size = p - file_new_buf;
 	screen.data = file_new_buf;
 	return &screen;
 }
@@ -74,4 +66,3 @@ static int get_file_size(const char *path)
 	}  
 	return filesize;  
 } 
-
