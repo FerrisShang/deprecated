@@ -5,11 +5,12 @@
 #include <sys/time.h>
 #include "ai_core.h"
 
-#define MAX_STEP      42
-#define MIN_STEP      8
-#define TOTAL_TIME_MS 2500
-#define HASH_BIT_SIZE 25
-#define MIN_HASH_DEEP 4
+#define MAX_STEP        42
+#define MIN_STEP        8
+#define TOTAL_TIME_MS   2500
+#define HASH_BIT_SIZE   26
+#define MIN_HASH_DEEP   4
+#define STATIC_HASH_MEM 1
 
 enum {
 	ERROR = 0,
@@ -26,23 +27,35 @@ int get_hash(char *h, struct ai_four *ai, int step, int *score);
 int set_hash(char *h, struct ai_four *ai, int step, int *score);
 
 static int timediff_ms(struct timeval *start, struct timeval *end);
-char *h = NULL;
+#if STATIC_HASH_MEM == 1
+char h[1ull<<HASH_BIT_SIZE];
+#else
+char *h;
+#endif
 
 int cal_col(struct ai_four *ai, int time_limit_ms)
 {
 	int step, idx[MAX_STEP+1] = {0};
 	int score[MAX_STEP+1] = {0};
+	int rec_idx[MAX_STEP+1] = {0};
 	int used_time;
 	struct timeval t_cal, t_end;
 	for(step=MIN_STEP;step<MAX_STEP;step++){
 		gettimeofday(&t_cal, NULL);
 		memset(idx, -1, MAX_STEP+1);
+#if STATIC_HASH_MEM == 1
+		memset(h, 0, sizeof(h));
+		max_score(ai, ai->id, step, score, idx);
+		rec_idx[step] = idx[step];
+#else
 		h = calloc(1, 1ull<<HASH_BIT_SIZE);
 		if(!h){
 			dbg_printf("calloc memory failed\n");
 		}
 		max_score(ai, ai->id, step, score, idx);
+		rec_idx[step] = idx[step];
 		free(h);
+#endif
 		gettimeofday(&t_end, NULL);
 		used_time = timediff_ms(&t_cal, &t_end);
 		if(score[step] == WIN || score[step] == -WIN ||
@@ -54,7 +67,19 @@ int cal_col(struct ai_four *ai, int time_limit_ms)
 	if(step == MAX_STEP){
 		step--;
 	}
-	return idx[step];
+	dbg_printf("step =%2d colume = %d value =%4d\n", step, idx[step], -score[step]);
+	if(score[step] == WIN || score[step] == -WIN){//for debug
+		int i;
+		for(i=0;i<step;i++){
+			dbg_printf("%d ", idx[step-i-1]);
+		}
+		dbg_printf("\n");
+	}
+	if(-score[step] == -WIN && step != MIN_STEP){
+		return rec_idx[step-1];
+	}else{
+		return rec_idx[step];
+	}
 }
 
 static int max_score(struct ai_four *ai, int id, int steps, int *value, int *idx)

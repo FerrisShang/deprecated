@@ -81,6 +81,7 @@ int main(int argc, char *argv[])
 	int score[3] = {0};
 	struct data data;
 	FILE *fp;
+
 	fp = fopen("./four.log", "a"); if(fp == NULL){ return -1; }
 	if(argc != 3){
 		return -1;
@@ -172,7 +173,7 @@ int main(int argc, char *argv[])
 		}else if(winner == 0){
 			score[1]++;
 		}
-		printf("%d : %d : %d\n", score[0], score[1], score[2]);
+		printf("\x1b[48;5;1m%d : %d : %d\x1b[48;5;16m\n", score[0], score[1], score[2]);
 		//output to log file
 		sprintf(str, "%d ", record_cnt);
 		for(i=0;i<record_cnt;i++){
