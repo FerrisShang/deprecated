@@ -17,6 +17,7 @@ struct ai_four* ai_create(void);
 void ai_destory(struct ai_four *ai);
 void ai_set_id(struct ai_four *ai, int id);
 void ai_update_field(struct ai_four *ai, char *field);
+char* ai_get_field(struct ai_four *ai);
 int  ai_move(struct ai_four *ai, int time_limit_ms);
 void ai_reset(struct ai_four *ai, int timebank, int time_per_move);
 

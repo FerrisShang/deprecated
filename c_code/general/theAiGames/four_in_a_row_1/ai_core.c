@@ -5,26 +5,33 @@
 #include <sys/time.h>
 #include "ai_core.h"
 
+#define MIN_STEP        1
 #define MAX_STEP        42
-#define MIN_STEP        8
 #define TOTAL_TIME_MS   2500
 #define HASH_BIT_SIZE   26
 #define MIN_HASH_DEEP   4
 #define STATIC_HASH_MEM 1
 
 enum {
-	ERROR = 0,
+	FULL = 0,
 	TIED = 1,
 	NORMAL_MIM = 16,
-	NORMAL_MAX = NORMAL_MIM + 0x40,
+	NORMAL_MAX = NORMAL_MIM + 0x40-1,
 #define rand_normal() (NORMAL_MIM+(rand()&(0x40-1)))
 	WIN = 127,
 };
 
-static int max_score(struct ai_four *ai, int id, int steps, int *value, int *idx);
+struct position{
+	int colume;
+	int value;
+	int next_col;
+};
+
+static struct position max_score(struct ai_four *ai, int id, int steps);
 static int judgement(struct ai_four *ai, int id, int col);
-int get_hash(char *h, struct ai_four *ai, int step, int *score);
-int set_hash(char *h, struct ai_four *ai, int step, int *score);
+static void dbg_steps(struct ai_four *ai, int step, struct position *last_pos);
+static int get_hash(char *h, struct ai_four *ai, int step, int *score);
+static int set_hash(char *h, struct ai_four *ai, int step, int *score);
 
 static int timediff_ms(struct timeval *start, struct timeval *end);
 #if STATIC_HASH_MEM == 1
@@ -35,63 +42,52 @@ char *h;
 
 int cal_col(struct ai_four *ai, int time_limit_ms)
 {
-	int step, idx[MAX_STEP+1] = {0};
-	int score[MAX_STEP+1] = {0};
-	int rec_idx[MAX_STEP+1] = {0};
-	int used_time;
+	int step, used_time;
 	struct timeval t_cal, t_end;
+	struct position cur_pos = {0}, last_pos;
 	for(step=MIN_STEP;step<MAX_STEP;step++){
 		gettimeofday(&t_cal, NULL);
-		memset(idx, -1, MAX_STEP+1);
+		last_pos = cur_pos;
 #if STATIC_HASH_MEM == 1
 		memset(h, 0, sizeof(h));
-		max_score(ai, ai->id, step, score, idx);
-		rec_idx[step] = idx[step];
+		cur_pos = max_score(ai, ai->id, step);
 #else
 		h = calloc(1, 1ull<<HASH_BIT_SIZE);
-		if(!h){
+		if(!h)
 			dbg_printf("calloc memory failed\n");
-		}
-		max_score(ai, ai->id, step, score, idx);
-		rec_idx[step] = idx[step];
+		cur_pos = max_score(ai, ai->id, step);
 		free(h);
 #endif
 		gettimeofday(&t_end, NULL);
 		used_time = timediff_ms(&t_cal, &t_end);
-		if(score[step] == WIN || score[step] == -WIN ||
-				score[step] == TIED || score[step] == -TIED ||
+		if(cur_pos.value == WIN || cur_pos.value == -WIN ||
+				cur_pos.value == TIED || cur_pos.value == -TIED ||
 				used_time*8 > TOTAL_TIME_MS-used_time){
 			break;
 		}
 	}
-	if(step == MAX_STEP){
-		step--;
-	}
-	dbg_printf("step =%2d colume = %d value =%4d\n", step, idx[step], -score[step]);
-	if(score[step] == WIN || score[step] == -WIN){//for debug
-		int i;
-		for(i=0;i<step;i++){
-			dbg_printf("%d ", idx[step-i-1]);
-		}
-		dbg_printf("\n");
-	}
-	if(-score[step] == -WIN && step != MIN_STEP){
-		return rec_idx[step-1];
+	//select step
+	if(-cur_pos.value == -WIN && step != MIN_STEP){
+		dbg_printf("step =%2d colume = %d value =%4d\n",step,last_pos.colume,-last_pos.value);
+		dbg_steps(ai, step, &last_pos);
+		return last_pos.colume;
 	}else{
-		return rec_idx[step];
+		dbg_printf("step =%2d colume = %d value =%4d\n",step,cur_pos.colume,-cur_pos.value);
+		if(-cur_pos.value == WIN){
+			dbg_steps(ai, step, &cur_pos);
+		}
+		return cur_pos.colume;
 	}
 }
 
-static int max_score(struct ai_four *ai, int id, int steps, int *value, int *idx)
+static struct position max_score(struct ai_four *ai, int id, int steps)
 {
 	int i, j;
-	struct {
-		int col;
-		int value;
-	} pos[FOUR_COL], tmp;
+	struct position pos[FOUR_COL], tmp;
 	for(i=0;i<FOUR_COL;i++){
-		pos[i].col = i;
-		pos[i].value = ERROR;
+		pos[i].colume = i;
+		pos[i].next_col = -1;
+		pos[i].value = FULL;
 	}
 	for(i=0;i<FOUR_COL;i++){
 		if(four_add(ai->four, id, i) < 0){
@@ -104,7 +100,9 @@ static int max_score(struct ai_four *ai, int id, int steps, int *value, int *idx
 				if(steps == 1){
 					pos[i].value = judgement(ai, id, i);
 				}else{
-					pos[i].value = max_score(ai, four_op_id(id), steps-1, value, idx);
+					tmp = max_score(ai, four_op_id(id), steps-1);
+					pos[i].value = tmp.value;
+					pos[i].next_col = tmp.colume;
 				}
 			}
 			if(steps > MIN_HASH_DEEP){
@@ -116,7 +114,7 @@ static int max_score(struct ai_four *ai, int id, int steps, int *value, int *idx
 			break;
 		}
 	}
-	//select best col
+	//select best colume
 	for(i=0;i<FOUR_COL-1;i++){
 		for(j=FOUR_COL-1;j>i;j--){
 			if(pos[j].value>pos[j-1].value ||
@@ -128,18 +126,15 @@ static int max_score(struct ai_four *ai, int id, int steps, int *value, int *idx
 			}
 		}
 	}
+	tmp.value = -TIED;
 	for(i=0;i<FOUR_COL;i++){
-		if(pos[i].value != 0){
-			value[steps] = pos[i].value;
-			value[steps] = -value[steps];
-			idx[steps] = pos[i].col;
-			return value[steps];
+		if(pos[i].value != FULL){
+			tmp = pos[i];
+			tmp.value = -tmp.value;
+			break;
 		}
 	}
-	//must be tied
-	value[steps] = TIED;
-	value[steps] = -value[steps];
-	return value[steps];
+	return tmp;
 }
 static int timediff_ms(struct timeval *start, struct timeval *end)
 {
@@ -175,7 +170,7 @@ uint32_t get_hash_idx(struct ai_four *ai, int step)
 	h_idx = hash(buf, 13);
 	return h_idx & ((1ull<<HASH_BIT_SIZE)-1);
 }
-int get_hash(char *h, struct ai_four *ai, int step, int *score)
+static int get_hash(char *h, struct ai_four *ai, int step, int *score)
 {
 	uint32_t h_idx;
 	char value;
@@ -189,7 +184,7 @@ int get_hash(char *h, struct ai_four *ai, int step, int *score)
 	return 0;
 }
 
-int set_hash(char *h, struct ai_four *ai, int step, int *score)
+static int set_hash(char *h, struct ai_four *ai, int step, int *score)
 {
 	uint32_t h_idx;
 	h_idx = get_hash_idx(ai, step);
@@ -207,3 +202,28 @@ static int judgement(struct ai_four *ai, int id, int col)
 	return rand_normal();
 }
 
+static void dbg_steps(struct ai_four *ai, int step, struct position *pos)
+{
+	int i;
+	char col_list[MAX_STEP];
+	col_list[0] = pos->colume;
+	dbg_printf("%d ", col_list[0]);
+	four_add(ai->four, ai->id, col_list[0]);
+	if(four_isFinish(ai->four, ai->id, col_list[0])){ dbg_printf("\n");return; }
+	col_list[1] = pos->next_col;
+	dbg_printf("%d ", col_list[1]);
+	for(i=1;i<step-1;i++){
+		struct position tmp;
+		int cur_id = ((i&1)==0)?ai->id:four_op_id(ai->id);
+		four_add(ai->four, cur_id, col_list[i]);
+		if(four_isFinish(ai->four, cur_id, i)){ break; }
+		tmp = max_score(ai, four_op_id(cur_id), step-1-i);
+		if(tmp.colume == -WIN){
+			col_list[i+1] = tmp.next_col;
+		}else{
+			col_list[i+1] = tmp.colume;
+		}
+		dbg_printf("%d ", col_list[i+1]);
+	}
+	dbg_printf("\n");
+}

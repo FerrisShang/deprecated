@@ -162,6 +162,16 @@ int four_set_field(struct four *four, char field[FOUR_ROW][FOUR_COL])
 }
 int four_get_field(struct four *four, char field[FOUR_ROW][FOUR_COL])
 {
+	int i,j,k;
+	for(j=0;j<FOUR_ROW;j++){
+		for(i=0;i<FOUR_COL;i++){
+			field[j][i] = 0;
+			for(k=1;k<=2;k++){
+				if((four->field_h[k][j]>>i) & 1){
+					field[j][i] = k;
+				}
+			}
+		}
+	}
 	return 0;
-	//unfinished
 }

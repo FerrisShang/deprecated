@@ -6,6 +6,7 @@
 
 #define STR_SETTINGS   "settings "
 #define STR_UPDATE     "update "
+#define STR_FIELD      "field"
 #define STR_ACTION     "action "
 #define STR_TEST       "t "
 #define STR_YOUR_BOTID "your_botid"
@@ -38,15 +39,17 @@ int main(int argc, char *argv[])
 			sscanf(line, "%s %s %s", args[0], args[1], args[2]);
 			settings(args[1], args[2]);
 		}else if (!strncmp(line, STR_UPDATE, strlen(STR_UPDATE))) {
-            sscanf(line, "%s %s %s %s", args[0], args[1], args[2], args[3]);
-            update(args[3]);
+			sscanf(line, "%s %s %s %s", args[0], args[1], args[2], args[3]);
+			if(!strcmp(args[2], STR_FIELD)){
+				update(args[3]);
+			}
 		}else if (!strncmp(line, STR_ACTION, strlen(STR_ACTION))) {
-            sscanf(line, "%s %s", args[0], args[1]);
+			sscanf(line, "%s %s", args[0], args[1]);
 			action(args[1]);
-        }else if (!strncmp(line, STR_TEST, strlen(STR_TEST))) {
-            sscanf(line, "%s %s %s %s", args[0], args[1], args[2], args[3]);
+		}else if (!strncmp(line, STR_TEST, strlen(STR_TEST))) {
+			sscanf(line, "%s %s %s %s", args[0], args[1], args[2], args[3]);
 			test(args[1], args[2], args[3]);
-        }
+		}
 
 	}
 	return 0;
