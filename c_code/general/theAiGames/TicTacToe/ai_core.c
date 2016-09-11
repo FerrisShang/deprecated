@@ -6,7 +6,7 @@
 #include "ai_core.h"
 
 #define MIN_STEP        1
-#define MAX_STEP        42
+#define MAX_STEP        81
 #define TOTAL_TIME_MS   2500
 #define HASH_BIT_SIZE   26
 #define MIN_HASH_DEEP   4
@@ -26,10 +26,11 @@ struct position{
 	int value;
 };
 
-static struct position max_score(struct ai_ttt *ai, int id, int steps);
+static struct position max_score(struct ai_ttt *ai, int id, int *mboard, int steps);
 static void dbg_steps(struct ai_ttt *ai, int step, struct position *last_pos);
 static int get_hash(char *h, struct ai_ttt *ai, int step, int *score);
 static int set_hash(char *h, struct ai_ttt *ai, int step, int *score);
+static int judgement(struct ai_ttt *ai, int id, point_t p);
 static int timediff_ms(struct timeval *start, struct timeval *end);
 char *h;
 
@@ -46,7 +47,7 @@ point_t cal_point(struct ai_ttt *ai, int time_limit_ms)
 			dbg_printf("calloc memory failed\n");
 			exit(0);
 		}
-		cur_pos = max_score(ai, ai->id, step);
+		cur_pos = max_score(ai, ai->id, ai->ttt->macroboard, step);
 		free(h);
 		gettimeofday(&t_end, NULL);
 		used_time = timediff_ms(&t_cal, &t_end);
@@ -59,12 +60,12 @@ point_t cal_point(struct ai_ttt *ai, int time_limit_ms)
 	//select step
 	if(-cur_pos.value == -WIN && step != MIN_STEP){
 		dbg_printf("step =%2d point = (%d,%d) value =%4d\n",
-			step, GET_P_X(last_pos.point), GET_P_Y(last_pos.point), -last_pos.value);
+			step, POINT_X(last_pos.point), POINT_Y(last_pos.point), -last_pos.value);
 		dbg_steps(ai, step, &last_pos);
 		return last_pos.point;
 	}else{
 		dbg_printf("step =%2d point = (%d,%d) value =%4d\n",
-			step, GET_P_X(cur_pos.point), GET_P_Y(cur_pos.point), -cur_pos.value);
+			step, POINT_X(cur_pos.point), POINT_Y(cur_pos.point), -cur_pos.value);
 		if(-cur_pos.value == WIN){
 			dbg_steps(ai, step, &cur_pos);
 		}
@@ -72,10 +73,83 @@ point_t cal_point(struct ai_ttt *ai, int time_limit_ms)
 	}
 }
 
-static struct position max_score(struct ai_ttt *ai, int id, int steps)
+/****************************************
+ *
+ * while block == -1, it means any block is allowed
+ */
+static struct position max_score(struct ai_ttt *ai, int id, int *mboard, int steps)
 {
-	struct position p = {0};
-	return p;
+	int b,o, nextmBoard[TTT_BLK_NUM];
+	struct position pos[9][9], tmp;
+	memset(pos, 0, sizeof(pos));
+	for(b=0;b<TTT_BLK_NUM;b++){
+		if(mboard[b] == 0){
+			continue;
+		}
+		for(o=0;o<TTT_BLK_NUM;o++){
+			point_t p = BO2PO(ai->ttt, b, o);
+			if(ttt_add(ai->ttt, id, p) < 0){
+				pos[b][o].value = FULL;
+				continue;
+			}else{
+				pos[b][o].point = p;
+				if(steps == 1){
+					pos[b][o].value = judgement(ai, id, p);
+				}else if(ttt_isMFinish(ai->ttt)==id){
+					pos[b][o].value = WIN;
+				}else{
+					// get macroboard
+					if(GB2(ai->ttt->m_field, o) == NORMAL){
+						memset(nextmBoard, 0, sizeof(nextmBoard));
+						nextmBoard[o] = -1;
+					}else{
+						int i;
+						for(i=0;i<TTT_BLK_NUM;i++){
+							if(GB2(ai->ttt->m_field, i) == NORMAL){
+								nextmBoard[i] = -1;
+							}else{
+								nextmBoard[i] = 0;
+							}
+						}
+					}
+					//let's play next step
+					tmp = max_score(ai, ttt_op_id(id), nextmBoard, steps-1);
+					pos[b][o].value = tmp.value;
+					pos[b][o].next_p = tmp.point;
+				}
+			}
+			ttt_remove(ai->ttt, p);
+		}
+	}
+	//select best point
+	{
+		int max_value = -WIN;
+		int max_v_cnt = 0, midx;
+		struct{
+			int b;
+			int o;
+		}max[9*9];
+		for(b=0;b<TTT_BLK_NUM;b++){
+			if(mboard[b] == 0){
+				continue;
+			}
+			for(o=0;o<TTT_BLK_NUM;o++){
+				if(pos[b][o].value>max_value && pos[b][o].value!=FULL){
+					max_value = pos[b][o].value;
+					max_v_cnt = 1;
+					max[0].b = b;
+					max[0].o = o;
+				}else if(pos[b][o].value==max_value && pos[b][o].value!=FULL){
+					max[max_v_cnt].b = b;
+					max[max_v_cnt].o = o;
+					max_v_cnt++;
+				}
+			}
+		}
+		midx = rand()%max_v_cnt;
+		pos[max[midx].b][max[midx].o].value = -pos[max[midx].b][max[midx].o].value;
+		return pos[max[midx].b][max[midx].o];
+	}
 }
 static int timediff_ms(struct timeval *start, struct timeval *end)
 {
@@ -114,4 +188,8 @@ static int set_hash(char *h, struct ai_ttt *ai, int step, int *score)
 static void dbg_steps(struct ai_ttt *ai, int step, struct position *pos)
 {
 	return;
+}
+static int judgement(struct ai_ttt *ai, int id, point_t p)
+{
+	return rand_normal();
 }

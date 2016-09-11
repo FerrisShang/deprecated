@@ -16,6 +16,7 @@ struct ai_ttt {
 struct ai_ttt* ai_create(void);
 void ai_destory(struct ai_ttt *ai);
 void ai_set_id(struct ai_ttt *ai, int id);
+void ai_update_mboard(struct ai_ttt *ai, char *mboard);
 void ai_update_field(struct ai_ttt *ai, char *field);
 char* ai_get_field(struct ai_ttt *ai);
 point_t ai_move(struct ai_ttt *ai, int time_limit_ms);

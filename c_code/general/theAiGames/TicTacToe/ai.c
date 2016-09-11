@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
 #include "ai.h"
@@ -53,6 +54,13 @@ void ai_update_field(struct ai_ttt *ai, char *field)
 		}
 		ttt_set_field(ai->ttt, f);
 	}
+}
+void ai_update_mboard(struct ai_ttt *ai, char *mboard)
+{
+	int b[TTT_BLK_NUM];
+	sscanf(mboard, "%d,%d,%d,%d,%d,%d,%d,%d,%d",
+			&b[0], &b[1], &b[2], &b[3], &b[4], &b[5], &b[6], &b[7], &b[8]);
+	ttt_set_mboard(ai->ttt, b);
 }
 char* ai_get_field(struct ai_ttt *ai)
 {

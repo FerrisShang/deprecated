@@ -7,6 +7,7 @@
 #define STR_SETTINGS   "settings "
 #define STR_UPDATE     "update "
 #define STR_FIELD      "field"
+#define STR_MBOARD     "macroboard"
 #define STR_ACTION     "action "
 #define STR_TEST       "t "
 #define STR_YOUR_BOTID "your_botid"
@@ -33,7 +34,6 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 	ai_reset(ai, DEFAULT_TIMEBANK, DEFAULT_TIME_PER_MOVE);
-
 	while(fgets(line, MAX_LINE_LEN, stdin) != NULL){
 		if (!strncmp(line, STR_SETTINGS, strlen(STR_SETTINGS))){
 			sscanf(line, "%s %s %s", args[0], args[1], args[2]);
@@ -63,13 +63,15 @@ static void update(char *type, char *value)
 {
 	if(!strcmp(type, STR_FIELD)){
 		ai_update_field(ai, value);
+	}else if(!strcmp(type, STR_MBOARD)){
+		ai_update_mboard(ai, value);
 	}
 }
 static void action(char *time_limit)
 {
 	point_t res;
 	res = ai_move(ai, atoi(time_limit));
-	io_printf("place_disc %d\n", GET_P_X(res), GET_P_Y(res));
+	io_printf("place_disc %d %d\n", POINT_X(res), POINT_Y(res));
 }
 static void test(char *args1, char *args2, char *args3)
 {
