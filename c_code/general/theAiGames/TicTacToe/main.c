@@ -71,7 +71,7 @@ static void action(char *time_limit)
 {
 	point_t res;
 	res = ai_move(ai, atoi(time_limit));
-	io_printf("place_disc %d %d\n", POINT_X(res), POINT_Y(res));
+	io_printf("place_move %d %d\n", POINT_X(res), POINT_Y(res));
 }
 static void test(char *args1, char *args2, char *args3)
 {

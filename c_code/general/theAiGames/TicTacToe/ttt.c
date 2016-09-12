@@ -71,8 +71,10 @@ int ttt_set_field(struct ttt *ttt, char field[][9])
 	for(y=0;y<9;y++){
 		for(x=0;x<9;x++){
 			int id = field[y][x];
-			point_t p = POINT(x,y);
-			ttt_add(ttt, id, p);
+			if(id == ID_P1 || id == ID_P2){
+				point_t p = POINT(x,y);
+				ttt_add(ttt, id, p);
+			}
 		}
 	}
 	return 0;
@@ -81,6 +83,25 @@ int ttt_set_mboard(struct ttt *ttt, int *m_board)
 {
 	memcpy(ttt->macroboard, m_board, sizeof(ttt->macroboard));
 	return 0;
+}
+char* ttt_dump_field(struct ttt *ttt)
+{
+	static char field[2*9*9+1];
+	char f[9][9];
+	int i,j;
+	ttt_get_field(ttt, f);
+	for(j=0;j<9;j++){
+		for(i=0;i<9;i++){
+			int idx = i+j*9;
+			field[idx*2] = f[j][i] + '0';
+			if(i==9-1){
+				field[idx*2+1] = '\n';
+			}else{
+				field[idx*2+1] = ',';
+			}
+		}
+	}
+	return field;
 }
 int ttt_get_field(struct ttt *ttt, char field[][9])
 {
@@ -104,7 +125,7 @@ static void reset_field(struct ttt *ttt)
 }
 static void init_maps(struct ttt *ttt)
 {
-	char *map;
+	int *map;
 	int i, j, id;
 	//init point to block number map
 	map = ttt->blockMap;

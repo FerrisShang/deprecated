@@ -7,7 +7,7 @@
 
 #define MIN_STEP        1
 #define MAX_STEP        81
-#define TOTAL_TIME_MS   2500
+#define TOTAL_TIME_MS   1000
 #define HASH_BIT_SIZE   26
 #define MIN_HASH_DEEP   4
 
@@ -53,7 +53,7 @@ point_t cal_point(struct ai_ttt *ai, int time_limit_ms)
 		used_time = timediff_ms(&t_cal, &t_end);
 		if(cur_pos.value == WIN || cur_pos.value == -WIN ||
 				cur_pos.value == TIED || cur_pos.value == -TIED ||
-				used_time*8 > TOTAL_TIME_MS-used_time){
+				used_time*20 > TOTAL_TIME_MS-used_time){
 			break;
 		}
 	}
@@ -145,6 +145,11 @@ static struct position max_score(struct ai_ttt *ai, int id, int *mboard, int ste
 					max_v_cnt++;
 				}
 			}
+		}
+		if(max_v_cnt == 0){//must be draw
+			tmp.value = TIED;
+			tmp.point = POINT(-1,-1);
+			return tmp;
 		}
 		midx = rand()%max_v_cnt;
 		pos[max[midx].b][max[midx].o].value = -pos[max[midx].b][max[midx].o].value;

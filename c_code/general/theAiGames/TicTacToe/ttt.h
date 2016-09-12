@@ -24,7 +24,7 @@ typedef unsigned char point_t;
 #define GB1(n,bit)   (((n)>>(bit))&3)
 #define SB1(n,s,bit) (n) |= ((s)<<((bit)));
 #define CB1(n,bit)   (n) &= ~((3)<<(bit));
-#define GB2(n,bit)   (((n)>>(bit*2))&3)
+#define GB2(n,bit)   (((n)>>((bit)*2))&3)
 #define SB2(n,s,bit) (n) |= ((s)<<((bit)*2));
 
 struct ttt {
@@ -34,12 +34,12 @@ struct ttt {
 	int s_field[TTT_BLK_NUM];
 	int m_field;
 	int macroboard[TTT_BLK_NUM];
-	char finishMap  [1<<(TTT_BLK_NUM*2)];
-	char blockMap   [1<<(sizeof(point_t)*8)];
-	char blockOffMap[1<<(sizeof(point_t)*8)];
-	char posMap     [1<<(sizeof(point_t)*8)];
-	char posOffMap  [1<<(sizeof(point_t)*8)];
-	char bo2poMap   [TTT_BLK_NUM][TTT_BLK_NUM];
+	int finishMap  [1<<(TTT_BLK_NUM*2)];
+	int blockMap   [1<<(sizeof(point_t)*8)];
+	int blockOffMap[1<<(sizeof(point_t)*8)];
+	int posMap     [1<<(sizeof(point_t)*8)];
+	int posOffMap  [1<<(sizeof(point_t)*8)];
+	int bo2poMap   [TTT_BLK_NUM][TTT_BLK_NUM];
 };
 
 
@@ -47,6 +47,7 @@ struct ttt* ttt_create(void);
 void ttt_destory(struct ttt *ttt);
 int ttt_add(struct ttt *ttt, int id, point_t p);
 int ttt_remove(struct ttt *ttt, point_t p);
+char* ttt_dump_field(struct ttt *ttt);
 int ttt_get_field(struct ttt *ttt, char field[][9]);
 int ttt_set_field(struct ttt *ttt, char field[][9]);
 int ttt_set_mboard(struct ttt *ttt, int *m_board);
