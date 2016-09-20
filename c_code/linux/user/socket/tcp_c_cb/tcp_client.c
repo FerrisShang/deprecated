@@ -20,7 +20,7 @@ void tcpc_distory(struct tcpc *tcpc)
 	if(!tcpc){
 		return;
 	}
-	shutdown(tcpc->sock, SHUT_WR);
+	shutdown(tcpc->sock, SHUT_RDWR);
 	pthread_join(tcpc->th_recv, NULL);
 	free(tcpc);
 }
