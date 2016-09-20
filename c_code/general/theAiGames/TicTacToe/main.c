@@ -3,6 +3,7 @@
 #include <string.h>
 #include <sys/time.h>
 #include "ai.h"
+#include "x11_show.h"
 
 #define STR_SETTINGS   "settings "
 #define STR_UPDATE     "update "
@@ -75,4 +76,5 @@ static void action(char *time_limit)
 }
 static void test(char *args1, char *args2, char *args3)
 {
+	x11_show();
 }
