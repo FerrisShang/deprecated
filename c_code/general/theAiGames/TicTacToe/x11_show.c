@@ -56,12 +56,15 @@ int x11_show(void)
 		}
 		if (event.type==ButtonPress) {
 			int x=event.xbutton.x, y=event.xbutton.y;
+			printf("%d\n", is_inTTT(x,y));
+			/*
 			strcpy(text,"X");
 			XSetForeground(dis,gc,rand());
 			XDrawString(dis,win,gc,x,y, text, strlen(text));
 			XDrawPoint(dis, win, gc, x+5, y+5);
 			XDrawLine(dis, win, gc, 20, 20, x, y);
 			XDrawRectangle(dis, win, gc, x-10, y-10, 20, 20);
+			*/
 		}
 	}
 }
@@ -73,8 +76,8 @@ void init_x(void)
 
 	dis=XOpenDisplay((char *)0);
 	screen=DefaultScreen(dis);
-	black=BlackPixel(dis,screen),
-		white=WhitePixel(dis, screen);
+	black=BlackPixel(dis, screen);
+	white=WhitePixel(dis, screen);
 	win=XCreateSimpleWindow(dis,DefaultRootWindow(dis),0,0,
 			WIDTH + 2*BASE_X, HEIGHT+BASE_Y+10, 5,black, white);
 	XSetStandardProperties(dis,win,"","",None,NULL,0,NULL);
@@ -101,7 +104,6 @@ static void draw_rect(int x, int y, int w, int h)
 
 void redraw(void)
 {
-	int x,y;
 	int mx,my,sx,sy;
 	XClearWindow(dis, win);
 
@@ -120,5 +122,53 @@ void redraw(void)
 			}
 		}
 	}
+	int i;
+	for(i=0;i<9;i++){
+		draw_s(i,0,rand());
+		draw_m(i/3,i%3,rand());
+	}
 }
 
+void draw_m(int x, int y, int col)
+{
+	int smx = (1+2*x)*W2S + x*W2;
+	int smy = (1+2*y)*H2S + y*H2;
+	XSetForeground(dis,gc,col);
+	draw_rect(smx,smy,W2,H2);
+}
+void draw_s(int x, int y, int col)
+{
+	int smx = (1+2*(x/3))*W2S + (x/3)*W2;
+	int smy = (1+2*(y/3))*H2S + (y/3)*H2;
+	int ssx = (1+2*(x%3))*W3S + (x%3)*W3;
+	int ssy = (1+2*(y%3))*H3S + (y%3)*H3;
+	XSetForeground(dis,gc,col);
+	draw_rect(smx+ssx,smy+ssy,W3,H3);
+}
+void draw_p(int x, int y, int col)
+{
+
+}
+int is_inTTT(int x, int y)
+{
+	int mx,my,sx,sy;
+	x -= BASE_X;
+	y -= BASE_Y;
+	for(mx=0;mx<3;mx++){
+		for(my=0;my<3;my++){
+			int smx = (1+2*mx)*W2S + mx*W2;
+			int smy = (1+2*my)*H2S + my*H2;
+			for(sx=0;sx<3;sx++){
+				for(sy=0;sy<3;sy++){
+					int ssx = (1+2*sx)*W3S + sx*W3;
+					int ssy = (1+2*sy)*H3S + sy*H3;
+					if(x>=smx+ssx && x<=smx+ssx+W3
+							&& y>=smy+ssy && y<=smy+ssy+H3){
+						return mx*3+sx + (my*3+sy)*9;
+					}
+				}
+			}
+		}
+	}
+	return -1;
+}
