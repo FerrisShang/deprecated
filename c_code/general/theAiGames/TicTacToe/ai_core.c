@@ -7,7 +7,7 @@
 
 #define MIN_STEP        1
 #define MAX_STEP        81
-#define TOTAL_TIME_MS   1000
+#define TOTAL_TIME_MS   2000
 #define HASH_BIT_SIZE   26
 #define MIN_HASH_DEEP   4
 

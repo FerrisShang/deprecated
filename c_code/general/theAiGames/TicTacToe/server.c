@@ -142,7 +142,7 @@ int main(int argc, char *argv[])
 	}
 	srand(time(NULL));
 	while(1){//continue battle
-		int record[64], record_cnt = 0;
+		int record[100], record_cnt = 0;
 		if(rand()&1){
 			id1 = app1;
 			id2 = app2;
@@ -226,7 +226,7 @@ int main(int argc, char *argv[])
 		//output to log file
 		sprintf(str, "%d ", record_cnt);
 		for(i=0;i<record_cnt;i++){
-			sprintf(str, "%s%d", str, record[i]);
+			sprintf(str, "%s %d", str, record[i]);
 		}
 		sprintf(str, "%s\n", str);
 		fputs(str, fp);

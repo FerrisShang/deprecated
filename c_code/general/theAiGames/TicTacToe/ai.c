@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/time.h>
 #include "ai.h"
 #include "ai_core.h"
@@ -23,6 +24,8 @@ void ai_reset(struct ai_ttt *ai, int timebank, int time_per_move)
 	if(ai){
 		ai->timebank = timebank;
 		ai->time_per_move = time_per_move;
+		memset(ai->ttt->s_field, 0, sizeof(ai->ttt->s_field));
+		memset(&ai->ttt->m_field, 0, sizeof(int));
 	}
 }
 void ai_destory(struct ai_ttt *ai)
