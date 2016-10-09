@@ -112,6 +112,7 @@ static void *listen_thd(void *pdata)
 		}
 	}
 	printf("tcp server closed\n");
+	return NULL;
 }
 static void *recv_thd(void *pdata)
 {
@@ -137,4 +138,8 @@ static void *recv_thd(void *pdata)
 int tcps_send(int sock, char *buf, int len)
 {
 	return send(sock, buf, len, 0);
+}
+int tcps_close(int sock)
+{
+	return shutdown(sock, SHUT_RDWR);
 }

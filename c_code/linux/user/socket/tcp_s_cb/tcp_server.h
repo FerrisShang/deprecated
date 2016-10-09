@@ -13,5 +13,6 @@ struct tcps* tcps_create(int port,
 		void *pdata);
 
 int tcps_send(int sock, char *buf, int len);
+int tcps_close(int sock);
 
 #endif /* __TCP_SERVER_H__ */
