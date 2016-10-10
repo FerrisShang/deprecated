@@ -2,19 +2,31 @@
 #include "stdlib.h"
 #include "rb_tree.h"
 
+/* Compare(a,b) should return 1 if *a > *b, -1 if *a < *b, and 0 otherwise */
+/* Destroy(a) takes a pointer to whatever key might be and frees it accordingly */
+struct rb_tree {
+  int (*Compare)(const void* a, const void* b);
+  void (*DestroyKey)(void* key);
+  void (*DestroyInfo)(void* info);
+  /*  A sentinel is used for root and for nil.  These sentinels are */
+  /*  created when RBTreeCreate is caled.  root->left should always */
+  /*  point to the node which is the root of the tree.  nil points to a */
+  /*  node which should always be black but has aribtrary children and */
+  /*  parent and no key or info.  The point of using these sentinels is so */
+  /*  that the root and nil nodes do not require special cases in the code */
+  struct rb_node* root;
+  struct rb_node* nil;
+};
+
 /***********************************************************************/
 /*  FUNCTION:  RBTreeCreate */
 /**/
 /*  INPUTS:  All the inputs are names of functions.  CompFunc takes to */
 /*  void pointers to keys and returns 1 if the first arguement is */
-/*  "greater than" the second.   DestFunc takes a pointer to a key and */
+/*  "greater than" the second.   DestroyKeyFunc takes a pointer to a key and */
 /*  destroys it in the appropriate manner when the node containing that */
-/*  key is deleted.  InfoDestFunc is similiar to DestFunc except it */
+/*  key is deleted.  DestroyInfoFunc is similiar to DestroyKeyFunc except it */
 /*  recieves a pointer to the info of a node and destroys it. */
-/*  PrintFunc recieves a pointer to the key of a node and prints it. */
-/*  PrintInfo recieves a pointer to the info of a node and prints it. */
-/*  If RBTreePrint is never called the print functions don't have to be */
-/*  defined and NullFunction can be used.  */
 /**/
 /*  OUTPUT:  This function returns a pointer to the newly created */
 /*  red-black tree. */
@@ -23,10 +35,7 @@
 /***********************************************************************/
 
 struct rb_tree* RBTreeCreate( int (*CompFunc) (const void*,const void*),
-		void (*DestFunc) (void*),
-		void (*InfoDestFunc) (void*),
-		void (*PrintFunc) (const void*),
-		void (*PrintInfo)(void*))
+		void (*DestroyKeyFunc) (void*), void (*DestroyInfoFunc) (void*))
 {
 	struct rb_tree* newTree;
 	struct rb_node* temp;
@@ -36,13 +45,10 @@ struct rb_tree* RBTreeCreate( int (*CompFunc) (const void*,const void*),
 		goto malloc_tree_failed;
 	}
 	newTree->Compare=  CompFunc;
-	newTree->DestroyKey= DestFunc;
-	newTree->PrintKey= PrintFunc;
-	newTree->PrintInfo= PrintInfo;
-	newTree->DestroyInfo= InfoDestFunc;
+	newTree->DestroyKey= DestroyKeyFunc;
+	newTree->DestroyInfo= DestroyInfoFunc;
 
-	/*  see the comment in the rb_tree structure in red_black_tree.h */
-	/*  for information on nil and root */
+	/*  see the comment in the rb_tree structure for information on nil and root */
 	temp=newTree->nil= (struct rb_node*) rb_malloc(sizeof(struct rb_node));
 	if(!temp){
 		goto malloc_nil_failed;
@@ -299,7 +305,7 @@ struct rb_node * RBTreeInsert(struct rb_tree* tree, void* key, void* info)
 /*    Note:  uses the algorithm in _Introduction_To_Algorithms_ */
 /***********************************************************************/
 
-struct rb_node* TreeSuccessor(struct rb_tree* tree,struct rb_node* x)
+static struct rb_node* TreeSuccessor(struct rb_tree* tree,struct rb_node* x)
 {
 	struct rb_node* y;
 	struct rb_node* nil=tree->nil;
@@ -335,7 +341,7 @@ struct rb_node* TreeSuccessor(struct rb_tree* tree,struct rb_node* x)
 /*    Note:  uses the algorithm in _Introduction_To_Algorithms_ */
 /***********************************************************************/
 
-struct rb_node* TreePredecessor(struct rb_tree* tree, struct rb_node* x)
+static struct rb_node* TreePredecessor(struct rb_tree* tree, struct rb_node* x)
 {
 	struct rb_node* y;
 	struct rb_node* nil=tree->nil;
@@ -358,32 +364,35 @@ struct rb_node* TreePredecessor(struct rb_tree* tree, struct rb_node* x)
 }
 
 /***********************************************************************/
-/*  FUNCTION:  InorderTree */
+/*  FUNCTION:  InorderTreeHelp */
 /**/
-/*    INPUTS:  tree is the tree to print and x is the current inorder node */
+/*    INPUTS:  tree is the tree to inorder and x is the current inorder node */
 /**/
 /*    OUTPUT:  none  */
 /**/
-/*    EFFECTS:  This function recursively prints the nodes of the tree */
-/*              inorder using the PrintKey and PrintInfo functions. */
-/**/
 /*    Modifies Input: none */
 /**/
-/*    Note:    This function should only be called from RBTreePrint */
+/*    Note:    This function should only be called from RBInorderTree */
 /***********************************************************************/
 
-static void InorderTree(struct rb_tree* tree, struct rb_node* x)
+static void InorderTreeHelp(struct rb_tree* tree, struct rb_node* x,
+		void (*callback)(struct rb_node *node, void *pdata),
+		void *pdata)
 {
 	struct rb_node* nil=tree->nil;
 	struct rb_node* root=tree->root;
 	if (x != tree->nil) {
-		InorderTree(tree,x->left);
-		tree->PrintInfo(x->info);
-		tree->PrintKey(x->key);
-		InorderTree(tree,x->right);
+		InorderTreeHelp(tree,x->left, callback, pdata);
+		callback(x, pdata);
+		InorderTreeHelp(tree,x->right, callback, pdata);
 	}
 }
 
+void RBInorderTree(struct rb_tree* tree,
+		void (*callback)(struct rb_node *node, void *pdata), void *pdata)
+{
+	InorderTreeHelp(tree,tree->root->left, callback, pdata);
+}
 
 /***********************************************************************/
 /*  FUNCTION:  TreeDestHelper */
@@ -433,27 +442,6 @@ void RBTreeDestroy(struct rb_tree* tree)
 	rb_free(tree->nil);
 	rb_free(tree);
 }
-
-
-/***********************************************************************/
-/*  FUNCTION:  RBTreePrint */
-/**/
-/*    INPUTS:  tree is the tree to print */
-/**/
-/*    OUTPUT:  none */
-/**/
-/*    EFFECT:  This function recursively prints the nodes of the tree */
-/*             inorder using the PrintKey and PrintInfo functions. */
-/**/
-/*    Modifies Input: none */
-/**/
-/***********************************************************************/
-
-void RBTreePrint(struct rb_tree* tree)
-{
-	InorderTree(tree,tree->root->left);
-}
-
 
 /***********************************************************************/
 /*  FUNCTION:  RBExactQuery */
@@ -590,7 +578,7 @@ void RBDelete(struct rb_tree* tree, struct rb_node* z)
 
 	y= ((z->left == nil) || (z->right == nil)) ? z : TreeSuccessor(tree,z);
 	x= (y->left == nil) ? y->right : y->left;
-	if (root == (x->parent = y->parent)) { /* assignment of y->p to x->p is intentional */
+	if (root == (x->parent = y->parent)) {/* assignment of y->p to x->p is intentional */
 		root->left=x;
 	} else {
 		if (y == y->parent->left) {
@@ -637,14 +625,12 @@ void RBDelete(struct rb_tree* tree, struct rb_node* z)
 /*    Modifies Input: none */
 /***********************************************************************/
 
-void* RBEnumerate(struct rb_tree* tree, void* low, void* high)
+void RBEnumerate(struct rb_tree* tree, void* low, void* high,
+		void (*callback)(struct rb_node *node, void *pdata), void *pdata)
 {
-	//stk_stack* enumResultStack;
 	struct rb_node* nil=tree->nil;
 	struct rb_node* x=tree->root->left;
 	struct rb_node* lastBest=nil;
-
-	//enumResultStack=StackCreate();
 	while(nil != x) {
 		if ( 1 == (tree->Compare(x->key,high)) ) { /* x->key > high */
 			x=x->left;
@@ -653,10 +639,9 @@ void* RBEnumerate(struct rb_tree* tree, void* low, void* high)
 			x=x->right;
 		}
 	}
-	while ( (lastBest != nil) && (1 != tree->Compare(low,lastBest->key))) {
-		//StackPush(enumResultStack,lastBest);
+	while ((lastBest != nil) && (1 != tree->Compare(low,lastBest->key))) {
+		callback(lastBest, pdata);
 		lastBest=TreePredecessor(tree,lastBest);
 	}
-	//return(enumResultStack);
 	return NULL;
 }
