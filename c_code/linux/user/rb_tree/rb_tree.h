@@ -16,11 +16,11 @@ struct rb_node {
   struct rb_node* right;
   struct rb_node* parent;
 };
-struct rb_tree* RBTreeCreate( int (*CompFunc) (const void *a,const void *b),
-		void (*DestroyKeyFunc) (void *key), void (*DestroyInfoFunc) (void *info));
-struct rb_node * RBTreeInsert(struct rb_tree*, void* key, void* info);
+struct rb_tree* RBTreeCreate( int (*CompFunc)(const void *a,const void *b),
+		void (*DestroyKeyFunc)(void *key), void (*DestroyInfoFunc)(void *info));
+struct rb_node* RBTreeInsert(struct rb_tree*, void* key, void* info);
 void RBDelete(struct rb_tree* , struct rb_node* );
-struct rb_node* RBExactQuery(struct rb_tree*, void*);
+struct rb_node* RBExactQuery(struct rb_tree*, void *key);
 void RBInorderTree(struct rb_tree* tree,
 		void (*callback)(struct rb_node *node, void *pdata), void *pdata);
 void RBEnumerate(struct rb_tree* tree, void* low, void* high,

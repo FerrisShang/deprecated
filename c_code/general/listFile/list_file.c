@@ -19,7 +19,7 @@ static void List_Files_Core(const char *path, fileHandle func, void *funcPara)
 	char temp[256];
 	pdir = opendir(path);
 	if(pdir){
-		while(pdirent = readdir(pdir)){ 
+		while((pdirent = readdir(pdir))){
 			if(strcmp(pdirent->d_name, ".") == 0
 					|| strcmp(pdirent->d_name, "..") == 0)
 				continue;
@@ -43,7 +43,7 @@ void List_Files(const char *path, fileHandle func, void *funcPara)
 	len = strlen(path);
 	strcpy(temp, path);
 	if(temp[len - 1] == '/') temp[len -1] = '\0';
-	if(IS_DIR(temp)) { 
+	if(IS_DIR(temp)) {
 		List_Files_Core(temp, func, funcPara);
 	}else{
 		func(path, funcPara);
