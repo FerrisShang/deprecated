@@ -9,12 +9,17 @@ if [ $# -eq 0 ]
 then
     FILES=`find .`
 else
-    FILES=$@
+    if test -d $1
+    then
+        FILES=`find $1`
+    else
+        FILES=$@
+    fi
 fi
 
 insert_header() {
     YEAR=`date +"%Y"`
-    COPYRIGHT="Copyright (C) $YEAR Ingenic Semiconductor Co.,Ltd"
+    COPYRIGHT="Copyright (C) $YEAR Ingenic Semiconductor Co., Ltd"
     sed -i -e '1i\\' $1
     sed -i -e '1i\ */' $1
     sed -i -e '1i\ *\ along with this program.  If not, see <http://www.gnu.org/licenses/>.' $1
