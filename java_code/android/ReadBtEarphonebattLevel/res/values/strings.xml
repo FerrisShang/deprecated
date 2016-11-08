@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">HeartRateDemo</string>
+    <string name="action_settings">Settings</string>
+    <string name="heart_rate">HR_COUNTER</string>
+    <string name="hello_world">Heart Rate Simulator .</string>
+
+</resources>
