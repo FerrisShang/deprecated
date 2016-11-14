@@ -16,6 +16,7 @@ import android.bluetooth.BluetoothAssignedNumbers;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.os.Bundle;
+import android.os.HandlerThread;
 import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
@@ -27,12 +28,18 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.app.Service;
 import android.os.IBinder;
+import android.os.Looper;
 
 public class HfpclientService extends Service {
     private static final String TAG = "hfp_service";
 	private BluetoothDevice mBluetoothDevice = null;
 	private BluetoothHeadsetClient mBluetoothHeadsetClient = null;
 	private BluetoothAdapter mAdapter;
+    private HandlerThread mHandlerThread;
+    private Handler mHandler;
+
+	private static final int HANDLE_MSG_CALL_CHANGED = 1;
+	private static final int HANDLE_MSG_CALL_CHUP    = 2;
 
 	@Override
 	public IBinder onBind(Intent intent) {
@@ -40,9 +47,16 @@ public class HfpclientService extends Service {
 	}
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
-		// do your jobs here
-		init();
 		return super.onStartCommand(intent, flags, startId);
+	}
+    @Override
+    public void onCreate() {
+		init();
+        super.onCreate();
+	}
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
 	}
 
 	private final BluetoothProfile.ServiceListener mBluetoothServiceListener =
@@ -85,6 +99,8 @@ public class HfpclientService extends Service {
 					Log.v(TAG, "=== ACTION_CALL_CHANGED ===");
 					BluetoothHeadsetClientCall call = (BluetoothHeadsetClientCall)
 						intent.getParcelableExtra(BluetoothHeadsetClient.EXTRA_CALL);
+					Message msg = mHandler.obtainMessage(HANDLE_MSG_CALL_CHANGED, call);
+					mHandler.sendMessage(msg);
 					Log.v(TAG,
 							" ACTIVE(0)  " + " HELD(1)    "
 							+ " DIALING(2) " + " ALERTING(3)");
@@ -141,11 +157,58 @@ public class HfpclientService extends Service {
 			}// end onReceive.
 	};
 
+    private class MyHandler extends Handler {
+        private MyHandler(Looper looper) {
+            super(looper);
+        }
+        @Override
+        public void handleMessage(Message msg) {
+			BluetoothHeadsetClientCall call;
+			List<BluetoothDevice> devices;
+            switch (msg.what) {
+				case HANDLE_MSG_CALL_CHANGED :
+					call = (BluetoothHeadsetClientCall)msg.obj;
+					if(call != null){
+						if(call.getState() == 4){
+							//mHandler.sendEmptyMessage(HANDLE_MSG_CALL_CHANGED);
+							mHandler.sendEmptyMessageDelayed(HANDLE_MSG_CALL_CHUP, 5000);
+							if(mBluetoothHeadsetClient != null){
+								devices = mBluetoothHeadsetClient.getConnectedDevices();
+								Log.v(TAG, "device num:" + devices.size());
+								for (BluetoothDevice dev : devices) {
+									Log.v(TAG, "device:" + dev.getAddress());
+								}
+							}
+						}
+					}
+					break;
+				case HANDLE_MSG_CALL_CHUP :
+					mHandler.removeMessages(HANDLE_MSG_CALL_CHUP);
+					if(mBluetoothHeadsetClient != null){
+						devices = mBluetoothHeadsetClient.getConnectedDevices();
+						if(devices != null){
+							for (BluetoothDevice dev : devices) {
+								Log.v(TAG, "chup device:" + dev.getAddress());
+								mBluetoothHeadsetClient.rejectCall(dev);
+							}
+						}
+					}
+					break;
+                default:
+                    break;
+            }
+        }
+    }
+
     void init() {
 		Log.v(TAG, "init hfp_status");
 		mAdapter = BluetoothAdapter.getDefaultAdapter();
 		mAdapter.getProfileProxy(this,
 				mBluetoothServiceListener, BluetoothProfile.HEADSET_CLIENT);
+
+		mHandlerThread = new HandlerThread("ancs_gatt_client");
+		mHandlerThread.start();
+		mHandler = new MyHandler(mHandlerThread.getLooper());
 
         IntentFilter filter = new IntentFilter();
         filter.addAction(BluetoothHeadsetClient.ACTION_CONNECTION_STATE_CHANGED);
@@ -154,5 +217,7 @@ public class HfpclientService extends Service {
         filter.addAction(BluetoothHeadsetClient.ACTION_RESULT);
         filter.addAction(BluetoothHeadsetClient.ACTION_AG_EVENT);
         registerReceiver(mReceiver, filter);
+
+		mAdapter.setScanMode(mAdapter.SCAN_MODE_CONNECTABLE_DISCOVERABLE, 0);
 	}
 }
