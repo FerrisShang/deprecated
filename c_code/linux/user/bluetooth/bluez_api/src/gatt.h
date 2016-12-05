@@ -44,7 +44,17 @@ struct gatts_cb {
 	void (*onMtuChanged)(bdaddr_t *addr, int mtu, void *pdata);
 	//void onIndicationSent(bdaddr_t *addr, int status, void *pdata);
 };
-struct gatt_client_cb {
+struct gattc_cb{
+	void (*onCharacteristicChanged)(bt_uuid_t *characteristic, void *pdata);
+	void (*onCharacteristicRead)(bt_uuid_t *characteristic, int status, void *pdata);
+	void (*onCharacteristicWrite)(bt_uuid_t *characteristic, int status, void *pdata);
+	void (*onDescriptorRead)(bt_uuid_t *descriptor, int status, void *pdata);
+	void (*onDescriptorWrite)(bt_uuid_t *descriptor, int status, void *pdata);
+	void (*onMtuChanged)(bdaddr_t *addr, int mtu, int status, void *pdata);
+	void (*onReadRemoteRssi)(bdaddr_t *addr, int rssi, int status, void *pdata);
+	void (*onServicesDiscovered)(bdaddr_t *addr, int status, void *pdata);
+	void (*onConnectionStateChange)(bdaddr_t *addr, int newState, void *pdata);
+
 	/* unfinished */
 };
 
@@ -56,6 +66,6 @@ int service_add_character(struct gatt_service *service, struct gatt_character *c
 const struct gatts_if* register_gatt_service(
 		struct gatt_service* gatt_service, struct gatts_cb *io_cb, void *pdata);
 //client api
-const struct gatt_client* register_gatt_client(struct gatt_client_cb *io_cb, void *pdata);
+const struct gatt_client* register_gatt_client(struct gattc_cb *io_cb, void *pdata);
 
 #endif /* __GATT_H__ */

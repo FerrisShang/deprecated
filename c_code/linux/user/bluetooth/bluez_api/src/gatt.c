@@ -483,7 +483,7 @@ const struct gatts_if* register_gatt_service(
 	bt_mutex_unlock(mutex);
 	return &gatt_service->io_if;
 }
-const struct gatt_client* register_gatt_client(struct gatt_client_cb *io_cb, void *pdata)
+const struct gatt_client* register_gatt_client(struct gattc_cb *io_cb, void *pdata)
 {
 	return NULL;
 }
