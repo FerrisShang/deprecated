@@ -31,6 +31,8 @@ sources=src/main.c \
 	 src/lib/uuid.c \
 	 src/lib/bluetooth.c \
 
+sources += $(shell find ./src/services/ -name '*.$(srcExt)')
+
 #************************ DO NOT EDIT BELOW THIS LINE! ************************
 
 inc := $(addprefix -I,$(inc))
