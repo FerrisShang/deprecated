@@ -45,6 +45,7 @@
 #include "src/shared/queue.h"
 #include "src/shared/gatt-db.h"
 #include "src/shared/gatt-client.h"
+#include "src/ble_profile_uuid.h"
 
 #define ATT_CID 4
 
@@ -160,9 +161,13 @@ static void log_service_event(struct gatt_db_attribute *attr, const char *str)
 	bt_uuid_to_string(&uuid, uuid_str, sizeof(uuid_str));
 
 	gatt_db_attribute_get_service_handles(attr, &start, &end);
-
-	PRLOG("%s - UUID: %s start: 0x%04x end: 0x%04x\n", str, uuid_str,
-								start, end);
+	char *uuid_name = get_UUID_str(&uuid);
+	if(uuid_name != NULL){
+		PRLOG("%s - Service: %s\n", str, uuid_name);
+	}else{
+		PRLOG("%s - UUID: %s start: 0x%04x end: 0x%04x\n", str, uuid_str,
+				start, end);
+	}
 }
 
 static void service_added_cb(struct gatt_db_attribute *attr, void *user_data)
@@ -287,10 +292,12 @@ static void print_incl(struct gatt_db_attribute *attr, void *user_data)
 
 static void print_desc(struct gatt_db_attribute *attr, void *user_data)
 {
+#if 0
 	printf("\t\t  " COLOR_MAGENTA "descr" COLOR_OFF
 					" - handle: 0x%04x, uuid: ",
 					gatt_db_attribute_get_handle(attr));
 	print_uuid(gatt_db_attribute_get_type(attr));
+#endif
 }
 
 static void print_chrc(struct gatt_db_attribute *attr, void *user_data)
@@ -305,11 +312,21 @@ static void print_chrc(struct gatt_db_attribute *attr, void *user_data)
 								&uuid))
 		return;
 
-	printf("\t  " COLOR_YELLOW "charac" COLOR_OFF
-					" - start: 0x%04x, value: 0x%04x, "
-					"props: 0x%02x, uuid: ",
-					handle, value_handle, properties);
-	print_uuid(&uuid);
+	char *uuid_name = get_UUID_str(&uuid);
+	if(uuid_name != NULL){
+		printf("\t  " COLOR_YELLOW "charac" COLOR_OFF
+				" - handle: 0x%04x, %s\n", value_handle, uuid_name);
+
+		char props_str[80];
+		get_props_str(props_str, properties);
+		printf("\t\t  " COLOR_MAGENTA "Permission" COLOR_OFF " - %s\n", props_str);
+	}else{
+		printf("\t  " COLOR_YELLOW "charac" COLOR_OFF
+				" - start: 0x%04x, value: 0x%04x, "
+				"props: 0x%02x, uuid: ",
+				handle, value_handle, properties);
+		print_uuid(&uuid);
+	}
 
 	gatt_db_service_foreach_desc(attr, print_desc, NULL);
 }
@@ -325,10 +342,15 @@ static void print_service(struct gatt_db_attribute *attr, void *user_data)
 									&uuid))
 		return;
 
-	printf(COLOR_RED "service" COLOR_OFF " - start: 0x%04x, "
+	char *uuid_name = get_UUID_str(&uuid);
+	if(uuid_name != NULL){
+		printf(COLOR_RED "service" COLOR_OFF " - %s\n", uuid_name);
+	}else{
+		printf(COLOR_RED "service" COLOR_OFF " - start: 0x%04x, "
 				"end: 0x%04x, type: %s, uuid: ",
 				start, end, primary ? "primary" : "secondary");
-	print_uuid(&uuid);
+		print_uuid(&uuid);
+	}
 
 	gatt_db_service_foreach_incl(attr, print_incl, cli);
 	gatt_db_service_foreach_char(attr, print_chrc, NULL);
