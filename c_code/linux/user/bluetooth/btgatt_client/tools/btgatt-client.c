@@ -315,7 +315,7 @@ static void print_chrc(struct gatt_db_attribute *attr, void *user_data)
 	char *uuid_name = get_UUID_str(&uuid);
 	if(uuid_name != NULL){
 		printf("\t  " COLOR_YELLOW "charac" COLOR_OFF
-				" - handle: 0x%04x, %s\n", value_handle, uuid_name);
+				" - handle: 0x%04x , %s\n", value_handle, uuid_name);
 
 		char props_str[80];
 		get_props_str(props_str, properties);
@@ -380,6 +380,37 @@ static void print_services_by_handle(struct client *cli, uint16_t handle)
 	gatt_db_foreach_service(cli->db, NULL, print_service, cli);
 }
 
+static void save_chrc_handle(struct gatt_db_attribute *attr, void *user_data)
+{
+	uint16_t handle, value_handle;
+	uint8_t properties;
+	bt_uuid_t uuid;
+
+	if (!gatt_db_attribute_get_char_data(attr, &handle,
+								&value_handle,
+								&properties,
+								&uuid))
+		return;
+	put_chrc_by_handle(&uuid, value_handle);
+}
+
+static void save_service_handle(struct gatt_db_attribute *attr, void *user_data)
+{
+	uint16_t start, end;
+	bool primary;
+	bt_uuid_t uuid;
+	if (!gatt_db_attribute_get_service_data(attr, &start, &end, &primary, &uuid)){
+		return;
+	}
+	gatt_db_service_foreach_char(attr, save_chrc_handle, NULL);
+}
+
+static void save_uuid_handle(struct client *cli)
+{
+	gatt_db_foreach_service(cli->db, NULL, save_service_handle, cli);
+}
+
+
 static void ready_cb(bool success, uint8_t att_ecode, void *user_data)
 {
 	struct client *cli = user_data;
@@ -392,6 +423,8 @@ static void ready_cb(bool success, uint8_t att_ecode, void *user_data)
 
 	PRLOG("GATT discovery procedures complete\n");
 
+	clear_chrc_handle();
+	save_uuid_handle(cli);
 	print_services(cli);
 	print_prompt();
 }
@@ -567,19 +600,27 @@ static void read_cb(bool success, uint8_t att_ecode, const uint8_t *value,
 				ecode_to_string(att_ecode), att_ecode);
 		return;
 	}
+	bt_uuid_t tmp;
+	char buf[256];
+	uint16_t *handle = (uint16_t*)user_data;
+	if(get_chrc_by_handle(&tmp, *handle)>=0 &&
+			conv_data_to_str(&tmp, buf, value, length) != NULL){
+		printf("\nRead value [%s]\n", get_UUID_str(&tmp));
+		printf("%s", buf);
+	}else{
+		printf("\nRead value");
 
-	printf("\nRead value");
+		if (length == 0) {
+			PRLOG(": 0 bytes\n");
+			return;
+		}
 
-	if (length == 0) {
-		PRLOG(": 0 bytes\n");
-		return;
+		printf(" (%u bytes): ", length);
+
+		for (i = 0; i < length; i++)
+			printf("%02x ", value[i]);
+
 	}
-
-	printf(" (%u bytes): ", length);
-
-	for (i = 0; i < length; i++)
-		printf("%02x ", value[i]);
-
 	PRLOG("\n");
 }
 
@@ -606,8 +647,10 @@ static void cmd_read_value(struct client *cli, char *cmd_str)
 		return;
 	}
 
+	uint16_t *pdata_handle = malloc(sizeof(uint16_t));
+	*pdata_handle = handle;
 	if (!bt_gatt_client_read_value(cli->gatt, handle, read_cb,
-								NULL, NULL))
+								pdata_handle, free))
 		printf("Failed to initiate read value procedure\n");
 }
 
@@ -668,10 +711,24 @@ static struct option write_value_options[] = {
 	{ }
 };
 
+struct write_data {
+	uint16_t handle;
+	uint8_t value[256];
+	uint16_t length;
+};
 static void write_cb(bool success, uint8_t att_ecode, void *user_data)
 {
 	if (success) {
-		PRLOG("\nWrite successful\n");
+		bt_uuid_t tmp;
+		char buf[256];
+		struct write_data *write_data= (struct write_data*)user_data;
+		if(get_chrc_by_handle(&tmp, write_data->handle)>=0 &&
+				conv_data_to_str(&tmp, buf, write_data->value, write_data->length) != NULL){
+			printf("\nWrite successful [%s]\n", get_UUID_str(&tmp));
+			PRLOG("%s\n", buf);
+		}else{
+			PRLOG("\nWrite successful\n");
+		}
 	} else {
 		PRLOG("\nWrite failed: %s (0x%02x)\n",
 				ecode_to_string(att_ecode), att_ecode);
@@ -771,9 +828,13 @@ static void cmd_write_value(struct client *cli, char *cmd_str)
 		goto done;
 	}
 
+	struct write_data *pdata_write_data = malloc(sizeof(struct write_data));
+	pdata_write_data->handle = handle;
+	pdata_write_data->length = length;
+	memcpy(pdata_write_data->value, value, length);
 	if (!bt_gatt_client_write_value(cli->gatt, handle, value, length,
 								write_cb,
-								NULL, NULL))
+								pdata_write_data, free))
 		printf("Failed to initiate write procedure\n");
 
 done:
@@ -1110,19 +1171,26 @@ static void notify_cb(uint16_t value_handle, const uint8_t *value,
 					uint16_t length, void *user_data)
 {
 	int i;
+	bt_uuid_t tmp;
+	char buf[256];
+	if(get_chrc_by_handle(&tmp, value_handle)>=0 &&
+			conv_data_to_str(&tmp, buf, value, length) != NULL){
+		printf("\n\tHandle Value Not/Ind: %s\n", get_UUID_str(&tmp));
+		printf("\t%s", buf);
+	}else{
+		printf("\n\tHandle Value Not/Ind: 0x%04x - ", value_handle);
 
-	printf("\n\tHandle Value Not/Ind: 0x%04x - ", value_handle);
+		if (length == 0) {
+			PRLOG("(0 bytes)\n");
+			return;
+		}
 
-	if (length == 0) {
-		PRLOG("(0 bytes)\n");
-		return;
+		printf("(%u bytes): ", length);
+
+		for (i = 0; i < length; i++)
+			printf("%02x ", value[i]);
+
 	}
-
-	printf("(%u bytes): ", length);
-
-	for (i = 0; i < length; i++)
-		printf("%02x ", value[i]);
-
 	PRLOG("\n");
 }
 
@@ -1134,7 +1202,7 @@ static void register_notify_cb(uint16_t att_ecode, void *user_data)
 		return;
 	}
 
-	PRLOG("Registered notify handler!");
+	PRLOG("\nRegistered notify handler!\n");
 }
 
 static void cmd_register_notify(struct client *cli, char *cmd_str)
@@ -1340,27 +1408,27 @@ static struct {
 	{ "services", cmd_services, "\tShow discovered services" },
 	{ "read-value", cmd_read_value,
 				"\tRead a characteristic or descriptor value" },
-	{ "read-long-value", cmd_read_long_value,
-		"\tRead a long characteristic or desctriptor value" },
-	{ "read-multiple", cmd_read_multiple, "\tRead Multiple" },
+	//{ "read-long-value", cmd_read_long_value,
+	//	"\tRead a long characteristic or desctriptor value" },
+	//{ "read-multiple", cmd_read_multiple, "\tRead Multiple" },
 	{ "write-value", cmd_write_value,
 			"\tWrite a characteristic or descriptor value" },
-	{ "write-long-value", cmd_write_long_value,
-			"Write long characteristic or descriptor value" },
-	{ "write-prepare", cmd_write_prepare,
-			"\tWrite prepare characteristic or descriptor value" },
-	{ "write-execute", cmd_write_execute,
-			"\tExecute already prepared write" },
+	//{ "write-long-value", cmd_write_long_value,
+	//		"Write long characteristic or descriptor value" },
+	//{ "write-prepare", cmd_write_prepare,
+	//		"\tWrite prepare characteristic or descriptor value" },
+	//{ "write-execute", cmd_write_execute,
+	//		"\tExecute already prepared write" },
 	{ "register-notify", cmd_register_notify,
 			"\tSubscribe to not/ind from a characteristic" },
 	{ "unregister-notify", cmd_unregister_notify,
 						"Unregister a not/ind session"},
-	{ "set-security", cmd_set_security,
-				"\tSet security level on le connection"},
-	{ "get-security", cmd_get_security,
-				"\tGet security level on le connection"},
-	{ "set-sign-key", cmd_set_sign_key,
-				"\tSet signing key for signed write command"},
+	//{ "set-security", cmd_set_security,
+	//			"\tSet security level on le connection"},
+	//{ "get-security", cmd_get_security,
+	//			"\tGet security level on le connection"},
+	//{ "set-sign-key", cmd_set_sign_key,
+	//			"\tSet signing key for signed write command"},
 	{ }
 };
 

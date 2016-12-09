@@ -29,7 +29,7 @@ static void onCharacterRead(bdaddr_t *addr, bt_uuid_t *chac_uuid, void *pdata,
 		strcpy((char*)read_rsp_buf, device_name);
 	}else if(!bt_uuid_cmp(chac_uuid, uuid_apperance)){
 		*read_rsp_buf_len = sizeof(unsigned short);
-		*read_rsp_buf = dev_apperance;
+		*(unsigned short*)read_rsp_buf = dev_apperance;
 	}else if(!bt_uuid_cmp(chac_uuid, uuid_address)){
 		*read_rsp_buf_len = sizeof(dev_address);
 		memcpy(read_rsp_buf, dev_address, sizeof(dev_address));
