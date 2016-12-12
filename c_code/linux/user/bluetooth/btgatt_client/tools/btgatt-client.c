@@ -46,6 +46,7 @@
 #include "src/shared/gatt-db.h"
 #include "src/shared/gatt-client.h"
 #include "src/ble_profile_uuid.h"
+#include "mgmt.h"
 
 #define ATT_CID 4
 
@@ -1609,6 +1610,11 @@ int main(int argc, char *argv[])
 	int fd;
 	sigset_t mask;
 	struct client *cli;
+	int HCI_DEV_ID = 0;
+
+	mgmt_setup(HCI_DEV_ID);
+	mgmt_set_name(HCI_DEV_ID,"BlueZ", "BT");
+	mgmt_set_iocap(HCI_DEV_ID, SMP_IO_NO_INPUT_OUTPUT);
 
 	while ((opt = getopt_long(argc, argv, "+hvs:m:t:d:i:",
 						main_options, NULL)) != -1) {
