@@ -583,8 +583,13 @@ char* conv_data_to_str(bt_uuid_t *uuid, char *buf, const uint8_t *value, uint16_
 		}else if(!uuid16_cmp(uuid , 0x2A38)){ //Body Sensor Location
 			const char *location[] = {
 				"Other", "Chest", "Wrist", "Finger", "Hand", "Ear Lobe", "Foot" };
-			int key = value[0];
-			if(key < 0 || key > sizeof(location)/sizeof(location[0])){
+			int key;
+			if(length > 0){
+				key = value[0];
+				if(key < 0 || key >= sizeof(location)/sizeof(location[0])){
+					key = 0;
+				}
+			}else{
 				key = 0;
 			}
 			sprintf(buf, "Body Sensor Location : %s", location[key]);

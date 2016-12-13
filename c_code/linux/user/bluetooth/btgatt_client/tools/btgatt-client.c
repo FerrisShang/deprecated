@@ -720,16 +720,7 @@ struct write_data {
 static void write_cb(bool success, uint8_t att_ecode, void *user_data)
 {
 	if (success) {
-		bt_uuid_t tmp;
-		char buf[256];
-		struct write_data *write_data= (struct write_data*)user_data;
-		if(get_chrc_by_handle(&tmp, write_data->handle)>=0 &&
-				conv_data_to_str(&tmp, buf, write_data->value, write_data->length) != NULL){
-			printf("\nWrite successful [%s]\n", get_UUID_str(&tmp));
-			PRLOG("%s\n", buf);
-		}else{
-			PRLOG("\nWrite successful\n");
-		}
+		PRLOG("\nWrite successful\n");
 	} else {
 		PRLOG("\nWrite failed: %s (0x%02x)\n",
 				ecode_to_string(att_ecode), att_ecode);
@@ -816,6 +807,12 @@ static void cmd_write_value(struct client *cli, char *cmd_str)
 			value[i-1] = val;
 		}
 	}
+	bt_uuid_t tmp;
+	char buf[256];
+	if(get_chrc_by_handle(&tmp, handle)>=0 &&
+			conv_data_to_str(&tmp, buf, value, length) != NULL){
+		printf("%s\n", buf);
+	}
 
 	if (without_response) {
 		if (!bt_gatt_client_write_without_response(cli->gatt, handle,
@@ -829,13 +826,8 @@ static void cmd_write_value(struct client *cli, char *cmd_str)
 		goto done;
 	}
 
-	struct write_data *pdata_write_data = malloc(sizeof(struct write_data));
-	pdata_write_data->handle = handle;
-	pdata_write_data->length = length;
-	memcpy(pdata_write_data->value, value, length);
 	if (!bt_gatt_client_write_value(cli->gatt, handle, value, length,
-								write_cb,
-								pdata_write_data, free))
+								write_cb, NULL, NULL))
 		printf("Failed to initiate write procedure\n");
 
 done:
@@ -1238,7 +1230,7 @@ static void cmd_register_notify(struct client *cli, char *cmd_str)
 		return;
 	}
 
-	PRLOG("Registering notify handler with id: %u\n", id);
+	printf("Registering notify handler with id: %u\n", id);
 }
 
 static void unregister_notify_usage(void)
