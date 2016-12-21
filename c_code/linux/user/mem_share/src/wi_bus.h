@@ -26,7 +26,7 @@ int wi_register(
 		void (*recv_cb)(wiaddr_t *remote_id, char *buf, int len, void *user_data),
 		void (*disc_cb)(void *user_data),
 		void *user_data);
-int wi_send(wiaddr_t *remote_id, char *buf, int len, int flag);
-int wi_unregister(void);
+int wi_send(wiaddr_t *local_id, wiaddr_t *remote_id, char *buf, int len, int flag);
+int wi_unregister(wiaddr_t *local_id);
 
 #endif /* __WI_BUS_H__ */

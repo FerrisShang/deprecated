@@ -19,7 +19,7 @@ void disc_cb(void *user_data)
 {
 	Log.d("wi_bus disconnected");
 	usleep(500000);
-	wi_unregister();
+	wi_unregister(NULL);
 	mem_dump();
 	exit(0);
 }
@@ -28,37 +28,39 @@ int main(int argc, char *argv[])
 #if 0
 	wi_bus_server_run();
 #else
-	wiaddr_t addr;
+	wiaddr_t laddr, raddr;
 	if(argc == 1){
 		return 0;
 	}
-	memcpy(&addr, argv[1], 8);
-	wi_register(&addr, recv_cb, disc_cb, NULL);
+	memcpy(&laddr, argv[1], 8);
+	wi_register(&laddr, recv_cb, disc_cb, NULL);
 	while(1){
-		char r_addr[12], buf[80];
-		if(scanf("%s %s", r_addr, buf) == EOF){
+		char l_addr[12], r_addr[12], buf[80];
+		if(scanf("%s %s %s", l_addr, r_addr, buf) == EOF){
 			return 0;
 		}
-		memcpy(&addr, r_addr, sizeof(wiaddr_t));
+		memcpy(&laddr, l_addr, sizeof(wiaddr_t));
+		memcpy(&raddr, r_addr, sizeof(wiaddr_t));
 		if(!strcmp(buf, "exit")){
 			break;
 		}
 		Log.v("begin send");
 		if(!strcmp(buf, "test")){
 			int i;
-			for(i=0;i<100000;i++){
+			for(i=0;i<10;i++){
 				sprintf(buf, "%d", i);
-				if(wi_send(&addr, buf, 1000, (i%10) == 0?
+				if(wi_send(&laddr, &raddr, buf, 1000, (i%10) == 0?
 							WI_FLAG_PRIORITY_HIGH : WI_FLAG_PRIORITY_LOW)<0){
 					break;
 				}
 			}
+			break;
 		}else{
-			wi_send(&addr, buf, strlen(buf), 0);
+			wi_send(&laddr, &raddr, buf, strlen(buf), 0);
 		}
 		Log.v("send done");
 	}
-	wi_unregister();
+	wi_unregister(NULL);
 	mem_dump();
 #endif
 	return 0;

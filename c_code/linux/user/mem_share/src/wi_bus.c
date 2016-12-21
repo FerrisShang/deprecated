@@ -19,7 +19,7 @@
 
 struct wi_bus_list_data{
 	struct wi_bus_data *wi_bus;
-	long thread_num;
+	wiaddr_t local_id;
 };
 
 struct recv_data {
@@ -46,16 +46,20 @@ struct queue *wi_bus_list;
 static bool is_thread_match(const void *data, const void *match_data)
 {
 	const struct wi_bus_list_data *list = data;
-	long thread_num = syscall(4222);
-	return (list->thread_num == thread_num);
+	wiaddr_t *local_id = (wiaddr_t*)match_data;
+	if(list){
+		return !memcmp(list->local_id.d, local_id, sizeof(wiaddr_t));
+	}else{
+		return false;
+	}
 }
-static struct wi_bus_data* get_current_wi_bus(void)
+static struct wi_bus_data* get_current_wi_bus(wiaddr_t *local_id)
 {
 	struct wi_bus_list_data *list_data;
-	if(!wi_bus_list){
+	if(!wi_bus_list || !local_id){
 		return NULL;
 	}
-	list_data = queue_find(wi_bus_list, is_thread_match, NULL);
+	list_data = queue_find(wi_bus_list, is_thread_match, local_id);
 	if(!list_data){
 		return NULL;
 	}
@@ -221,9 +225,8 @@ int wi_register(
 	pthread_create(&wi_bus->thread_read, NULL, wi_bus_client_read, wi_bus);
 
 	list_data->wi_bus = wi_bus;
-	list_data->thread_num = syscall(4222);
+	memcpy(&list_data->local_id, local_id, sizeof(wiaddr_t));
 	queue_push_tail(wi_bus_list, list_data);
-
 	return WI_RET_SUCCESS;
 create_client_failed :
 	wi_sem_destroy(&wi_bus->sem);
@@ -259,12 +262,12 @@ static void ret_cb(int status, void *pdata)
 	struct wi_send_data *wi_send = pdata;
 	wi_send->res = status;
 }
-int wi_send(wiaddr_t *remote_id, char *buf, int len, int flag)
+int wi_send(wiaddr_t *local_id,  wiaddr_t *remote_id, char *buf, int len, int flag)
 {
 	struct wi_send_data wi_send;
 	struct wi_bus_data *wi_bus;
 	int res;
-	wi_bus = get_current_wi_bus();
+	wi_bus = get_current_wi_bus(local_id);
 	if(!wi_bus || !wi_bus->client){
 		Log.e("wi_bus not registered");
 		return -1;
@@ -285,14 +288,14 @@ static void free_recv_data(void *data)
 	mem_free(recv->buf);
 	mem_free(recv);
 }
-int wi_unregister(void)
+int wi_unregister(wiaddr_t *local_id)
 {
 	struct wi_bus_data *wi_bus;
-	wi_bus = get_current_wi_bus();
+	wi_bus = get_current_wi_bus(local_id);
 	if(!wi_bus || !wi_bus->client || !wi_bus->recv_list){
 		return -1;
 	}
-	queue_remove_if(wi_bus_list, is_thread_match, NULL);
+	queue_remove_if(wi_bus_list, is_thread_match, local_id);
 	pc_req_destroy_client(wi_bus->client);
 	wi_sem_destroy(&wi_bus->sem);
 	wi_mutex_destroy(&wi_bus->mutex);
