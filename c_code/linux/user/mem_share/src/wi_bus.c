@@ -1,5 +1,7 @@
 #include <pthread.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/syscall.h>
 #include "wi_bus.h"
 #include "proc_comm.h"
 #include "queue.h"
@@ -11,9 +13,15 @@
 #define IPC_SEM_KEY ((key_t)0X005FC0DE)
 #define SHMGET_SIZE WI_BUS_MAX_BUFFER_SIZE
 
-#define SEND_NONBLOCK 0
+#define SEND_NONBLOCK 1
 
 #if SEND_NONBLOCK == 1
+
+struct wi_bus_list_data{
+	struct wi_bus_data *wi_bus;
+	long thread_num;
+};
+
 struct recv_data {
 	wiaddr_t remote_id;
 	char *buf;
@@ -33,8 +41,26 @@ struct wi_bus_data {
 	wi_sem_t sem;
 };
 
-struct wi_bus_data *wi_bus;
+struct queue *wi_bus_list;
 
+static bool is_thread_match(const void *data, const void *match_data)
+{
+	const struct wi_bus_list_data *list = data;
+	long thread_num = syscall(4222);
+	return (list->thread_num == thread_num);
+}
+static struct wi_bus_data* get_current_wi_bus(void)
+{
+	struct wi_bus_list_data *list_data;
+	if(!wi_bus_list){
+		return NULL;
+	}
+	list_data = queue_find(wi_bus_list, is_thread_match, NULL);
+	if(!list_data){
+		return NULL;
+	}
+	return list_data->wi_bus;
+}
 static bool is_broadcast_cb(void *id, int id_len)
 {
 	const static char bc_addr[] = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
@@ -153,7 +179,19 @@ int wi_register(
 		void (*disc_cb)(void *user_data),
 		void *user_data)
 {
+	struct wi_bus_data *wi_bus;
 	struct pc_c_client *client;
+	struct wi_bus_list_data *list_data;
+	if(!wi_bus_list){
+		wi_bus_list = queue_new();
+		if(!wi_bus_list){
+			goto queue_new_wi_bus_failed;
+		}
+	}
+	list_data = mem_malloc(sizeof(struct wi_bus_list_data));
+	if(!list_data){
+		goto malloc_list_data_failed;
+	}
 	wi_bus = mem_malloc(sizeof(struct wi_bus_data));
 	if(!wi_bus){
 		goto malloc_wi_bus_failed;
@@ -181,6 +219,11 @@ int wi_register(
 	wi_bus->pdata = user_data;
 	pthread_create(&wi_bus->thread_run, NULL, wi_bus_client_run, wi_bus);
 	pthread_create(&wi_bus->thread_read, NULL, wi_bus_client_read, wi_bus);
+
+	list_data->wi_bus = wi_bus;
+	list_data->thread_num = syscall(4222);
+	queue_push_tail(wi_bus_list, list_data);
+
 	return WI_RET_SUCCESS;
 create_client_failed :
 	wi_sem_destroy(&wi_bus->sem);
@@ -191,6 +234,9 @@ wi_mutex_init_failed :
 queue_new_failed :
 	mem_free(wi_bus);
 malloc_wi_bus_failed :
+	mem_free(list_data);
+malloc_list_data_failed :
+queue_new_wi_bus_failed :
 	return WI_RET_FAILED;
 }
 
@@ -216,9 +262,12 @@ static void ret_cb(int status, void *pdata)
 int wi_send(wiaddr_t *remote_id, char *buf, int len, int flag)
 {
 	struct wi_send_data wi_send;
+	struct wi_bus_data *wi_bus;
 	int res;
-	if(!wi_bus->client){
+	wi_bus = get_current_wi_bus();
+	if(!wi_bus || !wi_bus->client){
 		Log.e("wi_bus not registered");
+		return -1;
 	}
 	wi_send.buf = buf;
 	wi_send.len = len;
@@ -238,9 +287,12 @@ static void free_recv_data(void *data)
 }
 int wi_unregister(void)
 {
+	struct wi_bus_data *wi_bus;
+	wi_bus = get_current_wi_bus();
 	if(!wi_bus || !wi_bus->client || !wi_bus->recv_list){
 		return -1;
 	}
+	queue_remove_if(wi_bus_list, is_thread_match, NULL);
 	pc_req_destroy_client(wi_bus->client);
 	wi_sem_destroy(&wi_bus->sem);
 	wi_mutex_destroy(&wi_bus->mutex);
@@ -249,6 +301,7 @@ int wi_unregister(void)
 	return 0;
 }
 #else /* SEND_BLOCK */
+/*
 struct wi_bus_data {
 	struct pc_c_client *client;
 	void (*recv_cb)(wiaddr_t *remote_id, char *buf, int len, void *user_data);
@@ -371,4 +424,5 @@ int wi_unregister(void)
 	memset(&wi_bus, 0, sizeof(wi_bus));
 	return 0;
 }
+*/
 #endif /* SEND_NONBLOCK */
