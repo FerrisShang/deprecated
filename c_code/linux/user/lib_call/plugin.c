@@ -16,6 +16,7 @@ struct plugin* load_plugin(char *path, void *data)
 	plugin->lib_handle = dlopen(path, RTLD_LAZY);
 	if (!plugin->lib_handle){
 		fprintf(stderr, "%s\n", dlerror());
+		free(plugin);
 		return NULL;
 	}
 	plugin->init = dlsym(plugin->lib_handle, INIT_PLUGIN_SYMBOL);

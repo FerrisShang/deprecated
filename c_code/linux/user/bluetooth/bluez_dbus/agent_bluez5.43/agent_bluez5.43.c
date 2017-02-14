@@ -101,13 +101,24 @@ int main(int argc, char** argv)
 		if(msg != NULL){
 			if(dbus_message_is_method_call(msg, INTF_AGENT, "RequestAuthorization")){
 				DBusMessage* reply;
-				DBusMessageIter iter;
 				char *path;
-				dbus_message_iter_init(msg, &iter);
-				dbus_message_iter_get_basic(&iter, &path);
+				dbus_message_get_args(msg, NULL,
+						DBUS_TYPE_OBJECT_PATH, &path,
+						DBUS_TYPE_INVALID);
 				reply = dbus_message_new_method_return(msg);
 				dbus_connection_send(conn, reply, NULL);
 				printf("Pairing with device : %s\n", path2mac(path));
+			}
+			if(dbus_message_is_method_call(msg, INTF_AGENT, "AuthorizeService")){
+				DBusMessage* reply;
+				char *path, *uuid;
+				dbus_message_get_args(msg, NULL,
+						DBUS_TYPE_OBJECT_PATH, &path,
+						DBUS_TYPE_STRING, &uuid,
+						DBUS_TYPE_INVALID);
+				reply = dbus_message_new_method_return(msg);
+				dbus_connection_send(conn, reply, NULL);
+				printf("AuthorizeService - UUID:%s\n", uuid);
 			}
 		}
 	}
