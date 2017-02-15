@@ -106,7 +106,7 @@ void receive()
 		exit(1);
 	}
 	while (true) {
-		dbus_connection_read_write(conn, -1);
+		dbus_connection_read_write(conn, 100);
 		msg = dbus_connection_pop_message(conn);
 		// loop again if we haven't read a message
 		if (NULL == msg) {
