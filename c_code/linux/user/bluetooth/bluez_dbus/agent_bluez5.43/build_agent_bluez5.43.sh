@@ -13,7 +13,8 @@ $CC   \
 		-I$OUTPUT_FOLDER/usr/lib/dbus-1.0/include \
 		-L$OUTPUT_FOLDER/usr/lib \
 		-ldbus-1 \
-		agent_bluez5.43.c \
+		-Wall \
+		*.c \
 		-o agent_bluez5.43
 
 $STRIP agent_bluez5.43

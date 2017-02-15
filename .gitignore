@@ -23,3 +23,11 @@
 # others
 tags
 .*.swp
+*.tar
+*.xz
+*.gz
+*.tg
+*.bz2
+*.zip
+*.7z
+*.bk
