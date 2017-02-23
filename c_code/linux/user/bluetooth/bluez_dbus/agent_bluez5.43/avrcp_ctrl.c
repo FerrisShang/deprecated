@@ -1,3 +1,18 @@
+
+/* AVRCP control communicate with user and bluz
+ * To user: use interface "/ingenic/avrcp/status"
+ *     "Connected"
+ *     "Disconnected"
+ *     "playing"
+ *     "stopped"
+ * from user: use interface "/ingenic/avrcp/ctrl"
+ *     "Play"
+ *     "Stop"
+ *     "Next"
+ *     "Previous"
+ *     "Pause"
+ */
+
 #include <dbus/dbus.h>
 #include <stdio.h>
 #include <string.h>
@@ -8,7 +23,6 @@
 
 #define DEST_BLUEZ    "org.bluez"
 static char player_path[80];
-static char fd_path[80];
 static char device_path[80];
 
 dbus_bool_t init_avrcp_srv(DBusConnection* conn)
@@ -61,10 +75,9 @@ dbus_bool_t process_avrcp_status(DBusConnection *conn, DBusMessage *msg)
 			printf("player_path : %s\n", path);
 			notify_status(conn, "Connected");
 		}else if(strstr(path, "/fd")){
-			strcpy(fd_path, path);
 			strcpy(device_path, path);
 			*strstr(device_path, "/fd") = '\0';
-			printf("fd_path : %s\n", path);
+			printf("device_path : %s\n", path);
 		}
 		return TRUE;
 	}else if(member && !strcmp(member, "InterfacesRemoved")){
@@ -75,9 +88,8 @@ dbus_bool_t process_avrcp_status(DBusConnection *conn, DBusMessage *msg)
 			player_path[0] = '\0';
 			notify_status(conn, "Disconnected");
 		}else if(strstr(path, "/fd")){
-			fd_path[0] = '\0';
 			device_path[0] = '\0';
-			printf("fd_path removed\n");
+			printf("device_path removed\n");
 		}
 		return TRUE;
 	}else if(member && !strcmp(member, "PropertiesChanged")){

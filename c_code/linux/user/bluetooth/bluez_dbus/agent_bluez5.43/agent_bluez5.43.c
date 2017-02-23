@@ -26,6 +26,7 @@
 #include <unistd.h>
 #include "pair_ctrl.h"
 #include "avrcp_ctrl.h"
+#include "reconnect.h"
 
 #define DEST_BLUEZ    "org.bluez"
 #define PATH_BLUEZ    "/org/bluez"
@@ -56,6 +57,7 @@ int main(int argc, char** argv)
 
    init_pairable(conn);
    init_avrcp_srv(conn);
+   reconnect(conn);
 
    //Wait for processing pair request
 	while (true) {

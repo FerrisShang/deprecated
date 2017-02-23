@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <unistd.h>
 #include "pair_ctrl.h"
+#include "reconnect.h"
 
 #define DEST_BLUEZ    "org.bluez"
 #define PATH_BLUEZ    "/org/bluez"
@@ -62,6 +63,8 @@ dbus_bool_t init_pairable(DBusConnection* conn)
 dbus_bool_t process_pair_req(DBusConnection *conn, DBusMessage *msg)
 {
 	char *path;
+	char *mac_address;
+	char buf[64];
 	DBusMessage* reply;
 	if(dbus_message_is_method_call(msg, INTF_AGENT, "RequestAuthorization")){
 		dbus_message_get_args(msg, NULL,
@@ -69,7 +72,11 @@ dbus_bool_t process_pair_req(DBusConnection *conn, DBusMessage *msg)
 				DBUS_TYPE_INVALID);
 		reply = dbus_message_new_method_return(msg);
 		dbus_connection_send(conn, reply, NULL);
-		printf("Pairing with device : %s\n", path2mac(path));
+		mac_address = path2mac(path);
+		printf("Pairing with device : %s\n", mac_address);
+		snprintf(buf, sizeof(buf), "echo \"%s\" > %s", mac_address, RECONNECT_RECORD);
+		puts(buf);
+		system(buf);
 		return TRUE;
 	}else{
 		return FALSE;
