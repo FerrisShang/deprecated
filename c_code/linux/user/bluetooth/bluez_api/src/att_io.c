@@ -147,7 +147,7 @@ static void connected_cb(int fd, bdaddr_t addr)
 }
 static void *listen_thd(void *argv)  
 {
-	int security = BT_SECURITY_LOW;
+	int security = BT_SECURITY_HIGH;
 	l2cap_le_att_listen_and_accept(hci_device, security, connected_cb);
 	return NULL;
 }

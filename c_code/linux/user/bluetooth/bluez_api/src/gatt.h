@@ -61,7 +61,7 @@ struct gattc_cb{
 int init_gatt(int hdev);
 //server api
 struct gatt_service* create_service(bt_uuid_t *uuid);
-struct gatt_character* create_character(bt_uuid_t *uuid, UINT8 prop);
+struct gatt_character* create_character(bt_uuid_t *uuid, UINT16 prop);
 int service_add_character(struct gatt_service *service, struct gatt_character *character);
 const struct gatts_if* register_gatt_service(
 		struct gatt_service* gatt_service, struct gatts_cb *io_cb, void *pdata);

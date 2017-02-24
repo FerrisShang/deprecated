@@ -21,7 +21,8 @@ struct gatt_character {
 	UINT16 type_handle;
 	UINT16 value_handle;
 	UINT16 desc_handle;
-	UINT8 prop;
+	UINT16 rpt_ref_handle; /* defined for hid over gatt */
+	UINT16 prop;
 };
 
 struct common_rsp_func {
@@ -161,6 +162,7 @@ static bool find_gatt_character_by_handle_cb(const void *data, const void *match
 	handle = (UINT16*)match_data;
 	if((*handle == gatt_character->value_handle-1) ||
 			(*handle == gatt_character->value_handle) ||
+			(*handle == gatt_character->rpt_ref_handle) ||
 			(*handle == gatt_character->desc_handle)){
 		return true;
 	}
@@ -196,6 +198,8 @@ static int get_handle_info(struct handle_info *handle_info, UINT16 handle)
 	if(handle == gatt_character->value_handle){
 		handle_info->type = HANDLE_CHARACTER;
 	}else if(handle == gatt_character->desc_handle){
+		handle_info->type = HANDLE_DESC_CONF;
+	}else if(handle == gatt_character->rpt_ref_handle){/* defined for hid over gatt */
 		handle_info->type = HANDLE_DESC_CONF;
 	}else{
 		goto get_handle_info_failed;
@@ -313,14 +317,14 @@ static int onReceive(bdaddr_t *addr, UINT8 opcode,
 					case HANDLE_DESC_CONF :
 						if(opcode == BT_ATT_OP_WRITE_REQ){
 							UINT16 desc_value;
-							gatt_send(addr, gatt_services,
-									BT_ATT_OP_WRITE_RSP, NULL, 0);
 							STREAM_TO_UINT16(desc_value, p);
 							handle_info.gatt_service->io_cb->onDescriptorWrite(
 									addr,
 									handle_info.gatt_character->uuid,
 									desc_value,
 									handle_info.gatt_service->pdata);
+							gatt_send(addr, gatt_services,
+									BT_ATT_OP_WRITE_RSP, NULL, 0);
 						}else if(opcode == BT_ATT_OP_READ_REQ){
 							UINT16 desc_value;
 							rsp_len = 0;
@@ -406,13 +410,14 @@ malloc_character_list_failed :
 	mem_free(gatt_service);
 	return NULL;
 }
-struct gatt_character* create_character(bt_uuid_t *uuid, UINT8 prop)
+struct gatt_character* create_character(bt_uuid_t *uuid, UINT16 prop)
 {
 	struct gatt_character *gatt_character;
 	gatt_character = mem_malloc(sizeof(struct gatt_character));
 	if(!gatt_character){
 		return NULL;
 	}
+	memset(gatt_character, 0, sizeof(struct gatt_character));
 	gatt_character->uuid = uuid;
 	gatt_character->prop = prop;
 	return gatt_character;
@@ -434,8 +439,14 @@ void init_service_handle_value_cb(void *data, void *user_data)
 		gatt_character->prop & BT_GATT_CHRC_PROP_INDICATE ){
 		gatt_character->type_handle = gatt_service->handle_end + 1;
 		gatt_character->value_handle = gatt_service->handle_end + 2;
-		gatt_character->desc_handle = gatt_service->handle_end + 3;
-		gatt_service->handle_end += 3;
+		if(gatt_character->prop & BT_GATT_CHRC_PROP_REPORT_REF){
+			gatt_character->rpt_ref_handle = gatt_service->handle_end + 3;
+			gatt_character->desc_handle = gatt_service->handle_end + 4;
+			gatt_service->handle_end += 4;
+		}else{
+			gatt_character->desc_handle = gatt_service->handle_end + 3;
+			gatt_service->handle_end += 3;
+		}
 	}else{
 		gatt_character->type_handle = gatt_service->handle_end + 1;
 		gatt_character->value_handle = gatt_service->handle_end + 2;
@@ -573,9 +584,14 @@ static void find_info_rsp(bdaddr_t *addr,
 			goto info_not_found_failed;
 		}
 		UINT8_TO_STREAM(p, FIND_INFO_UUID_TYPE_16_BIT);//all descreptor type UUID is 16 bit
+		if(gatt_character->rpt_ref_handle != 0){
+			UINT16_TO_STREAM(p, gatt_character->rpt_ref_handle);//use for HID over Gatt
+			UINT16_TO_STREAM(p, GATT_REPORT_REFERENCE);
+		}
 		UINT16_TO_STREAM(p, gatt_character->desc_handle);
 		//we only support character configure descreptor
 		UINT16_TO_STREAM(p, GATT_CLIENT_CHARAC_CFG_UUID);
+
 		rsp_len = p - rsp;
 		gatt_send(addr, gatt_services, BT_ATT_OP_FIND_INFO_RSP, rsp, rsp_len);
 		return;
