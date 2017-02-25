@@ -3,6 +3,8 @@
 
 #include "att_io.h"
 
+#define BT_ATT_DEFAULT_LE_MTU 23
+
 #define ATT_REQUEST_TOUT_S              3
 /* ATT protocol opcodes */
 #define BT_ATT_OP_ERROR_RSP             0x01

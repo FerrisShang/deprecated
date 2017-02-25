@@ -42,6 +42,8 @@ struct gatts_cb {
 	void (*onDescriptorWrite)(bdaddr_t *addr, bt_uuid_t *desc_uuid,
 			UINT16 desc, void *pdata);
 	void (*onMtuChanged)(bdaddr_t *addr, int mtu, void *pdata);
+	void (*onCharacterReadBlob)(bdaddr_t *addr, bt_uuid_t *chac_uuid, void *pdata,
+			int offset, UINT8 *read_rsp_buf, UINT16 *read_rsp_buf_len);
 	//void onIndicationSent(bdaddr_t *addr, int status, void *pdata);
 };
 struct gattc_cb{

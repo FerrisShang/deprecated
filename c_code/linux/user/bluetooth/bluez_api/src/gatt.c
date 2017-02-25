@@ -13,6 +13,7 @@ struct gatt_service {
 	struct queue *character_list; /* type of struct gatt_character */
 	struct gatts_cb *io_cb;
 	struct gatts_if io_if;
+	int mtu;
 	void *pdata;
 };
 
@@ -284,6 +285,7 @@ static int onReceive(bdaddr_t *addr, UINT8 opcode,
 		case BT_ATT_OP_READ_BY_GRP_TYPE_RSP :
 			break;
 		case BT_ATT_OP_READ_REQ :
+		case BT_ATT_OP_READ_BLOB_REQ :
 		case BT_ATT_OP_WRITE_REQ :{
 			UINT16 handle;
 			struct handle_info handle_info;
@@ -312,6 +314,24 @@ static int onReceive(bdaddr_t *addr, UINT8 opcode,
 							}
 							gatt_send(addr, gatt_services,
 									BT_ATT_OP_READ_RSP, rsp_pdu, rsp_len);
+						}else if(opcode == BT_ATT_OP_READ_BLOB_REQ){
+							UINT16 offset;
+							STREAM_TO_UINT16(offset, p);
+							if(handle_info.gatt_service->io_cb->onCharacterReadBlob){
+								rsp_len = 0;
+								handle_info.gatt_service->io_cb->onCharacterReadBlob(
+										addr, handle_info.gatt_character->uuid,
+										handle_info.gatt_service->pdata, offset,
+										rsp_pdu, &rsp_len);
+								if(rsp_len < 0){
+									rsp_len = 0;
+								}
+								gatt_send(addr, gatt_services,
+										BT_ATT_OP_READ_BLOB_RSP, rsp_pdu, rsp_len);
+							}else{
+								send_att_error(addr, gatt_services, opcode, 0x0001,
+										BT_ATT_ERROR_REQUEST_NOT_SUPPORTED);
+							}
 						}
 						break;
 					case HANDLE_DESC_CONF :
@@ -355,7 +375,6 @@ static int onReceive(bdaddr_t *addr, UINT8 opcode,
 			break;
 		case BT_ATT_OP_FIND_BY_TYPE_VAL_REQ :
 		case BT_ATT_OP_FIND_BY_TYPE_VAL_RSP :
-		case BT_ATT_OP_READ_BLOB_REQ :
 		case BT_ATT_OP_READ_BLOB_RSP :
 		case BT_ATT_OP_READ_MULT_REQ :
 		case BT_ATT_OP_READ_MULT_RSP :
@@ -404,6 +423,7 @@ struct gatt_service* create_service(bt_uuid_t *uuid)//init uuid & character_list
 		goto malloc_character_list_failed;
 	}
 	gatt_service->uuid = uuid;
+	gatt_service->mtu = BT_ATT_DEFAULT_LE_MTU;
 	gatt_service->io_if.sendNotification = gatts_send_notification;
 	return gatt_service;
 malloc_character_list_failed :
@@ -507,6 +527,7 @@ static void mtu_change_cb(void *data, void *user_data)
 {
 	struct gatt_service *gatt_service = data;
 	struct addr_mtu *addr_mtu = user_data;
+	gatt_service->mtu = addr_mtu->mtu;
 	gatt_service->io_cb->onMtuChanged(
 			addr_mtu->addr,
 			addr_mtu->mtu,
