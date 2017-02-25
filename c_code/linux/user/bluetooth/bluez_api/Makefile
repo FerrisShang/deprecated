@@ -1,4 +1,4 @@
-app = gatt_mgmt
+app = gatt-server
 
 CC = mips-linux-gnu-gcc
 #CC = gcc
