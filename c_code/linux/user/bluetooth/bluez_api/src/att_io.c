@@ -200,3 +200,19 @@ static int att_io_send(bdaddr_t *addr, UINT8 opcode, UINT8 *pdu, UINT32 len)
 	}
 	return ATT_IO_SUCCESS;
 }
+
+int att_get_security(bdaddr_t *addr)
+{
+	struct bt_security sec;
+	socklen_t len;
+	struct io_data *io_data = search_io_data_by_addr(addr);
+	if(io_data == NULL){
+		return -1;
+	}
+	memset(&sec, 0, sizeof(sec));
+	len = sizeof(sec);
+	if (getsockopt(io_data->fd, SOL_BLUETOOTH, BT_SECURITY, &sec, &len) < 0)
+		return -EIO;
+
+	return sec.level;
+}

@@ -10,12 +10,13 @@
 #define HCI_DEV_ID 0
 
 const struct gatts_if *gatts;
-static bt_uuid_t *u_report_map, *u_hid_report, *u_hid_ctrl_point, *u_hid_info;
+static bt_uuid_t *u_report_map, *u_hid_report, *u_hid_info;
 static struct {
 	UINT16 status;
 	bdaddr_t addr;
 	bt_uuid_t desc_uuid;
 	int mtu;
+	char is_paired;
 } device;
 static pthread_t thread;
 static void* notify_heartrate(void *pdata);
@@ -49,21 +50,18 @@ static void onConnectionStateChange(bdaddr_t *addr, int newState, void *pdata)
 	}else{
 		report[0] = 0;
 		device.mtu = BT_ATT_DEFAULT_LE_MTU;
+		device.is_paired = 0;
 	}
 }
 static void onCharacterRead(bdaddr_t *addr, bt_uuid_t *chac_uuid, void *pdata,
 		UINT8 *read_rsp_buf, UINT16 *read_rsp_buf_len)
 {
-	printf("mtu=%d\n", device.mtu);
 	if(!bt_uuid_cmp(chac_uuid, u_report_map)){
-		printf("%d\n", __LINE__);
 		if(device.mtu-1 >= sizeof(r_map)){
 			*read_rsp_buf_len = sizeof(r_map);
-			printf("l=%d,%d\n", *read_rsp_buf_len, __LINE__);
 			memcpy((char*)read_rsp_buf, r_map, sizeof(r_map));
 		}else{
 			*read_rsp_buf_len = device.mtu-1;
-			printf("l=%d,%d\n", *read_rsp_buf_len, __LINE__);
 			memcpy((char*)read_rsp_buf, r_map, device.mtu-1);
 		}
 	}else if(!bt_uuid_cmp(chac_uuid, u_hid_info)){
@@ -76,9 +74,6 @@ static void onCharacterRead(bdaddr_t *addr, bt_uuid_t *chac_uuid, void *pdata,
 static void onCharacterWrite(bdaddr_t *addr, bt_uuid_t *chac_uuid,
 	  UINT8 *buf, UINT16 len, void *pdata)
 {
-	if(!bt_uuid_cmp(chac_uuid, u_hid_ctrl_point)){
-		printf("u_hid_ctrl_point writing\n");
-	}
 }
 static void onDescriptorRead(bdaddr_t *addr, bt_uuid_t *desc_uuid,
 		void *pdata, UINT16 *ret_desc)
@@ -91,11 +86,19 @@ static void onDescriptorRead(bdaddr_t *addr, bt_uuid_t *desc_uuid,
 static void onDescriptorWrite(bdaddr_t *addr, bt_uuid_t *desc_uuid,
 	  UINT16 desc, void *pdata)
 {
-	sleep(2);
-	printf("pairing ok\n");
-	device.status = desc;
-	device.addr = *addr;
-	device.desc_uuid = *desc_uuid;
+	int sec, cnt = 30;
+	while(cnt--){
+		sec = att_get_security(addr);
+		if(sec == BT_SECURITY_HIGH){
+			device.status = desc;
+			device.addr = *addr;
+			device.desc_uuid = *desc_uuid;
+			device.is_paired = 1;
+			return;
+		}
+		usleep(500000);
+	}
+	printf("HID device paired timeout\n");
 }
 static void onMtuChanged(bdaddr_t *addr, int mtu, void *pdata)
 {
@@ -135,11 +138,10 @@ static struct gatts_cb io_cb = {
 void init_hid_device(void)
 {
 	struct gatt_service *service;
-	struct gatt_character *report_map, *hid_info, *hid_ctrl_point, *hid_report1, *hid_report2;
+	struct gatt_character *report_map, *hid_info, *hid_report1, *hid_report2;
 
 	u_report_map = bt_create_uuid_from_string(UUID_GATT_REPORT_MAP_CHARAC);
 	u_hid_report = bt_create_uuid_from_string(UUID_GATT_REPORT_CHARAC);
-	u_hid_ctrl_point = bt_create_uuid_from_string(UUID_GATT_HID_CTL_POINT_CHARAC);
 	u_hid_info = bt_create_uuid_from_string(UUID_GATT_HID_INFO_CHARAC);
 
 	service = create_service(bt_create_uuid_from_string(UUID_GATT_HID_SERVICE));
@@ -157,15 +159,11 @@ void init_hid_device(void)
 			BT_GATT_CHRC_PROP_WRITE |
 			BT_GATT_CHRC_PROP_NOTIFY |
 			BT_GATT_CHRC_PROP_REPORT_REF);
-	hid_ctrl_point = create_character(u_hid_ctrl_point,
-			BT_GATT_CHRC_PROP_WRITE);
-
 	hid_info = create_character(u_hid_info,
 			BT_GATT_CHRC_PROP_READ |
 			BT_GATT_CHRC_PROP_WRITE |
 			BT_GATT_CHRC_PROP_NOTIFY);
 	service_add_character(service, report_map);
-	service_add_character(service, hid_ctrl_point);
 	service_add_character(service, hid_info);
 	service_add_character(service, hid_report1);
 	service_add_character(service, hid_report2);
@@ -181,15 +179,17 @@ void init_hid_device(void)
 static void* notify_heartrate(void *pdata)
 {
 	while(1){
-		usleep(15000000);
-		if(gatts && (device.status & DESCREPTOR_NOTIFICATION)){
-			sleep(5);
+		if(device.is_paired == 1 &&
+				gatts && (device.status & DESCREPTOR_NOTIFICATION)){
+			sleep(1);
 			char data1[] = {0,0,9,0,0,0,0,0};
 			char data2[] = {0,0,0,0,0,0,0,0};
 			gatts->sendNotification(&device.addr, &device.desc_uuid,
 					(UINT8*)&data1, sizeof(data1));
 			gatts->sendNotification(&device.addr, &device.desc_uuid,
 					(UINT8*)&data2, sizeof(data2));
+		}else{
+			sleep(1);
 		}
 	}
 	return 0;

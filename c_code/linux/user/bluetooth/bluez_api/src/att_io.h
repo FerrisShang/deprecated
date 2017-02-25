@@ -25,5 +25,6 @@ struct att_io {
 	void (*timeout_remove)(UINT32 id);
 };
 const struct att_io* register_att_io(int hdev, struct att_io_cb *io_cb, void *pdata);
+int att_get_security(bdaddr_t *addr);
 
 #endif /* __ATT_IO_H__ */
