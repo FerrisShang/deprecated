@@ -7,6 +7,7 @@
 #include "mgmt.h"
 #include "log.h"
 #include "mem_manage.h"
+#include "hid_code.h"
 #define HCI_DEV_ID 0
 
 const struct gatts_if *gatts;
@@ -21,7 +22,7 @@ static struct {
 static pthread_t thread;
 static void* notify_heartrate(void *pdata);
 
-char r_map[] = {
+char hid_map[] = {
 	0x05, 0x01, 0x09, 0x06, 0xa1, 0x01, 0x85, 0x01,
 	0x75, 0x01, 0x95, 0x08, 0x05, 0x07, 0x19, 0xe0,
 	0x29, 0xe7, 0x15, 0x00, 0x25, 0x01, 0x81, 0x02,
@@ -39,7 +40,7 @@ char r_map[] = {
 	0x81, 0x02, 0x95, 0x01, 0x75, 0x03, 0x81, 0x03,
 	0xc0,
 };
-char r_info[] = {0x01, 0x02, 0x00, 0x03};
+char hid_info[] = {0x01, 0x02, 0x00, 0x03};
 static char report[] = {0x00, 0x01}; /* report ID & report type */
 
 static void onConnectionStateChange(bdaddr_t *addr, int newState, void *pdata)
@@ -57,16 +58,16 @@ static void onCharacterRead(bdaddr_t *addr, bt_uuid_t *chac_uuid, void *pdata,
 		UINT8 *read_rsp_buf, UINT16 *read_rsp_buf_len)
 {
 	if(!bt_uuid_cmp(chac_uuid, u_report_map)){
-		if(device.mtu-1 >= sizeof(r_map)){
-			*read_rsp_buf_len = sizeof(r_map);
-			memcpy((char*)read_rsp_buf, r_map, sizeof(r_map));
+		if(device.mtu-1 >= sizeof(hid_map)){
+			*read_rsp_buf_len = sizeof(hid_map);
+			memcpy((char*)read_rsp_buf, hid_map, sizeof(hid_map));
 		}else{
 			*read_rsp_buf_len = device.mtu-1;
-			memcpy((char*)read_rsp_buf, r_map, device.mtu-1);
+			memcpy((char*)read_rsp_buf, hid_map, device.mtu-1);
 		}
 	}else if(!bt_uuid_cmp(chac_uuid, u_hid_info)){
-		*read_rsp_buf_len = sizeof(r_info);
-		memcpy((char*)read_rsp_buf, r_info, sizeof(r_info));
+		*read_rsp_buf_len = sizeof(hid_info);
+		memcpy((char*)read_rsp_buf, hid_info, sizeof(hid_info));
 	}else if(!bt_uuid_cmp(chac_uuid, u_hid_report)){
 	}else{
 	}
@@ -109,12 +110,12 @@ static void onCharacterReadBlob(bdaddr_t *addr, bt_uuid_t *chac_uuid, void *pdat
 		int offset, UINT8 *read_rsp_buf, UINT16 *read_rsp_buf_len)
 {
 	if(!bt_uuid_cmp(chac_uuid, u_report_map)){
-		if(device.mtu-1 >= sizeof(r_map)-offset){
-			*read_rsp_buf_len = sizeof(r_map)-offset;
-			memcpy((char*)read_rsp_buf, &r_map[offset], sizeof(r_map)-offset);
+		if(device.mtu-1 >= sizeof(hid_map)-offset){
+			*read_rsp_buf_len = sizeof(hid_map)-offset;
+			memcpy((char*)read_rsp_buf, &hid_map[offset], sizeof(hid_map)-offset);
 		}else{
 			*read_rsp_buf_len = device.mtu-1;
-			memcpy((char*)read_rsp_buf, &r_map[offset], device.mtu-1);
+			memcpy((char*)read_rsp_buf, &hid_map[offset], device.mtu-1);
 		}
 	}
 }
@@ -176,21 +177,39 @@ void init_hid_device(void)
 	}
 }
 
+void send_ascII(char ch)
+{
+	char press[] = {0,0,0,0,0,0,0,0};
+	char release[] = {0,0,0,0,0,0,0,0};
+	if(device.is_paired == 1 &&
+			gatts && (device.status & DESCREPTOR_NOTIFICATION)){
+		if(ch > 128 || key_map[(unsigned char)ch].hid_code == 0){
+			printf("key value %d not support\n", ch);
+		}else{
+			printf("press key -> 0x%02x\n", ch);
+			press[0] = key_map[(unsigned char)ch].hid_modifier;
+			press[2] = key_map[(unsigned char)ch].hid_code;
+			gatts->sendNotification(&device.addr, &device.desc_uuid,
+					(UINT8*)&press, sizeof(press));
+			gatts->sendNotification(&device.addr, &device.desc_uuid,
+					(UINT8*)&release, sizeof(release));
+		}
+	}else{
+		printf("Hid not ready\n");
+	}
+}
+
 static void* notify_heartrate(void *pdata)
 {
+	char ch;
 	while(1){
-		if(device.is_paired == 1 &&
-				gatts && (device.status & DESCREPTOR_NOTIFICATION)){
-			sleep(1);
-			char data1[] = {0,0,9,0,0,0,0,0};
-			char data2[] = {0,0,0,0,0,0,0,0};
-			gatts->sendNotification(&device.addr, &device.desc_uuid,
-					(UINT8*)&data1, sizeof(data1));
-			gatts->sendNotification(&device.addr, &device.desc_uuid,
-					(UINT8*)&data2, sizeof(data2));
-		}else{
-			sleep(1);
+		system("stty raw");
+		ch = getchar();
+		system("stty cooked");
+		if(ch == 3){// ctrl + c
+			exit(0);
 		}
+		send_ascII(ch);
 	}
 	return 0;
 }

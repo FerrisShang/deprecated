@@ -223,3 +223,5 @@
  * 0xE7 Keyboard Right GUI
  * 0xE8-0xFFFF Reserved
  */
+
+void send_ascII(char ch);
