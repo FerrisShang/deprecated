@@ -260,6 +260,20 @@ static int onReceive(bdaddr_t *addr, UINT8 opcode,
 			}break;
 		case BT_ATT_OP_FIND_INFO_RSP :
 			break;
+#if 0
+		case BT_ATT_OP_FIND_BY_TYPE_VAL_REQ :
+			;
+			break;
+		case BT_ATT_OP_FIND_BY_TYPE_VAL_RSP :
+			UINT16 start_handle, end_handle, remain_len;
+			bt_uuid_t uuid;
+			STREAM_TO_UINT16(start_handle, p);
+			STREAM_TO_UINT16(end_handle, p);
+			uuid.type = BT_UUID16;
+			STREAM_TO_UINT16(uuid.value, p);
+			remain_len = length - (p-(UINT8*)pdu);
+			break;
+#endif
 		case BT_ATT_OP_READ_BY_TYPE_REQ :{
 			UINT16 start_handle, end_handle, remain_len;
 			bt_uuid_t uuid;
@@ -632,6 +646,11 @@ static void find_info_rsp(bdaddr_t *addr,
 		UINT16_TO_STREAM(p, gatt_character->desc_handle);
 		//we only support character configure descreptor
 		UINT16_TO_STREAM(p, GATT_CLIENT_CHARAC_CFG_UUID);
+
+		if(gatt_character->rpt_ref_handle != 0){
+			UINT16_TO_STREAM(p, gatt_character->rpt_ref_handle);//use for HID over Gatt
+			UINT16_TO_STREAM(p, GATT_REPORT_REFERENCE);
+		}
 		rsp_len = p - rsp;
 		gatt_send(addr, gatt_services, BT_ATT_OP_FIND_INFO_RSP, rsp, rsp_len);
 		return;
