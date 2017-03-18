@@ -3,7 +3,7 @@
 #include <sys/stat.h>
 #include "get_screen_png.h"
 
-#define MAX_BUF_SIZE (8<<20)
+#define MAX_BUF_SIZE (16<<20)
 static struct screen_png screen;
 static char *file_org_buf;
 static char *file_new_buf;
@@ -39,19 +39,26 @@ struct screen_png* get_screen_png(void)
 	}
 	p = file_new_buf;
 	q = file_org_buf;
-	for(i=0;i<size-1;i++){
-		if(*q == 0x0D && *(q+1) == 0x0A){
+	if(q[0] != (char)0x89 || q[1] != (char)0x50 || q[2] != (char)0x4e ||
+			q[3] != (char)0x47 || q[4] != (char)0x0d || q[5] != (char)0x0a ||
+			q[6] != (char)0x1a || q[7] != (char)0x0a){
+		for(i=0;i<size-1;i++){
+			if(*q == 0x0D && *(q+1) == 0x0A){
+				q++;
+				continue;
+			}
+			*p = *q;
+			p++;
 			q++;
-			continue;
 		}
-		*p = *q;
+		*p = *q; //last byte
 		p++;
-		q++;
+		screen.size = p - file_new_buf;
+		screen.data = file_new_buf;
+	}else{
+		screen.size = size;
+		screen.data = file_org_buf;
 	}
-	*p = *q; //last byte
-	p++;
-	screen.size = p - file_new_buf;
-	screen.data = file_new_buf;
 	return &screen;
 }
 
