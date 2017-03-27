@@ -186,7 +186,7 @@ static int att_io_connect(bdaddr_t *addr)
 		Log.v("LE device %s already connected", dstaddr_str);
 		return ATT_IO_SUCCESS;
 	}
-	int security = BT_SECURITY_LOW;
+	int security = BT_SECURITY_HIGH;
 	if(l2cap_le_att_connect(hci_device, addr, security, connected_cb)<0){
 		return ATT_IO_FAILED_NOEXIST;
 	}

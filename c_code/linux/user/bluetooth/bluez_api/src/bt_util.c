@@ -171,9 +171,9 @@ int le_set_random_address(int hdev)
 	}
 	hci_devba(hdev, &src_addr);
 	//translate public address to random address
-	src_addr.b[5] = ~src_addr.b[5];
-	src_addr.b[5] &= 0x7F;
-	src_addr.b[5] |= 0x40;
+	//src_addr.b[5] = ~src_addr.b[5];
+	//src_addr.b[5] &= 0x7F;
+	//src_addr.b[5] |= 0x40;
 	hci_le_set_random_address(dd, &src_addr, timeout);
 	hci_close_dev(dd);
 	return 0;
@@ -191,7 +191,7 @@ int le_set_advertise_parameters(int hdev)
 	}
 	hci_le_set_advertise_parameters(dd,
 			0x0020, 0x0040,
-			0,      LE_RANDOM_ADDRESS,
+			0,      LE_PUBLIC_ADDRESS,
 			0,      direct_bdaddr,
 			7,      0, timeout);
 	hci_close_dev(dd);

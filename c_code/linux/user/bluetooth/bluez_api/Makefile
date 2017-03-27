@@ -1,4 +1,4 @@
-app = gatt-server
+app = ble_server
 
 CC = mips-linux-gnu-gcc
 #CC = gcc

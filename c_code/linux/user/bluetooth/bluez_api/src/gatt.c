@@ -494,8 +494,8 @@ void init_service_handle_value_cb(void *data, void *user_data)
 		gatt_character->type_handle = gatt_service->handle_end + 1;
 		gatt_character->value_handle = gatt_service->handle_end + 2;
 		if(gatt_character->prop & BT_GATT_CHRC_PROP_REPORT_REF){
-			gatt_character->rpt_ref_handle = gatt_service->handle_end + 3;
-			gatt_character->desc_handle = gatt_service->handle_end + 4;
+			gatt_character->desc_handle = gatt_service->handle_end + 3;
+			gatt_character->rpt_ref_handle = gatt_service->handle_end + 4;
 			gatt_service->handle_end += 4;
 		}else{
 			gatt_character->desc_handle = gatt_service->handle_end + 3;
@@ -639,18 +639,19 @@ static void find_info_rsp(bdaddr_t *addr,
 			goto info_not_found_failed;
 		}
 		UINT8_TO_STREAM(p, FIND_INFO_UUID_TYPE_16_BIT);//all descreptor type UUID is 16 bit
-		if(gatt_character->rpt_ref_handle != 0){
-			UINT16_TO_STREAM(p, gatt_character->rpt_ref_handle);//use for HID over Gatt
-			UINT16_TO_STREAM(p, GATT_REPORT_REFERENCE);
+		if(gatt_character->desc_handle >= start_handle &&
+				gatt_character->desc_handle <= end_handle){
+			UINT16_TO_STREAM(p, gatt_character->desc_handle);
+			//we only support character configure descreptor
+			UINT16_TO_STREAM(p, GATT_CLIENT_CHARAC_CFG_UUID);
 		}
-		UINT16_TO_STREAM(p, gatt_character->desc_handle);
-		//we only support character configure descreptor
-		UINT16_TO_STREAM(p, GATT_CLIENT_CHARAC_CFG_UUID);
 
-		if(gatt_character->rpt_ref_handle != 0){
+		if(gatt_character->rpt_ref_handle >= start_handle &&
+				gatt_character->rpt_ref_handle <= end_handle){
 			UINT16_TO_STREAM(p, gatt_character->rpt_ref_handle);//use for HID over Gatt
 			UINT16_TO_STREAM(p, GATT_REPORT_REFERENCE);
 		}
+
 		rsp_len = p - rsp;
 		gatt_send(addr, gatt_services, BT_ATT_OP_FIND_INFO_RSP, rsp, rsp_len);
 		return;

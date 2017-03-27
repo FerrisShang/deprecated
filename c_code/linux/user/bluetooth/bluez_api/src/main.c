@@ -35,7 +35,7 @@ struct adv_data{
 	uint8_t name_header[2];
 	uint8_t name[19];
 }adv_data = { // !! sizeof(adv_data) MUST less or equal 32
-	.flag = {0x2, 0x1, 0x1a},
+	.flag = {0x2, 0x1, 0x07},
 	.uuid = {0x7, 0x3, 0x12, 0x18, 0x0f, 0x18, 0x0a, 0x18,},
 	.name_header = {sizeof(BLE_NAME), 0x09},
 	.name = BLE_NAME,
@@ -51,6 +51,7 @@ int main(int argc, char *argv[])
 	le_set_advertise_parameters(HCI_DEV_ID);
 	init_gatt(HCI_DEV_ID);
 	init_gatt_services();
+	le_set_advertise_data(0, (char*)&adv_data);
 	le_set_advertise_enable(HCI_DEV_ID);
 	le_set_advertise_data(0, (char*)&adv_data);
 	while(1){
