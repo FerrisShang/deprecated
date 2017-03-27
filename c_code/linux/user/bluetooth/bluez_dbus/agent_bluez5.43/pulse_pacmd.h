@@ -1,5 +1,5 @@
 /*
- * avrcp_ctrl.h
+ * pulse_pacmd.h
  *
  * Copyright (C) 2017 Ingenic Semiconductor Co., Ltd
  * Author: Feng Shang <feng.shang@ingenic.com>
@@ -18,15 +18,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef AVRCP_CTRL_H__
-#define AVRCP_CTRL_H__
+#ifndef PULSE_PACMD_H__
+#define PULSE_PACMD_H__
 
-#define PATH_DBUS_INGENIC_AVRCP_CTRL   "/ingenic/avrcp/ctrl"
-#define PATH_DBUS_INGENIC_AVRCP_STATUS "/ingenic/avrcp/status"
-#define INTERFACE_FREEDESKTOP_DBUS     "org.freedesktop.DBus.ObjectManager"
+#define PATH_DBUS_INGENIC_PULSE_PACMD   "/ingenic/pulse/pacmd"
 
-dbus_bool_t init_avrcp_srv(DBusConnection* conn);
-dbus_bool_t process_avrcp_status(DBusConnection *conn, DBusMessage *msg);
-dbus_bool_t process_avrcp_ctrl(DBusConnection *conn, DBusMessage *msg);
+void pulse_pacmd_init(DBusConnection *conn);
+dbus_bool_t process_pulse_pacmd(DBusConnection *conn, DBusMessage *msg);
 
-#endif /* AVRCP_CTRL_H__ */
+#endif /* PULSE_PACMD_H__ */

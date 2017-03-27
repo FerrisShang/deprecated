@@ -27,6 +27,7 @@
 #include "pair_ctrl.h"
 #include "avrcp_ctrl.h"
 #include "reconnect.h"
+#include "pulse_pacmd.h"
 
 #define DEST_BLUEZ    "org.bluez"
 #define PATH_BLUEZ    "/org/bluez"
@@ -43,6 +44,7 @@ static msg_process_t msg_process[] = {
 	process_service_req,
 	process_avrcp_status,
 	process_avrcp_ctrl,
+	process_pulse_pacmd,
 };
 int main(int argc, char** argv)
 {
@@ -57,6 +59,7 @@ int main(int argc, char** argv)
 
    init_pairable(conn);
    init_avrcp_srv(conn);
+   pulse_pacmd_init(conn);
    reconnect(conn);
 
    //Wait for processing pair request

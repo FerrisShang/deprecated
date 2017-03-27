@@ -1,3 +1,23 @@
+/*
+ * avrcp_ctrl.c
+ *
+ * Copyright (C) 2017 Ingenic Semiconductor Co., Ltd
+ * Author: Feng Shang <feng.shang@ingenic.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 
 /* AVRCP control communicate with user and bluz
  * To user: use interface "/ingenic/avrcp/status"
@@ -130,20 +150,6 @@ static void media_ctrl(DBusConnection* conn, char *path, char *method)
 	dbus_message_unref(msg);
 }
 
-static void volume_ctrl(DBusConnection* conn, char *path, char *method)
-{
-	printf("Not implement\n");
-#define INTF_MEDIA_CTRL     "org.bluez.MediaControl1"
-	DBusMessage* msg;
-
-	if(path[0] == '\0' || method == NULL){
-		return;
-	}
-	msg = dbus_message_new_method_call(
-			DEST_BLUEZ, path, INTF_MEDIA_CTRL, method);
-	dbus_connection_send(conn, msg, NULL);
-	dbus_message_unref(msg);
-}
 dbus_bool_t process_avrcp_ctrl(DBusConnection *conn, DBusMessage *msg)
 {
 	const char *member, *path;
@@ -167,10 +173,8 @@ dbus_bool_t process_avrcp_ctrl(DBusConnection *conn, DBusMessage *msg)
 				media_ctrl(conn, player_path, "Previous");
 				return TRUE;
 			}else if(!strcmp(member, "VolumeUp")){
-				volume_ctrl(conn, device_path, "VolumeUp");
 				return TRUE;
 			}else if(!strcmp(member, "VolumeDown")){
-				volume_ctrl(conn, device_path, "VolumeDown");
 				return TRUE;
 			}
 		}

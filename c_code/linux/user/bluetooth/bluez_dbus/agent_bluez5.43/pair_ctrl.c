@@ -1,3 +1,23 @@
+/*
+ * pair_ctrl.c
+ *
+ * Copyright (C) 2017 Ingenic Semiconductor Co., Ltd
+ * Author: Feng Shang <feng.shang@ingenic.com>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #include <dbus/dbus.h>
 #include <stdio.h>
 #include <string.h>
@@ -66,6 +86,7 @@ dbus_bool_t process_pair_req(DBusConnection *conn, DBusMessage *msg)
 	char *mac_address;
 	char buf[64];
 	DBusMessage* reply;
+	printf("interface : %s\n", dbus_message_get_interface(msg));
 	if(dbus_message_is_method_call(msg, INTF_AGENT, "RequestAuthorization")){
 		dbus_message_get_args(msg, NULL,
 				DBUS_TYPE_OBJECT_PATH, &path,
