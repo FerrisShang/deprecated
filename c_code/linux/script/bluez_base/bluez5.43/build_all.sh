@@ -10,7 +10,8 @@ set -e
 DIR_CURRENT=`pwd`
 COMPILE_FOLDER=$DIR_CURRENT/compileCode
 OUTPUT_FOLDER=$DIR_CURRENT/output
-SOURCE_CODE_FOLDER=$DIR_CURRENT/source_code
+SOURCE_CODE_FOLDER=$DIR_CURRENT/app_packages
+APP_CODE=$DIR_CURRENT/app_code
 APP_FOLDER=$DIR_CURRENT/file_system
 
 BLUEZ_5_43_NAME="bluez-5.43.tar.xz"
@@ -24,20 +25,18 @@ PULSEAUDIO_5_0_NAME="pulseaudio-5.0.tar.xz"
 LIBJSON_NAME="json-c-json-c-0.11-20130402.tar.gz"
 LIBSNDFILE_NAME="libsndfile-1.0.25.tar.gz"
 ALSA_LIB_NAME="alsa-lib-1.0.28.tar.bz2"
-SBC_1_3_NAME="sbc-1.3.tar.xz"
-AGENT_BLUEZ5_43="agent_bluez5.43.xz"
-AVRCP_TEST_BLUEZ5_43="avrcp_test_bluez5.43.xz"
-BLE_SERVER_TEST="bluez_ble_server.xz"
+SBC_1_3_NAME="sbc-1.3.tar.gz"
 
+./wget_app_packages.sh
 rm -rf  $APP_FOLDER
-tar xf file_system.tar
-
 rm -rf $COMPILE_FOLDER $OUTPUT_FOLDER
 mkdir -p $COMPILE_FOLDER $OUTPUT_FOLDER
+tar xf file_system.tar
+cp -r $APP_CODE/* $COMPILE_FOLDER
 
 #Extract files
-    echo "Extracting bluez-5.43.tar.xz"
-    tar xJf $SOURCE_CODE_FOLDER/$BLUEZ_5_43_NAME -C $COMPILE_FOLDER/
+	 echo "Extracting bluez-5.43.tar.xz"
+	 tar xJf $SOURCE_CODE_FOLDER/$BLUEZ_5_43_NAME -C $COMPILE_FOLDER/
 	 echo "Extracting expat-2.1.0.tar.gz"
 	 tar xzf $SOURCE_CODE_FOLDER/$EXPAT_2_1_0_NAME -C $COMPILE_FOLDER/
 	 echo "Extracting dbus-1.8.8.tar.gz"
@@ -50,22 +49,16 @@ mkdir -p $COMPILE_FOLDER $OUTPUT_FOLDER
 	 tar xJf $SOURCE_CODE_FOLDER/$GLIB_2_40_0_NAME -C $COMPILE_FOLDER/
 	 echo "Extracting libtool-2.4.tar.xz"
 	 tar xJf $SOURCE_CODE_FOLDER/$LIBTOOL_2_4 -C $COMPILE_FOLDER/
-	 echo "Extracting json-c-0.12.tar.gz"
+	 echo "Extracting json-c-json-c-0.11-20130402.tar.gz"
 	 tar xzf $SOURCE_CODE_FOLDER/$LIBJSON_NAME -C $COMPILE_FOLDER/
 	 echo "Extracting libsndfile-1.0.25.tar.gz"
 	 tar xzf $SOURCE_CODE_FOLDER/$LIBSNDFILE_NAME -C $COMPILE_FOLDER/
 	 echo "Extracting alsa-lib-1.0.28.tar.bz2"
 	 tar xf $SOURCE_CODE_FOLDER/$ALSA_LIB_NAME -C $COMPILE_FOLDER/
-	 echo "Extracting sbc-1.3.tar.xz"
-	 tar xJf $SOURCE_CODE_FOLDER/$SBC_1_3_NAME -C $COMPILE_FOLDER/
-    echo "Extracting pulseaudio-5.0.tar.xz"
-    tar xJf $SOURCE_CODE_FOLDER/$PULSEAUDIO_5_0_NAME -C $COMPILE_FOLDER/
-    echo "Extracting agent_bluez5.43.xz"
-    tar xJf $SOURCE_CODE_FOLDER/$AGENT_BLUEZ5_43 -C $COMPILE_FOLDER/
-    echo "Extracting avrcp_test_bluez5.43.xz"
-    tar xJf $SOURCE_CODE_FOLDER/$AVRCP_TEST_BLUEZ5_43 -C $COMPILE_FOLDER/
-    echo "Extracting bluez_ble_server.xz"
-    tar xJf $SOURCE_CODE_FOLDER/$BLE_SERVER_TEST -C $COMPILE_FOLDER/
+	 echo "Extracting sbc-1.3.tar.gz"
+	 tar xzf $SOURCE_CODE_FOLDER/$SBC_1_3_NAME -C $COMPILE_FOLDER/
+	 echo "Extracting pulseaudio-5.0.tar.xz"
+	 tar xJf $SOURCE_CODE_FOLDER/$PULSEAUDIO_5_0_NAME -C $COMPILE_FOLDER/
 
 #compile
 	 cd $COMPILE_FOLDER/zlib-1.2.8/
@@ -163,6 +156,7 @@ mkdir -p $COMPILE_FOLDER $OUTPUT_FOLDER
 			  --disable-Werror \
 			  --enable-stats \
 			  --localstatedir=/var \
+			  --without-x \
 			  --with-dbus-user=dbus \
 			  --with-system-socket=/var/run/dbus/system_bus_socket \
 			  --with-system-pid-file=/var/run/messagebus.pid \
@@ -256,6 +250,8 @@ mkdir -p $COMPILE_FOLDER $OUTPUT_FOLDER
 		  make -j
 		  make install DESTDIR=$OUTPUT_FOLDER
 	 cd $COMPILE_FOLDER/pulseaudio-5.0/
+	 sed -i 's/DEFAULT_LATENCY_MSEC 200/DEFAULT_LATENCY_MSEC 500/g' \
+		 ./src/modules/module-loopback.c
 	 echo "building `pwd`"
 		  ./configure \
 			  --host=$HOST \
@@ -303,6 +299,8 @@ mkdir -p $COMPILE_FOLDER $OUTPUT_FOLDER
 			  --disable-mac-universal  \
 			  --disable-default-build-tests \
 			  --disable-legacy-database-entry-format \
+			  --disable-webrtc-aec \
+			  --with-database=simple \
 			  --without-caps     \
 			  --without-fftw    \
 			  --without-speex  \
@@ -326,10 +324,25 @@ mkdir -p $COMPILE_FOLDER $OUTPUT_FOLDER
 	 cd $COMPILE_FOLDER/agent_bluez5.43/
 	 echo "building `pwd`"
 		  $CC   \
+			  -I$COMPILE_FOLDER/pulseaudio-5.0/src \
+			  -I$COMPILE_FOLDER/pulseaudio-5.0 \
 			  -I$OUTPUT_FOLDER/usr/include/dbus-1.0 \
 			  -I$OUTPUT_FOLDER/usr/lib/dbus-1.0/include \
+			  -DHAVE_CONFIG_H \
+			  -Wall \
 			  -L$OUTPUT_FOLDER/usr/lib \
+			  -L$OUTPUT_FOLDER/usr/local/lib \
+			  -L$OUTPUT_FOLDER/usr/lib/pulseaudio \
+			  -lsndfile \
+			  -lpulsecommon-5.0 \
+			  -ljson-c \
 			  -ldbus-1 \
+			  -lsndfile \
+			  -lasound \
+			  -lsbc \
+			  -lltdl \
+			  -pthread \
+			  -Wl,-rpath=/usr/lib/pulseaudio \
 			  *.c \
 			  -o agent_bluez5.43
 	 cd $COMPILE_FOLDER/avrcp_test_bluez5.43
@@ -400,8 +413,8 @@ mkdir -p $COMPILE_FOLDER $OUTPUT_FOLDER
 	 	   $APP_FOLDER/usr/lib/pulse-5.0/modules/
 	 cp $OUTPUT_FOLDER/usr/lib/pulse-5.0/modules/libprotocol-cli.so \
 	 	   $APP_FOLDER/usr/lib/pulse-5.0/modules/
-#	 cp $OUTPUT_FOLDER/usr/lib/pulse-5.0/modules/module-loopback.so \
-#	 	   $APP_FOLDER/usr/lib/pulse-5.0/modules/
+	 cp $OUTPUT_FOLDER/usr/lib/pulse-5.0/modules/module-loopback.so \
+		   $APP_FOLDER/usr/lib/pulse-5.0/modules/
 	 cp $COMPILE_FOLDER/agent_bluez5.43/agent_bluez5.43 \
 	 	   $APP_FOLDER/usr/sbin/agent
 	 cp $COMPILE_FOLDER/avrcp_test_bluez5.43/avrcp_test \
