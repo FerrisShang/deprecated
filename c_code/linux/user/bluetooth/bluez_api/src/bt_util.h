@@ -33,6 +33,7 @@ int le_set_random_address(int hdev);
 int le_set_advertise_enable(int hdev);
 int le_set_advertise_parameters(int hdev);
 int le_set_advertise_data(int hdev, char *data);
+int le_set_scan_response_data(int hdev, char *data);
 void le_disconnect(int hdev, bdaddr_t *addr);
 void dump_btaddr(char *prefix, bdaddr_t *addr);
 

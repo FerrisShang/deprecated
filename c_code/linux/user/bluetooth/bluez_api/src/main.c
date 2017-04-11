@@ -29,18 +29,36 @@
 #define HCI_DEV_ID 0
 
 #define BLE_NAME "HID over GATT"
-struct adv_data{
+struct resp_data{
 	uint8_t flag[3];
 	uint8_t uuid[8];
 	uint8_t name_header[2];
 	uint8_t name[19];
-}adv_data = { // !! sizeof(adv_data) MUST less or equal 32
+}resp_data = { // !! sizeof(resp_data) MUST less or equal 31
 	.flag = {0x2, 0x1, 0x07},
 	.uuid = {0x7, 0x3, 0x12, 0x18, 0x0f, 0x18, 0x0a, 0x18,},
 	.name_header = {sizeof(BLE_NAME), 0x09},
 	.name = BLE_NAME,
 };
 
+struct adv_data{
+	uint8_t flag[3];
+	uint8_t iBeacon_len[1];
+	uint8_t mark[5];
+	uint8_t uuid[16];
+	uint8_t major[2];
+	uint8_t minor[2];
+	uint8_t txpower[1];
+}adv_data = { // !! sizeof(adv_data) MUST less or equal 31
+	.flag = {0x02, 0x01, 0x1a},
+	.iBeacon_len = {0x1a},
+	.mark = {0xff, 0x4c, 0x00, 0x02,0x15},
+	.uuid = {0xe2, 0xc5, 0x6d, 0xb5, 0xdf, 0xfb, 0x48, 0xd2,
+		0xb0, 0x60, 0xd0, 0xf5, 0xa7, 0x10, 0x96, 0xe0},
+	.major = {0x00, 0x00},
+	.minor = {0x00, 0x00},
+	.txpower = {0xc5},
+};
 void init_gatt_services(void);
 int main(int argc, char *argv[])
 {
@@ -51,6 +69,7 @@ int main(int argc, char *argv[])
 	le_set_advertise_parameters(HCI_DEV_ID);
 	init_gatt(HCI_DEV_ID);
 	init_gatt_services();
+	le_set_scan_response_data(0, (char*)&resp_data);
 	le_set_advertise_data(0, (char*)&adv_data);
 	le_set_advertise_enable(HCI_DEV_ID);
 	le_set_advertise_data(0, (char*)&adv_data);

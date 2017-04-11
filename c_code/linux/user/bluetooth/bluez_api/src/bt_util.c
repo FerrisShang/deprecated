@@ -24,6 +24,7 @@
 #include "bt_util.h"
 #include "bluetooth.h"
 #include "hci.h"
+#include "hci_lib.h"
 #include "log.h"
 
 #define ATT_CID 4
@@ -208,6 +209,36 @@ int le_set_advertise_data(int hdev, char *data)
 		return -1;
 	}
 	hci_le_set_advertise_data(dd, data, timeout);
+	hci_close_dev(dd);
+	return 0;
+}
+
+int le_set_scan_response_data(int hdev, char *data)
+{
+	int timeout = 1000;
+	int dd;
+	struct hci_request rq;
+	le_set_scan_response_data_cp scan_resp_cp;
+	uint8_t status;
+	dd = hci_open_dev(hdev);
+	if (dd < 0) {
+		Log.e("Could not open device");
+		return -1;
+	}
+	memset(&scan_resp_cp, 0, sizeof(scan_resp_cp));
+	scan_resp_cp.length = 31;
+	memcpy(scan_resp_cp.data, data, 31);
+	memset(&rq, 0, sizeof(rq));
+	rq.ogf = OGF_LE_CTL;
+	rq.ocf = OCF_LE_SET_SCAN_RESPONSE_DATA;
+	rq.cparam = &scan_resp_cp;
+	rq.clen = LE_SET_SCAN_RESPONSE_DATA_CP_SIZE;
+	rq.rparam = &status;
+	rq.rlen = 1;
+	if (hci_send_req(dd, &rq, timeout) < 0 || status){
+		hci_close_dev(dd);
+		return -1;
+	}
 	hci_close_dev(dd);
 	return 0;
 }
