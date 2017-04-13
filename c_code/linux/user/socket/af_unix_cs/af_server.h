@@ -6,10 +6,10 @@
 #include <arpa/inet.h>
 
 struct tcps* tcps_create(
-		void(*connected_cb)(int sock, struct sockaddr_in *addr, void *pdata),
-		void(*recv_cb)(int sock, struct sockaddr_in *addr,
+		void(*connected_cb)(int sock, struct sockaddr_un *addr, void *pdata),
+		void(*recv_cb)(int sock, struct sockaddr_un *addr,
 			char *buf, int len, void *pdata),
-		void(*disconnected_cb)(int sock, struct sockaddr_in *addr, void *pdata),
+		void(*disconnected_cb)(int sock, struct sockaddr_un *addr, void *pdata),
 		void *pdata);
 
 int tcps_send(int sock, char *buf, int len);

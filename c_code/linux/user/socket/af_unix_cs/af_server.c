@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
@@ -13,26 +14,26 @@ struct tcps{
 	struct sockaddr_un server;
 	int client_num;
 	pthread_t th_listen;
-	void(*connected_cb)(int sock, struct sockaddr_in *addr, void *pdata);
-	void(*recv_cb)(int sock, struct sockaddr_in *addr, char *buf, int len, void *pdata);
-	void(*disconnected_cb)(int sock, struct sockaddr_in *addr, void *pdata);
+	void(*connected_cb)(int sock, struct sockaddr_un *addr, void *pdata);
+	void(*recv_cb)(int sock, struct sockaddr_un *addr, char *buf, int len, void *pdata);
+	void(*disconnected_cb)(int sock, struct sockaddr_un *addr, void *pdata);
 	void *pdata;
 };
 
 struct tcpc {
 	struct tcps *tcps;
 	int sock;
-	struct sockaddr_in addr;
+	struct sockaddr_un addr;
 };
 
 static void *listen_thd(void *pdata);
 static void *recv_thd(void *pdata);
 
 struct tcps* tcps_create(
-		void(*connected_cb)(int sock, struct sockaddr_in *addr, void *pdata),
-		void(*recv_cb)(int sock, struct sockaddr_in *addr,
+		void(*connected_cb)(int sock, struct sockaddr_un *addr, void *pdata),
+		void(*recv_cb)(int sock, struct sockaddr_un *addr,
 			char *buf, int len, void *pdata),
-		void(*disconnected_cb)(int sock, struct sockaddr_in *addr, void *pdata),
+		void(*disconnected_cb)(int sock, struct sockaddr_un *addr, void *pdata),
 		void *pdata)
 {
 	struct tcps *tcps;
@@ -65,7 +66,9 @@ struct tcps* tcps_create(
 	}
 	listen(tcps->sock, 1);
 
+	tcps->pdata = pdata;
 	res = pthread_create(&tcps->th_listen, NULL, listen_thd, tcps);
+	usleep(10000);
 	if(res != 0){
 		goto create_thread_err;
 	}
@@ -84,9 +87,9 @@ static void *listen_thd(void *pdata)
 	int res;
 	while(1){
 		struct tcpc *tcpc;
-		static int size = sizeof(struct sockaddr_in);
+		static int size = sizeof(struct sockaddr_un);
 		int client;
-		struct sockaddr_in addr;
+		struct sockaddr_un addr;
 		pthread_t th_recv;
 		client = accept(tcps->sock, (struct sockaddr *)&addr, (socklen_t*)&size);
 		if(client < 0){
@@ -101,8 +104,8 @@ static void *listen_thd(void *pdata)
 		tcpc->tcps = tcps;
 		tcpc->sock = client;
 		memcpy(&tcpc->addr, &addr, size);
-		tcps->connected_cb(client, &addr, tcps->pdata);
 		res = pthread_create(&th_recv, NULL, recv_thd, tcpc);
+		tcps->connected_cb(client, &addr, tcps->pdata);
 		if(res < 0){
 			printf("create thread failed\n");
 			tcps->disconnected_cb(client, &addr, tcps->pdata);
