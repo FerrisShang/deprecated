@@ -1,6 +1,7 @@
 # Object files
 *.o
 *.o.*
+a.out
 
 # Libraries
 *.lib
