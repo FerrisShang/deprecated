@@ -3,10 +3,10 @@ app = bsc
 #CC     = mips-linux-gnu-gcc
 CC     = gcc
 srcExt = c
-srcDir = .
+srcDir = src
 objDir = obj
 binDir = .
-inc = .  $(shell find -exec dirname {} \; | uniq)
+inc =  $(shell find $(srcDir) -exec dirname {} \; | uniq)
 
 CFlags = -Wall -O2 -fsanitize=address -fuse-ld=gold -g
 LDFlags = -fsanitize=address -fuse-ld=gold -g -lpthread -lrt
