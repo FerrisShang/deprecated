@@ -6,6 +6,7 @@
 #include <termios.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <pthread.h>
 #include "fbs_patchram.h"
 
 static struct termios termios;
@@ -70,7 +71,7 @@ static int read_event(int fd, unsigned char *buffer)
 	idx += count;
 	return idx;
 }
-static void* thread_read_event(void *p)
+static void* fbs_patchram_read_event(void *p)
 {
 	unsigned char buf[32];
 	int uart_fd = (int)(size_t)p;
@@ -82,7 +83,7 @@ static int fbs_wait_uart(int tout_ms, int *data_len)
 {
 	int cnt = tout_ms / 10;
 	while(cnt--){
-		if(*data_len != 0){
+		if(*data_len > 0){
 			return 0;
 		}else{
 			usleep(10000);
@@ -96,7 +97,7 @@ static int fbs_adapt_baud(int uart_fd)
 	int len;
 	pthread_t th_read_event;
 	fbs_init_uart(uart_fd, 115200);
-	pthread_create(&th_read_event, NULL, thread_read_event, (void*)(size_t)uart_fd);
+	pthread_create(&th_read_event, NULL, fbs_patchram_read_event, (void*)(size_t)uart_fd);
 	usleep(10000);//wait for thread startup
 	len = write(uart_fd, hci_reset, sizeof(hci_reset));
 	if(fbs_wait_uart(100, &read_num) < 0){
@@ -115,6 +116,7 @@ int FBS_patchram(tFBS_patchram *info)
 	int uart_fd = -1;
 	int len;
 	unsigned char buffer[512];
+	printf("Device:%s\nFirmware:%s\n", info->uart.dev_path, info->uart.fw_path);
 	if(info->type != FBS_PATCHRAM_TYPE_UART){
 		return FBS_PATCHRAM_ERR_UNSUPPORT;
 	}
