@@ -4,7 +4,7 @@
 #include <fcntl.h>
 #include <termios.h>
 #include <glib.h>
-#include "fbs_stack.h"
+#include "fbs_uart.h"
 #include "fbs_btsnoop.h"
 
 #define FBS_RESERVE_BUF 4 // [len(2) + rfu(2)] + hci
@@ -14,6 +14,9 @@
 static int uart_fd = -1;
 static FILE *btsnoop_fd;
 static GAsyncQueue *fbs_btsnoop_msg_queue;
+static GMainLoop *fbs_uart_mainloop;
+static gpointer fbs_uart_pdata;
+static void (*FBS_uart_callback)(guchar *data, gint len, gpointer pdata);
 
 static void fbs_btsnoop_msg_queue_destroy(gpointer data)
 {
@@ -54,10 +57,10 @@ void FBS_enable_btsnoop(const gchar *path)
 	usleep(10000);
 }
 
-static gboolean fbs_hci_recv_cb(gpointer user_data)
+static gboolean fbs_hci_recv_cb(gpointer data)
 {
-	guchar *p = user_data;
-	FBS_hci_report(FBS_HCI_DATA_POINTER(p), FBS_HCI_DATA_LEN(p));
+	guchar *p = data;
+	FBS_uart_callback(FBS_HCI_DATA_POINTER(p), FBS_HCI_DATA_LEN(p), fbs_uart_pdata);
 	return FALSE;
 }
 
@@ -140,10 +143,19 @@ static gpointer fbs_read_uart_th(int fd)
 	}
 }
 
-void* FBS_uart_recv(GMainLoop *mainloop)
+void  FBS_uart_init(GMainLoop *mainloop,
+		void (*recv_cb)(guchar *data, gint len, gpointer pdata),
+		gpointer pdata)
 {
+	fbs_uart_mainloop = mainloop;
+	FBS_uart_callback = recv_cb;
+	fbs_uart_pdata = pdata;
+}
+void* FBS_uart_recv(void *unused)
+{
+	g_assert(fbs_uart_mainloop != NULL);
+	g_assert(FBS_uart_callback != NULL);
 #define FBS_ENV_DEV_PATH "FBS_ENV_DEV_PATH"
-	while(g_main_loop_is_running(mainloop) == FALSE){ g_usleep(1000); }
 	const gchar *dev_path = g_getenv(FBS_ENV_DEV_PATH);
 	if(!dev_path){
 		g_error("Can not find device path");
@@ -152,9 +164,10 @@ void* FBS_uart_recv(GMainLoop *mainloop)
 	if(uart_fd <= 0){
 		g_error("Can not open uart : %s", dev_path);
 	}
+	while(g_main_loop_is_running(fbs_uart_mainloop) == FALSE){ g_usleep(1000); }
 	while(TRUE){
 		guchar *hci_data;
-		if(g_main_loop_is_running(mainloop) == FALSE){ break; }
+		if(g_main_loop_is_running(fbs_uart_mainloop) == FALSE){ break; }
 		hci_data = fbs_read_uart_th(uart_fd);
 		if(fbs_btsnoop_msg_queue != NULL){
 			guint len = FBS_HCI_DATA_LEN(hci_data);
@@ -173,7 +186,7 @@ void* FBS_uart_recv(GMainLoop *mainloop)
 	return NULL;
 }
 
-guint FBS_uart_send(guchar *data, guint len)
+gint FBS_uart_send(guchar *data, gint len)
 {
 	g_assert(uart_fd > 0);
 	if(fbs_btsnoop_msg_queue != NULL){
@@ -183,36 +196,4 @@ guint FBS_uart_send(guchar *data, guint len)
 				new_btsnoop_msg((char*)uart_msg, len, BTDATA_DIR_SEND));
 	}
 	return write(uart_fd, data, len);
-}
-
-static gboolean fbs_hci_send_cb(gpointer user_data) //RFU
-{
-	FBS_hci_send_raw((guchar*) user_data, 4);
-	return FALSE;
-}
-
-static void fbs_hci_send_destroy_cb(gpointer user_data)
-{
-	guchar *p = user_data;
-	g_slice_free1(4, p);
-}
-
-void* fbs_command_recv(void *p) //RFU
-{
-	GMainLoop *mainloop = p;
-	while(g_main_loop_is_running(mainloop) == FALSE || uart_fd < 0){ g_usleep(1000); }
-	while(TRUE){
-		if(g_main_loop_is_running(mainloop) == FALSE){ break; }
-		guchar hci_read_name[] = { 0x01, 0x14, 0x0c, 0x00 };
-		guchar *hci_data = g_slice_alloc(sizeof(hci_read_name));
-		memcpy(hci_data, hci_read_name, sizeof(hci_read_name));
-		g_main_context_invoke_full(
-				NULL,
-				G_PRIORITY_DEFAULT,
-				fbs_hci_send_cb,
-				hci_data,
-				fbs_hci_send_destroy_cb);
-		g_usleep(~0);
-	}
-	return NULL;
 }

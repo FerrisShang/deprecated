@@ -6,14 +6,10 @@
 #include "fbs_patchram.h"
 #include "fbs_stack.h"
 
-extern void* fbs_command_recv(void *p);
-extern void* FBS_uart_recv(void *p);
-extern void fbs_stack_init_all(void);
-
+#include <gio/gio.h>
 int main(int argc, char *argv[])
 {
 	int res;
-	tFBS_patchram info;
 	g_setenv(FBS_ENV_DEV_PATH,
 			"/dev/ttyS0", FALSE);
 	g_setenv(FBS_ENV_FW_PATH,
@@ -21,6 +17,7 @@ int main(int argc, char *argv[])
 	g_setenv(FBS_BTSNOOP_PATH,
 			"/tmp/btsnoop_hci.log" , FALSE);
 #if 1
+	tFBS_patchram info;
 	info.type = FBS_PATCHRAM_TYPE_UART;
 	system("echo 1 > /sys/class/rfkill/rfkill0/state");//Power on BT chip
 	strcpy(info.uart.dev_path, g_getenv(FBS_ENV_DEV_PATH));
