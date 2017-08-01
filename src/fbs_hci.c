@@ -11,25 +11,36 @@
 struct fbs_hci_tcb {
 	GMutex mutex;
 	sem_t sem_cmd_num;
-	tFBS_hci_cb evt_callback;
+	GSList *evt_cb_list; //tFBS_hci_cb
 	guint hci_tout_evt_id;
 };
 
-static struct fbs_hci_tcb fbs_hci_tcb;
+static struct fbs_hci_tcb *fbs_hci_tcb;
 
-void FBS_hci_init(tFBS_hci_cb callback)
+static struct fbs_hci_tcb* FBS_create_hci_tcb(void)
 {
-	g_assert(callback != NULL);
-	memset(&fbs_hci_tcb, 0, sizeof(struct fbs_hci_tcb));
-	g_mutex_init(&fbs_hci_tcb.mutex);
-	sem_init(&fbs_hci_tcb.sem_cmd_num, 0, 1);
-	fbs_hci_tcb.evt_callback = callback;
+	struct fbs_hci_tcb *tcb;
+	tcb = g_new0(struct fbs_hci_tcb, 1);
+	g_mutex_init(&tcb->mutex);
+	sem_init(&tcb->sem_cmd_num, 0, 1);
+	tcb->evt_cb_list = NULL;
+	return tcb;
+}
+
+void FBS_hci_reg_callback(tFBS_hci_cb callback)
+{
+	if(fbs_hci_tcb == NULL){
+		fbs_hci_tcb = FBS_create_hci_tcb();
+	}
+	fbs_hci_tcb->evt_cb_list = g_slist_prepend(fbs_hci_tcb->evt_cb_list, callback);
 }
 
 void FBS_hci_destroy(void)
 {
-	sem_destroy(&fbs_hci_tcb.sem_cmd_num);
-	g_mutex_clear(&fbs_hci_tcb.mutex);
+	g_assert(fbs_hci_tcb != NULL);
+	sem_destroy(&fbs_hci_tcb->sem_cmd_num);
+	g_mutex_clear(&fbs_hci_tcb->mutex);
+	g_free(fbs_hci_tcb);
 }
 
 static gboolean fbs_hci_tout_cb(gpointer user_data)
@@ -47,7 +58,7 @@ static void fbs_add_hci_tout(guint time_second, guint16 opcode)
 {
 	guint16 *op = g_slice_new(guint16);
 	*op = opcode;
-	fbs_hci_tcb.hci_tout_evt_id = g_timeout_add_seconds_full(
+	fbs_hci_tcb->hci_tout_evt_id = g_timeout_add_seconds_full(
 			G_PRIORITY_DEFAULT,
 			time_second,
 			fbs_hci_tout_cb,
@@ -56,11 +67,23 @@ static void fbs_add_hci_tout(guint time_second, guint16 opcode)
 }
 static void fbs_del_hci_tout(void)
 {
-	g_source_remove(fbs_hci_tcb.hci_tout_evt_id);
+	g_source_remove(fbs_hci_tcb->hci_tout_evt_id);
 }
 
+static void fbs_evt_callback(gpointer data, gpointer user_data)
+{
+	tFBS_evt_header *header = (tFBS_evt_header*)user_data;
+	tFBS_hci_cb callback = data;
+	if(header->type == FBS_UART_RESERVE){ /* FBS_UART_RESERVE means event processed*/
+		return;
+	}
+	if(callback(header->evt_code, header->data, header->evt_len) == TRUE){
+		header->type = FBS_UART_RESERVE;
+	}
+}
 void FBS_hci_evt_process(guchar *data, gint len)
 {
+	g_assert(fbs_hci_tcb != NULL);
 	guchar allow_num = 0;
 	tFBS_evt_header *header = (tFBS_evt_header*)data;
 	if(header->evt_code == EVT_CMD_COMPLETE){
@@ -83,17 +106,13 @@ void FBS_hci_evt_process(guchar *data, gint len)
 	if(allow_num > 0){
 		int i;
 		for(i=0;i<allow_num;i++){
-			sem_post(&fbs_hci_tcb.sem_cmd_num);
+			sem_post(&fbs_hci_tcb->sem_cmd_num);
 		}
 	}
-	if(header->evt_code == EVT_LE_META_EVENT){
-		tFBS_evt_le_meta_event *p = (tFBS_evt_le_meta_event*)header->data;
-		FBS_hci_le_evt_process(p->subevent,
-				data + sizeof(tFBS_evt_le_meta_event),
-				len - sizeof(tFBS_evt_le_meta_event));
-		return;
+	g_slist_foreach(fbs_hci_tcb->evt_cb_list, fbs_evt_callback, header);
+	if(header->type != FBS_UART_RESERVE){ /* FBS_UART_RESERVE means event processed*/
+		g_warning("Unprocessed HCI event message, type : 0x%02x", header->evt_code);
 	}
-	fbs_hci_tcb.evt_callback(header->evt_code, header->data, header->evt_len);
 }
 
 #define FBS_RESERVE_BUF 4 // [len(2) + rfu(2)] + uart data
@@ -115,7 +134,8 @@ static void fbs_uart_send_destroy_cb(gpointer data)
 
 void FBS_hci_send(guint16 opcode, gpointer *data, gint len)
 {
-	sem_wait(&fbs_hci_tcb.sem_cmd_num);
+	g_assert(fbs_hci_tcb != NULL);
+	sem_wait(&fbs_hci_tcb->sem_cmd_num);
 	guchar *hci_data = g_slice_alloc(FBS_RESERVE_BUF+4+len);
 	hci_data[0] = ((4 + len) >> 0) & 0xFF;
 	hci_data[1] = ((4 + len) >> 8) & 0xFF;

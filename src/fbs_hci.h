@@ -9,6 +9,7 @@
 #define FBS_UART_ACLDATA_PKT     0x02
 #define FBS_UART_SCODATA_PKT     0x03
 #define FBS_UART_EVENT_PKT       0x04
+#define FBS_UART_RESERVE         0xFF
 
 #define FBS_UART_MSG_TYPE(p)     (p[0])
 
@@ -16,9 +17,9 @@ typedef struct {
 	;
 } tFBS_hci_evt;
 
-typedef void (*tFBS_hci_cb)(guint8 evt, guint8 *data, guint16 len);
+typedef gboolean (*tFBS_hci_cb)(guint8 evt, guint8 *data, guint16 len);
 
-void FBS_hci_init(tFBS_hci_cb callback);
+void FBS_hci_reg_callback(tFBS_hci_cb callback);
 void FBS_hci_send(guint16 opcode, gpointer *data, gint len);
 void FBS_hci_evt_process(guchar *data, gint len);
 

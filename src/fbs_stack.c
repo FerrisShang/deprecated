@@ -11,22 +11,61 @@
 
 static void* fbs_command_recv(void *p); //RFU
 
-static struct FBS_stack_info FBS_stack_info;
-
-static void fbs_stack_hci_cb(guint8 evt, guint8 *data, guint16 len)
+static gboolean fbs_stack_hci_cb(guint8 evt, guint8 *data, guint16 len)
 {
 	//return;
-	tFBS_evt_header *header = (tFBS_evt_header*)data;
-	switch(header->evt_code){
+	switch(evt){
+		case EVT_DISCONN_COMPLETE : {
+			tFBS_evt_disconn_complete *p = (tFBS_evt_disconn_complete*)data;
+			if(p->status != 0){
+				g_warning("Disconnect unsuccessful");
+			}else{
+				FBS_l2cap_disconnected(p->handle, p->reason);
+			}
+			return TRUE;
+			} break;
+		case EVT_CMD_COMPLETE : {
+			tFBS_evt_cmd_complete *p = data;
+			switch(FBS_CMD_OPCODE_OGF(p->opcode)){
+				case OCF_INQUIRY :
+					break;
+				case OGF_LINK_POLICY :
+					break;
+				case OGF_HOST_CTL :
+					break;
+				case OGF_INFO_PARAM :
+					switch(FBS_CMD_OPCODE_OCF(p->opcode)){
+						case OCF_READ_BUFFER_SIZE :{
+							tFBS_read_buffer_size_rp *rp = p->param;
+							if(rp->status == 0){
+								FBS_record_chip_buffer_size(
+										rp->acl_mtu, rp->acl_max_pkt,
+										rp->sco_mtu, rp->sco_max_pkt);
+							}else{
+								g_warning("Read buffer size failed");
+							}
+							return TRUE;
+						}
+						default :
+							break;
+					}
+					break;
+				case OGF_STATUS_PARAM :
+					break;
+				case OGF_TESTING_CMD :
+					break;
+			}
+			} break;
 		default :
 			break;
 	}
 	int i;
+	printf("HCI :");
 	for(i=0;i<len;i++){
 		if(!(i%16)){printf("\n");}
 		printf("%02x ", data[i]);
 	} printf("\n");
-	g_warning("Unprocessed HCI event message, type : 0x%02x", evt);
+	return FALSE;
 }
 
 void FBS_stack_init_all(void)
@@ -37,7 +76,10 @@ void FBS_stack_init_all(void)
 		FBS_enable_btsnoop(btsnoop_path);
 	}
 
-	FBS_hci_init(fbs_stack_hci_cb);
+	FBS_l2cap_init();
+	FBS_hci_reg_callback(fbs_stack_hci_cb);
+	FBS_hci_reg_callback(FBS_hci_le_evt_process);
+
 }
 
 static void FBS_uart_report(guchar *data, gint len, gpointer unused)
@@ -149,7 +191,7 @@ static void* fbs_command_recv(void *p) //RFU
 		FBS_hci_send(FBS_CMD_OPCODE_PACK(OGF_LE_CTL, OCF_LE_SET_ADVERTISE_ENABLE),
 				(gpointer)&le_set_advertise_enable, sizeof(tFBS_le_set_advertise_enable_cp));
 
-		g_usleep(5*1000*1000);
+		g_usleep(1*1000*1000);
 		le_set_scan_enable.enable = 0;
 		FBS_hci_send(FBS_CMD_OPCODE_PACK(OGF_LE_CTL, OCF_LE_SET_SCAN_ENABLE),
 				(gpointer)&le_set_scan_enable, sizeof(tFBS_le_set_scan_enable_cp));

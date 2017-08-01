@@ -19,9 +19,17 @@ void FBS_ble_init(tFBS_le_hci_cb callback)
 	fbs_hci_tcb.evt_callback = callback;
 }
 
-void FBS_hci_le_evt_process(guchar subevent, guchar *data, gint len)
+gboolean FBS_hci_le_evt_process(guint8 evt, guint8 *data, guint16 len)
 {
-	switch(subevent){
+	if(evt == EVT_LE_META_EVENT){
+		tFBS_evt_le_meta_event *p = (tFBS_evt_le_meta_event*)data;
+		evt = p->subevent;
+		data += sizeof(tFBS_evt_le_meta_event);
+		len -= sizeof(tFBS_evt_le_meta_event);
+	}else{
+		return FALSE;
+	}
+	switch(evt){
 		case EVT_LE_CONN_COMPLETE : {
 			tFBS_evt_le_connection_complete *p = (tFBS_evt_le_connection_complete*)data;
 			struct fbs_l2cap_link conn;
@@ -35,12 +43,24 @@ void FBS_hci_le_evt_process(guchar subevent, guchar *data, gint len)
 			conn.link.ble.supervision_tout = p->supervision_timeout;
 			conn.link.ble.master_clock_accuracy = p->master_clock_accuracy;
 			FBS_l2cap_connected(&conn);
+			return TRUE;
 			} break;	
 		case EVT_LE_ADVERTISING_REPORT : {
-			;
+			guint8 num = *data;
+			data++;
+			if(num != 1){
+				g_warning("Le Advertising Report Number != 1");
+			}
+			tFBS_le_advertising_info *adv = (tFBS_le_advertising_info*)data;
+			g_info("BLE adv report:%s %02x:%02x:%02x:%02x:%02x:%02x",
+					adv->bdaddr_type==0?"PUBLIC":"RANDOM",
+					adv->bdaddr[0],adv->bdaddr[1],adv->bdaddr[2],
+					adv->bdaddr[3],adv->bdaddr[4],adv->bdaddr[5]);
+			return TRUE;
 			} break;	
 		default :
+			g_warning("Unprocessed LE event message, type : 0x%02x", evt);
 			break;
 	}
-	g_warning("Unprocessed LE event message, type : 0x%02x", subevent);
+	return FALSE;
 }

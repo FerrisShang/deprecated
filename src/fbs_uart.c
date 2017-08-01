@@ -83,7 +83,6 @@ static gpointer fbs_read_uart_th(int fd)
 	}
 	idx += 1;
 	if(buf[0]== 2){ // ACL data
-		g_warning("Read ACL data may contain bugs, need check");
 		len = 4;
 		while ((count = read(fd, &buf[idx], len)) < len) {
 			if(count <= 0){

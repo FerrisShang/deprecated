@@ -1,7 +1,7 @@
 app = bsc
 
-#CC     = mips-linux-gnu-gcc
-CC     = gcc
+CC     = mips-linux-gnu-gcc
+#CC     = gcc
 srcExt = c
 srcDir = src
 objDir = obj
@@ -12,14 +12,15 @@ inc =  $(shell find $(srcDir) -exec dirname {} \; | uniq) \
 
 CFlags = -Wall -O2  -fdata-sections -ffunction-sections \
 		-DG_DISABLE_CHECKS \
-		-DG_DISABLE_ASSERT \
 		-DG_MESSAGES_DEBUG=all \
 		-g \
+#		-DG_DISABLE_ASSERT \
+		-DG_DISABLE_CHECKS \
 		-fuse-ld=gold -fsanitize=address \
-#		-fuse-ld=gold -fsanitize=thread -ltsan \
+		-fuse-ld=gold -fsanitize=thread -ltsan \
 
 LDFlags = -Wl,--gc-sections -g -lpthread -lrt \
-		  -fuse-ld=gold -fsanitize=address \
+#		  -fuse-ld=gold -fsanitize=address \
 #		  -fuse-ld=gold -fsanitize=thread -ltsan \
 
 libs = glib-2.0
