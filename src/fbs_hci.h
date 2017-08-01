@@ -1,6 +1,7 @@
 #ifndef FBS_HCI_H__
 #define FBS_HCI_H__
 
+#include "fbs_stack.h"
 #include "fbs_hci_type.h"
 
 /* HCI Packet types */

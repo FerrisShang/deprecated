@@ -1,6 +1,8 @@
 #ifndef FBS_HCI_TYPE_H__
 #define FBS_HCI_TYPE_H__
 
+#include "fbs_broadcom_hci.h"
+
 /* -----  HCI Commands ----- */
 
 /* Link Control */
@@ -1553,6 +1555,7 @@ typedef struct {
 typedef struct {
 	guint8		ncmd;
 	guint16	opcode;
+	guint8 param[0];
 } __attribute__ ((packed)) tFBS_evt_cmd_complete;
 #define EVT_CMD_COMPLETE_SIZE 3
 

@@ -1,6 +1,8 @@
 #ifndef FBS_UART_H__
 #define FBS_UART_H__
 
+#include "fbs_hci.h"
+
 void  FBS_enable_btsnoop(const gchar *path);
 void  FBS_uart_init(GMainLoop *mainloop,
 		void (*recv_cb)(guchar *data, gint len, gpointer pdata),

@@ -22,3 +22,10 @@ void FBS_get_sco_mtu(guint8 *sco_mtu, guint16 *sco_max_pkt)
 	*sco_mtu = 255;
 	*sco_max_pkt = 32;
 }
+
+void FBS_l2cap_connected(struct fbs_l2cap_link *link)
+{
+}
+void FBS_l2cap_disconnected()
+{
+}
