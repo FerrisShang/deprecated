@@ -6,6 +6,7 @@
 #include "fbs_patchram.h"
 #include "fbs_uart.h"
 #include "fbs_hci.h"
+#include "fbs_acl.h"
 #include "fbs_l2cap.h"
 #include "fbs_ble.h"
 
@@ -25,7 +26,7 @@ static gboolean fbs_stack_hci_cb(guint8 evt, guint8 *data, guint16 len)
 			return TRUE;
 			} break;
 		case EVT_CMD_COMPLETE : {
-			tFBS_evt_cmd_complete *p = data;
+			tFBS_evt_cmd_complete *p = (tFBS_evt_cmd_complete*)data;
 			switch(FBS_CMD_OPCODE_OGF(p->opcode)){
 				case OCF_INQUIRY :
 					break;
@@ -36,7 +37,7 @@ static gboolean fbs_stack_hci_cb(guint8 evt, guint8 *data, guint16 len)
 				case OGF_INFO_PARAM :
 					switch(FBS_CMD_OPCODE_OCF(p->opcode)){
 						case OCF_READ_BUFFER_SIZE :{
-							tFBS_read_buffer_size_rp *rp = p->param;
+							tFBS_read_buffer_size_rp *rp = (tFBS_read_buffer_size_rp*)p->param;
 							if(rp->status == 0){
 								FBS_record_chip_buffer_size(
 										rp->acl_mtu, rp->acl_max_pkt,
@@ -76,6 +77,7 @@ void FBS_stack_init_all(void)
 		FBS_enable_btsnoop(btsnoop_path);
 	}
 
+	FBS_acl_init();
 	FBS_l2cap_init();
 	FBS_hci_reg_callback(fbs_stack_hci_cb);
 	FBS_hci_reg_callback(FBS_hci_le_evt_process);
@@ -86,7 +88,7 @@ static void FBS_uart_report(guchar *data, gint len, gpointer unused)
 {
 	switch(FBS_UART_MSG_TYPE(data)){
 		case FBS_UART_ACLDATA_PKT :
-			FBS_l2cap_data_process(data, len);
+			FBS_acl_data_process(data, len);
 			break;
 		case FBS_UART_EVENT_PKT :
 			FBS_hci_evt_process(data, len);

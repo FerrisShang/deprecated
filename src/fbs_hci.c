@@ -5,6 +5,7 @@
 #include "fbs_stack.h"
 #include "fbs_hci.h"
 #include "fbs_ble.h"
+#include "fbs_acl.h"
 #include "fbs_l2cap.h"
 #include "fbs_uart.h"
 
@@ -100,7 +101,7 @@ void FBS_hci_evt_process(guchar *data, gint len)
 		for(i=0;i<p->num_hndl;i++){
 			guint16 handle   = p->data[0+i*4]+(p->data[1+i*4]<<8);
 			guint16 com_pack = p->data[2+i*4]+(p->data[3+i*4]<<8);
-			FBS_l2cap_comp_packets(handle, com_pack);
+			FBS_acl_comp_packets(handle, com_pack);
 		}
 	}
 	if(allow_num > 0){
