@@ -3,6 +3,14 @@
 
 #include "fbs_stack.h"
 
+#define FBS_L2CAP_CID_L2CAP    0x0001
+#define FBS_L2CAP_CID_CONNLESS 0x0002
+#define FBS_L2CAP_CID_AMP      0x0003
+#define FBS_L2CAP_CID_ATT      0x0004
+#define FBS_L2CAP_CID_LE_L2CAP 0x0005
+#define FBS_L2CAP_CID_SMP      0x0006
+#define FBS_L2CAP_CID_EDR_SM   0x0007
+
 enum {
 	FBS_L2CAP_LINK_BR_EDR = 0,
 	FBS_L2CAP_LINK_BLE,
@@ -33,6 +41,7 @@ struct fbs_l2cap_link {
 };
 
 void FBS_l2cap_init(void);
+void FBS_l2cap_destroy(void);
 void FBS_l2cap_send(guint16 handle, guint16 cid, gpointer *data, gint len);
 void FBS_l2cap_data_process(guchar *data, gint len);
 

@@ -2,6 +2,7 @@
 #define FBS_ACL_H__
 
 void FBS_acl_init(void);
+void FBS_acl_destroy(void);
 void FBS_acl_data_process(guchar *data, gint len);
 void FBS_acl_comp_packets(guint16 handle, guint16 num);
 void FBS_get_acl_mtu(guint16 *acl_mtu, guint16 *acl_max_pkt);

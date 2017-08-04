@@ -163,6 +163,7 @@ void* FBS_uart_recv(void *unused)
 	if(uart_fd <= 0){
 		g_error("Can not open uart : %s", dev_path);
 	}
+	tcflush(uart_fd, TCIOFLUSH);
 	while(g_main_loop_is_running(fbs_uart_mainloop) == FALSE){ g_usleep(1000); }
 	while(TRUE){
 		guchar *hci_data;

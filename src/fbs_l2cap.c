@@ -15,6 +15,12 @@ struct fbs_l2cap_tcb {
 	GSList *link_list; //struct fbs_l2cap_link_tcb
 };
 
+struct fbs_l2cap_header {
+	guint16 len;
+	guint16 cid;
+	guint8 data[0];
+} __attribute__ ((packed)) tFBS_acl_header;
+
 static struct fbs_l2cap_tcb *fbs_l2cap_tcb;
 
 void FBS_l2cap_init(void)
@@ -42,6 +48,32 @@ void FBS_l2cap_destroy(void)
 
 void FBS_l2cap_data_process(guchar *data, gint len)
 {
+	struct fbs_l2cap_header *p = (struct fbs_l2cap_header*)data;
+	switch(p->cid){
+		case FBS_L2CAP_CID_L2CAP:
+			g_warning("NOT finished");
+			break;
+		case FBS_L2CAP_CID_CONNLESS:
+			g_warning("NOT finished");
+			break;
+		case FBS_L2CAP_CID_AMP:
+			g_warning("FBS_L2CAP_CID_AMP is NOT support");
+			break;
+		case FBS_L2CAP_CID_ATT:
+			g_warning("NOT finished");
+			break;
+		case FBS_L2CAP_CID_LE_L2CAP:
+			g_warning("NOT finished");
+			break;
+		case FBS_L2CAP_CID_SMP:
+			g_warning("NOT finished");
+			break;
+		case FBS_L2CAP_CID_EDR_SM:
+			g_warning("NOT finished");
+			break;
+		default:
+			break;
+	}
 	int i;
 	printf("L2cap :");
 	for(i=0;i<len;i++){

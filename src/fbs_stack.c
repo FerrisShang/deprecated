@@ -83,6 +83,12 @@ void FBS_stack_init_all(void)
 	FBS_hci_reg_callback(FBS_hci_le_evt_process);
 
 }
+void FBS_stack_destroy_all(void)
+{
+	FBS_hci_destroy();
+	FBS_l2cap_destroy();
+	FBS_acl_destroy();
+}
 
 static void FBS_uart_report(guchar *data, gint len, gpointer unused)
 {
@@ -111,9 +117,8 @@ void FBS_stack_run(void)
 	pthread_create(&th_command_recv, NULL, fbs_command_recv, mainloop);
 	g_usleep(5000);//wait for thread running
 	g_main_loop_run(mainloop);
-	g_main_loop_unref(mainloop);
-	pthread_join(th_uart_recv, NULL);
 	pthread_join(th_command_recv, NULL);
+	g_main_loop_unref(mainloop);
 }
 
 static void* fbs_command_recv(void *p) //RFU
@@ -123,6 +128,7 @@ static void* fbs_command_recv(void *p) //RFU
 	while(TRUE){
 		if(g_main_loop_is_running(mainloop) == FALSE){ break; }
 
+		FBS_hci_send(FBS_CMD_OPCODE_PACK(OGF_HOST_CTL, OCF_RESET), NULL, 0);
 		FBS_hci_send(FBS_CMD_OPCODE_PACK(OGF_INFO_PARAM, OCF_READ_LOCAL_VERSION), NULL, 0);
 		tFBS_write_bd_addr_cp write_bd_addr = {
 			{0x00,0xf5,0xf5,0xf5,0xf5,0x00},
@@ -199,6 +205,9 @@ static void* fbs_command_recv(void *p) //RFU
 				(gpointer)&le_set_scan_enable, sizeof(tFBS_le_set_scan_enable_cp));
 
 		g_message("Done");
+		g_usleep(300*1000*1000);
+		g_main_loop_quit(mainloop);
+		return NULL;
 		g_usleep(~0);
 	}
 	return NULL;

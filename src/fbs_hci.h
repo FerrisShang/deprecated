@@ -20,6 +20,7 @@ typedef struct {
 typedef gboolean (*tFBS_hci_cb)(guint8 evt, guint8 *data, guint16 len);
 
 void FBS_hci_reg_callback(tFBS_hci_cb callback);
+void FBS_hci_destroy(void);
 void FBS_hci_send(guint16 opcode, gpointer *data, gint len);
 void FBS_hci_evt_process(guchar *data, gint len);
 
