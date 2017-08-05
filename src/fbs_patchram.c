@@ -9,8 +9,13 @@
 #include <pthread.h>
 #include "fbs_patchram.h"
 
+//#define dbg_printf(...) printf("patchram:" __VA_ARGS__)
+#define dbg_printf(...)
+
 static struct termios termios;
+static unsigned char read_buf[32];
 static int read_num;
+static int len;
 
 static const char hci_reset[] = { 0x01, 0x03, 0x0c, 0x00 };
 static const char hci_baud[] = { 0x01, 0x18, 0xfc, 0x06, 0, 0, 0xc0, 0xc6, 0x2d, 0 };
@@ -37,13 +42,8 @@ static void fbs_init_uart(int uart_fd, int baud)
 	tcsetattr(uart_fd, TCSANOW, &termios);
 	tcflush(uart_fd, TCIOFLUSH);
 	tcflush(uart_fd, TCIOFLUSH);
-	if(baud == 3000000){
-		cfsetospeed(&termios, B3000000);
-		cfsetispeed(&termios, B3000000);
-	}else{ //default baud 115200
-		cfsetospeed(&termios, B115200);
-		cfsetispeed(&termios, B115200);
-	}
+	cfsetospeed(&termios, baud);
+	cfsetispeed(&termios, baud);
 	tcsetattr(uart_fd, TCSANOW, &termios);
 }
 
@@ -73,17 +73,19 @@ static int read_event(int fd, unsigned char *buffer)
 }
 static void* fbs_patchram_read_event(void *p)
 {
-	unsigned char buf[32];
 	int uart_fd = (int)(size_t)p;
-	read_num = read_event(uart_fd, buf);
+	read_num = read_event(uart_fd, read_buf);
 	return NULL;
 }
 
-static int fbs_wait_uart(int tout_ms, int *data_len)
+static int fbs_adapt_uart(int uart_fd, int tout_ms, int *data_len, unsigned char *read_buf)
 {
 	int cnt = tout_ms / 10;
+	memset(read_buf, -1, sizeof(read_buf));
+	*data_len = 0;
+	len = write(uart_fd, hci_reset, sizeof(hci_reset));
 	while(cnt--){
-		if(*data_len > 0){
+		if(*data_len == 7 && read_buf[6] == 0){
 			return 0;
 		}else{
 			usleep(10000);
@@ -92,29 +94,37 @@ static int fbs_wait_uart(int tout_ms, int *data_len)
 	return -1;
 }
 
-static int fbs_adapt_baud(int uart_fd)
+static int fbs_adapt_baud(int uart_fd, int baud)
 {
-	int len;
+	int idx;
+	int baud_para[] = {
+		B115200,
+		B3000000,
+	};
 	pthread_t th_read_event;
-	fbs_init_uart(uart_fd, 115200);
 	pthread_create(&th_read_event, NULL, fbs_patchram_read_event, (void*)(size_t)uart_fd);
 	usleep(10000);//wait for thread startup
-	len = write(uart_fd, hci_reset, sizeof(hci_reset));
-	if(fbs_wait_uart(100, &read_num) < 0){
-		fbs_init_uart(uart_fd, 3000000);
-		len = write(uart_fd, hci_reset, sizeof(hci_reset));
-		if(fbs_wait_uart(100, &read_num) < 0){
-			return -1;
+	fbs_init_uart(uart_fd, baud);
+	if(fbs_adapt_uart(uart_fd, 100, &read_num, read_buf) == 0){
+		dbg_printf("Adapt baud successful %d\n", baud);
+		return 0;
+	}
+	for(idx=0;idx<sizeof(baud_para)/sizeof(baud_para[0]);idx++){
+		if(baud != baud_para[idx]){
+			fbs_init_uart(uart_fd, baud_para[idx]);
+			if(fbs_adapt_uart(uart_fd, 100, &read_num, read_buf) == 0){
+				dbg_printf("Adapt baud successful %d\n", baud);
+				return 0;
+			}
 		}
 	}
-	return 0;
+	return -1;
 }
 
 int FBS_patchram(tFBS_patchram *info)
 {
 	FILE *fp;
 	int uart_fd = -1;
-	int len;
 	unsigned char buffer[512];
 	printf("Device:%s\nFirmware:%s\n", info->uart.dev_path, info->uart.fw_path);
 	if(info->type != FBS_PATCHRAM_TYPE_UART){
@@ -124,15 +134,25 @@ int FBS_patchram(tFBS_patchram *info)
 	if(uart_fd <= 0){
 		return FBS_PATCHRAM_ERR_OPEN_UART;
 	}
-	if(fbs_adapt_baud(uart_fd) < 0){
+	if(fbs_adapt_baud(uart_fd, B115200) < 0){
 		close(uart_fd);
-		return FBS_PATCHRAM_ERR_COMM;
+		//try again
+		usleep(10000);
+		uart_fd = open(info->uart.dev_path, O_RDWR | O_NOCTTY);
+		if(uart_fd <= 0){
+			return FBS_PATCHRAM_ERR_OPEN_UART;
+		}
+		if(fbs_adapt_baud(uart_fd, B115200) < 0){
+			close(uart_fd);
+			return FBS_PATCHRAM_ERR_COMM;
+		}
 	}
 	len = write(uart_fd, hci_baud, sizeof(hci_baud));
 	read_event(uart_fd, buffer);
-	fbs_init_uart(uart_fd, 3000000);
+	fbs_init_uart(uart_fd, B3000000);
 	len = write(uart_fd, hci_reset, sizeof(hci_reset));
 	read_event(uart_fd, buffer);
+	dbg_printf("Downloading patchram ...\n");
 	len = write(uart_fd, hci_download, sizeof(hci_download));
 	read_event(uart_fd, buffer);
 	fp = fopen(info->uart.fw_path, "r");
@@ -147,11 +167,16 @@ int FBS_patchram(tFBS_patchram *info)
 		read_event(uart_fd, buffer);
 	}
 	fclose(fp);
-	usleep(20000);
-	fbs_init_uart(uart_fd, 115200);
+	dbg_printf("Download successful\n");
+	usleep(150000);
+	if(fbs_adapt_baud(uart_fd, B115200) < 0){
+		close(uart_fd);
+		printf("Communicating failed, firmware maybe error\n");
+		return FBS_PATCHRAM_ERR_COMM;
+	}
 	len = write(uart_fd, hci_baud, sizeof(hci_baud));
 	read_event(uart_fd, buffer);
-	fbs_init_uart(uart_fd, 3000000);
+	fbs_init_uart(uart_fd, B3000000);
 	len = write(uart_fd, hci_reset, sizeof(hci_reset));
 	read_event(uart_fd, buffer);
 	close(uart_fd);
