@@ -116,8 +116,8 @@ void FBS_hci_evt_process(guchar *data, gint len)
 	}
 }
 
-#define FBS_RESERVE_BUF 4 // [len(2) + rfu(2)] + uart data
-#define FBS_UART_DATA_POINTER(p) (&(((guchar*)p)[FBS_RESERVE_BUF]))
+#define FBS_RESERVE_BUF_LEN 4 // [len(2) + rfu(2)] + uart data
+#define FBS_UART_DATA_POINTER(p) (&(((guchar*)p)[FBS_RESERVE_BUF_LEN]))
 #define FBS_UART_DATA_LEN(p)     ((guchar)p[0]+ ((guchar)p[1]<<8))
 
 static gboolean fbs_uart_send_cb(gpointer data)
@@ -130,21 +130,21 @@ static gboolean fbs_uart_send_cb(gpointer data)
 static void fbs_uart_send_destroy_cb(gpointer data)
 {
 	guchar *p = data;
-	g_slice_free1(FBS_UART_DATA_LEN(p)+FBS_RESERVE_BUF, p);
+	g_slice_free1(FBS_UART_DATA_LEN(p)+FBS_RESERVE_BUF_LEN, p);
 }
 
 void FBS_hci_send(guint16 opcode, gpointer *data, gint len)
 {
 	g_assert(fbs_hci_tcb != NULL);
 	sem_wait(&fbs_hci_tcb->sem_cmd_num);
-	guchar *hci_data = g_slice_alloc(FBS_RESERVE_BUF+4+len);
+	guchar *hci_data = g_slice_alloc(FBS_RESERVE_BUF_LEN+4+len);
 	hci_data[0] = ((4 + len) >> 0) & 0xFF;
 	hci_data[1] = ((4 + len) >> 8) & 0xFF;
-	hci_data[FBS_RESERVE_BUF+0] = 1; //cmd
-	hci_data[FBS_RESERVE_BUF+1] = (opcode >> 0) & 0xFF;
-	hci_data[FBS_RESERVE_BUF+2] = (opcode >> 8) & 0xFF;
-	hci_data[FBS_RESERVE_BUF+3] = (guchar)len;
-	memcpy(&hci_data[FBS_RESERVE_BUF+4], data, len);
+	hci_data[FBS_RESERVE_BUF_LEN+0] = 1; //cmd
+	hci_data[FBS_RESERVE_BUF_LEN+1] = (opcode >> 0) & 0xFF;
+	hci_data[FBS_RESERVE_BUF_LEN+2] = (opcode >> 8) & 0xFF;
+	hci_data[FBS_RESERVE_BUF_LEN+3] = (guchar)len;
+	memcpy(&hci_data[FBS_RESERVE_BUF_LEN+4], data, len);
 	fbs_add_hci_tout(1, opcode);
 	g_main_context_invoke_full(
 			NULL,

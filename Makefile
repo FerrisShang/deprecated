@@ -1,7 +1,9 @@
 app = bsc
 
 CC     = mips-linux-gnu-gcc
+STRIP  = mips-linux-gnu-strip
 #CC     = gcc
+#STRIP  = strip
 srcExt = c
 srcDir = src
 objDir = obj
@@ -45,6 +47,7 @@ $(binDir)/$(app): buildrepo $(objects)
 	@mkdir -p `dirname $@`
 	@echo "Linking $@..."
 	@$(CC) $(objects) $(LDFlags) -o $@
+	@$(STRIP) $@
 
 sinclude $(sources:%.$(srcExt)=$(objDir)/%.d)
 $(objDir)/%.o: %.$(srcExt)

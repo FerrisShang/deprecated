@@ -7,8 +7,8 @@
 #include "fbs_uart.h"
 #include "fbs_btsnoop.h"
 
-#define FBS_RESERVE_BUF 4 // [len(2) + rfu(2)] + hci
-#define FBS_HCI_DATA_POINTER(p) (&(((guchar*)p)[FBS_RESERVE_BUF]))
+#define FBS_RESERVE_BUF_LEN 4 // [len(2) + rfu(2)] + hci
+#define FBS_HCI_DATA_POINTER(p) (&(((guchar*)p)[FBS_RESERVE_BUF_LEN]))
 #define FBS_HCI_DATA_LEN(p)     ((guchar)p[0]+ ((guchar)p[1]<<8))
 
 static int uart_fd = -1;
@@ -93,12 +93,12 @@ static gpointer fbs_read_uart_th(int fd)
 		}
 		idx += count;
 		len = buf[3] + (buf[4] << 8);
-		p = g_slice_alloc(FBS_RESERVE_BUF + len + 5);
+		p = g_slice_alloc(FBS_RESERVE_BUF_LEN + len + 5);
 		if(!p){
 			g_error("Not enough memory");
 		}
-		memcpy(&p[FBS_RESERVE_BUF], buf, 5);
-		while ((count = read(fd, &p[FBS_RESERVE_BUF+idx], len)) < len) {
+		memcpy(&p[FBS_RESERVE_BUF_LEN], buf, 5);
+		while ((count = read(fd, &p[FBS_RESERVE_BUF_LEN+idx], len)) < len) {
 			if(count <= 0){
 				g_error("Read uart data failed");
 			}
@@ -120,12 +120,12 @@ static gpointer fbs_read_uart_th(int fd)
 		}
 		idx += count;
 		len = buf[2];
-		p = g_slice_alloc(FBS_RESERVE_BUF + len + 3);
+		p = g_slice_alloc(FBS_RESERVE_BUF_LEN + len + 3);
 		if(!p){
 			g_error("Not enough memory");
 		}
-		memcpy(&p[FBS_RESERVE_BUF], buf, 3);
-		while ((count = read(fd, &p[FBS_RESERVE_BUF+idx], len)) < len) {
+		memcpy(&p[FBS_RESERVE_BUF_LEN], buf, 3);
+		while ((count = read(fd, &p[FBS_RESERVE_BUF_LEN+idx], len)) < len) {
 			if(count <= 0){
 				g_error("Read uart data failed");
 			}

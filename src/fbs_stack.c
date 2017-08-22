@@ -130,6 +130,7 @@ static void* fbs_command_recv(void *p) //RFU
 
 		FBS_hci_send(FBS_CMD_OPCODE_PACK(OGF_HOST_CTL, OCF_RESET), NULL, 0);
 		FBS_hci_send(FBS_CMD_OPCODE_PACK(OGF_INFO_PARAM, OCF_READ_LOCAL_VERSION), NULL, 0);
+#if 0
 		tFBS_write_bd_addr_cp write_bd_addr = {
 			{0x00,0xf5,0xf5,0xf5,0xf5,0x00},
 		};
@@ -203,9 +204,11 @@ static void* fbs_command_recv(void *p) //RFU
 		le_set_scan_enable.enable = 0;
 		FBS_hci_send(FBS_CMD_OPCODE_PACK(OGF_LE_CTL, OCF_LE_SET_SCAN_ENABLE),
 				(gpointer)&le_set_scan_enable, sizeof(tFBS_le_set_scan_enable_cp));
+#else
+		g_usleep(300*1000*1000);
+#endif
 
 		g_message("Done");
-		g_usleep(300*1000*1000);
 		g_main_loop_quit(mainloop);
 		return NULL;
 		g_usleep(~0);
