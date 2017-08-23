@@ -3,6 +3,8 @@
 
 #include "fbs_hci.h"
 
+#define FBS_HCI_MAX_LEN 288
+
 void  FBS_enable_btsnoop(const gchar *path);
 void  FBS_uart_init(GMainLoop *mainloop,
 		void (*recv_cb)(guchar *data, gint len, gpointer pdata),

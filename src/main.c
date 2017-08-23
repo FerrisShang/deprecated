@@ -21,6 +21,8 @@ int main(int argc, char *argv[])
 	int res;
 	tFBS_patchram info;
 	info.type = FBS_PATCHRAM_TYPE_UART;
+	system("if cat /sys/class/rfkill/rfkill0/state | grep -q \"1\" ;"
+			"then echo 0 > /sys/class/rfkill/rfkill0/state ;fi");//Close BT if already open
 	system("echo 1 > /sys/class/rfkill/rfkill0/state");//Power on BT chip
 	strcpy(info.uart.dev_path, g_getenv(FBS_ENV_DEV_PATH));
 	strcpy(info.uart.fw_path, g_getenv(FBS_ENV_FW_PATH));

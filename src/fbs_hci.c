@@ -130,14 +130,14 @@ static gboolean fbs_uart_send_cb(gpointer data)
 static void fbs_uart_send_destroy_cb(gpointer data)
 {
 	guchar *p = data;
-	g_slice_free1(FBS_UART_DATA_LEN(p)+FBS_RESERVE_BUF_LEN, p);
+	g_slice_free1(FBS_HCI_MAX_LEN, p);
 }
 
 void FBS_hci_send(guint16 opcode, gpointer *data, gint len)
 {
 	g_assert(fbs_hci_tcb != NULL);
 	sem_wait(&fbs_hci_tcb->sem_cmd_num);
-	guchar *hci_data = g_slice_alloc(FBS_RESERVE_BUF_LEN+4+len);
+	guchar *hci_data = g_slice_alloc(FBS_HCI_MAX_LEN);
 	hci_data[0] = ((4 + len) >> 0) & 0xFF;
 	hci_data[1] = ((4 + len) >> 8) & 0xFF;
 	hci_data[FBS_RESERVE_BUF_LEN+0] = 1; //cmd

@@ -78,7 +78,7 @@ static void* fbs_patchram_read_event(void *p)
 	return NULL;
 }
 
-static int fbs_adapt_uart(int uart_fd, int tout_ms, int *data_len, unsigned char *read_buf)
+static int fbs_adapt_uart(int uart_fd, int tout_ms, int *data_len)
 {
 	int cnt = tout_ms / 10;
 	memset(read_buf, -1, sizeof(read_buf));
@@ -105,14 +105,14 @@ static int fbs_adapt_baud(int uart_fd, int baud)
 	pthread_create(&th_read_event, NULL, fbs_patchram_read_event, (void*)(size_t)uart_fd);
 	usleep(10000);//wait for thread startup
 	fbs_init_uart(uart_fd, baud);
-	if(fbs_adapt_uart(uart_fd, 100, &read_num, read_buf) == 0){
+	if(fbs_adapt_uart(uart_fd, 100, &read_num) == 0){
 		dbg_printf("Adapt baud successful %d\n", baud);
 		return 0;
 	}
 	for(idx=0;idx<sizeof(baud_para)/sizeof(baud_para[0]);idx++){
 		if(baud != baud_para[idx]){
 			fbs_init_uart(uart_fd, baud_para[idx]);
-			if(fbs_adapt_uart(uart_fd, 100, &read_num, read_buf) == 0){
+			if(fbs_adapt_uart(uart_fd, 100, &read_num) == 0){
 				dbg_printf("Adapt baud successful %d\n", baud);
 				return 0;
 			}

@@ -21,7 +21,7 @@ static void (*FBS_uart_callback)(guchar *data, gint len, gpointer pdata);
 static void fbs_btsnoop_msg_queue_destroy(gpointer data)
 {
 	guchar *p = data;
-	g_slice_free1(FBS_HCI_DATA_LEN(p), p);
+	g_slice_free1(FBS_HCI_MAX_LEN, p);
 }
 static void *fbs_start_btsnoop(void *p)
 {
@@ -39,11 +39,11 @@ static void *fbs_start_btsnoop(void *p)
 		struct msg_btsnoop *msg;
 		msg = g_async_queue_pop(fbs_btsnoop_msg_queue);
 		record_btsnoop(btsnoop_fd, msg);
-		g_slice_free1(msg->data_len, msg->hci_data);
+		g_slice_free1(FBS_HCI_MAX_LEN, msg->hci_data);
 		free_btsnoop_msg(msg);
 		while((msg = g_async_queue_try_pop(fbs_btsnoop_msg_queue)) != NULL){
 			record_btsnoop(btsnoop_fd, msg);
-			g_slice_free1(msg->data_len, msg->hci_data);
+			g_slice_free1(FBS_HCI_MAX_LEN, msg->hci_data);
 			free_btsnoop_msg(msg);
 		}
 		flush_btsnoop(btsnoop_fd);
@@ -67,7 +67,7 @@ static gboolean fbs_hci_recv_cb(gpointer data)
 static void fbs_hci_recv_destroy_cb(gpointer user_data)
 {
 	guchar *p = user_data;
-	g_slice_free1(FBS_HCI_DATA_LEN(p), p);
+	g_slice_free1(FBS_HCI_MAX_LEN, p);
 }
 
 static gpointer fbs_read_uart_th(int fd)
@@ -93,7 +93,7 @@ static gpointer fbs_read_uart_th(int fd)
 		}
 		idx += count;
 		len = buf[3] + (buf[4] << 8);
-		p = g_slice_alloc(FBS_RESERVE_BUF_LEN + len + 5);
+		p = g_slice_alloc(FBS_HCI_MAX_LEN);
 		if(!p){
 			g_error("Not enough memory");
 		}
@@ -120,7 +120,7 @@ static gpointer fbs_read_uart_th(int fd)
 		}
 		idx += count;
 		len = buf[2];
-		p = g_slice_alloc(FBS_RESERVE_BUF_LEN + len + 3);
+		p = g_slice_alloc(FBS_HCI_MAX_LEN);
 		if(!p){
 			g_error("Not enough memory");
 		}
@@ -171,7 +171,7 @@ void* FBS_uart_recv(void *unused)
 		hci_data = fbs_read_uart_th(uart_fd);
 		if(fbs_btsnoop_msg_queue != NULL){
 			guint len = FBS_HCI_DATA_LEN(hci_data);
-			guchar *uart_msg = g_slice_alloc(len);
+			guchar *uart_msg = g_slice_alloc(FBS_HCI_MAX_LEN);
 			memcpy(uart_msg,  FBS_HCI_DATA_POINTER(hci_data), len);
 			g_async_queue_push(fbs_btsnoop_msg_queue,
 					new_btsnoop_msg((char*)uart_msg, len, BTDATA_DIR_RECV));
@@ -190,7 +190,7 @@ gint FBS_uart_send(guchar *data, gint len)
 {
 	g_assert(uart_fd > 0);
 	if(fbs_btsnoop_msg_queue != NULL){
-		guchar *uart_msg = g_slice_alloc(len);
+		guchar *uart_msg = g_slice_alloc(FBS_HCI_MAX_LEN);
 		memcpy(uart_msg,  data, len);
 		g_async_queue_push(fbs_btsnoop_msg_queue,
 				new_btsnoop_msg((char*)uart_msg, len, BTDATA_DIR_SEND));
