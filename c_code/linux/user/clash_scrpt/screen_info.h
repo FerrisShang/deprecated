@@ -6,7 +6,7 @@
 #define SC_PPATH " /sdcard/sc.tmp "
 #define PT_PPATH " /sdcard/pt.tmp "
 #define SH_PPATH " /sdcard/tmp.sh "
-#define ADB_DEVICE " "
+#define ADB_DEVICE " -s 04aafe300025fb47 "
 #define ADB_SHELL  " adb "ADB_DEVICE" shell "
 #define ADB_PUSH   " adb "ADB_DEVICE" push  "
 #define ADB_GET_SC ADB_SHELL "\"screencap "SC_PPATH"; " \

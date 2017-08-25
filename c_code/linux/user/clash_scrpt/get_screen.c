@@ -213,7 +213,7 @@ int* get_cards(struct screen *screen)
 void num_map(char (*num)[64],int x,int y,struct screen *screen, int sx,int sy)
 {
 #define IS_NUM(c) (c.r>200&&c.g>200&&c.b>200)
-	if(num[y][x] != 0 || x<0 || y<0 || x>63 || y>63) { return; }
+	if(x<0 || y<0 || x>63 || y>63 || num[y][x] != 0) { return; }
 	if(IS_NUM(screen->data[sy][sx])){
 		num[y][x] = 1;
 	}else{

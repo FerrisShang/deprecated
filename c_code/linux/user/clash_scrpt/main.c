@@ -57,7 +57,21 @@ int main(int argc, char *argv[])
 			}
 		}
 		if(data.page == PAGE_BATTLE){
-			if(argc == 1) { battle_proc(screen); }
+			if(argc == 1) {
+				battle_proc(screen);
+			}else if(argc == 2){
+				if(argv[1][0]&1){
+					if(!(time(NULL) & (1<<10))){
+						battle_proc(screen);
+					}
+				}else{
+					if((time(NULL) & (1<<10))){
+						battle_proc(screen);
+					}
+				}
+			}else{
+				// Do nothing..
+			}
 		}else if(data.page == PAGE_UNKNOWN){
 			ADB_PRESS(540, 1919);
 		}else{
