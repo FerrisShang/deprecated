@@ -3,11 +3,39 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <time.h>
+#include "pthread.h"
+#include "unistd.h"
 #include "get_screen.h"
 #define LOCAL_SH " /tmp/sh.tmp "
 #define LOCAL_SC "/tmp/sc.tmp"
+
 #define GET_SCREEN() system(ADB_GET_SC ">" LOCAL_SC);
 #define RAND_IDX() (rand()%4)
+
+int key_pending;
+static void *adb_press(void*p)
+{
+	int x,y,*pos = p;
+	char b[100];
+	x = ((size_t)pos >> 16) & 0xFFFF;
+	y = ((size_t)pos >>  0) & 0xFFFF;
+	x += rand()%2-1;
+	y += rand()%2-1;
+	sprintf(b, ADB_SHELL "\"input tap %d %d \"", x, y);
+	key_pending++;
+	system(b);
+	usleep(1200000);
+	key_pending--;
+	return NULL;
+}
+#define ADB_PRESS(x,y) do{\
+	pthread_t th; \
+	int pos = ((x) << 16) + y; \
+	pthread_create(&th, NULL, adb_press, (void*)(size_t)pos); \
+	pthread_detach(th); \
+	usleep((250+rand()%50)*1000); \
+}while(0)
+
 
 enum {
 	SYNC_NONE,
@@ -20,9 +48,11 @@ struct info {
 	int cur_time;
 	int battle_time;
 	int card[4];
+	int score;
 } info;
 
 int page_rec;
+int drop_flag;
 
 void battle_proc(struct screen *screen);
 
@@ -46,23 +76,27 @@ int main(int argc, char *argv[])
 				case PAGE_HOME :
 					memset(&info, 0, sizeof(struct info));
 					ADB_PRESS(B_ENTRY_POSX, B_ENTRY_POSY);
+					sleep(1);
 					break;
 				case PAGE_LEVEL_CHANGE :
 					ADB_PRESS(B_LEVEL_POSX, B_LEVEL_POSY);
+					sleep(1);
 					break;
 				case PAGE_ENTRY_CONFIRM :
 					ADB_PRESS(B_CONFIRM_POSX, B_CONFIRM_POSY);
+					sleep(1);
 					break;
 				case PAGE_BATTLE_DONE :
 					ADB_PRESS(B_NONE_POSX, B_EXIT_BT_POSY);
+					sleep(1);
 					break;
 				case PAGE_UNKNOWN:
 					ADB_PRESS(B_NONE_POSY, B_EXIT_BT_POSY);
+					sleep(1);
 					break;
 			}
 		}
 		if(page_rec == PAGE_BATTLE){
-			get_1920_1080_score(screen);
 			if(argc == 1) {
 				battle_proc(screen);
 			}else if(argc == 2){
@@ -89,7 +123,21 @@ void battle_proc(struct screen *screen)
 	static int attack_step;
 	int i, isQuick;
 	info.cur_time = time(NULL);
+	info.score = get_1920_1080_score(screen);
+	if(info.score > 0 && info.score < 1600){
+		printf("Score too low (%d), exit\n", info.score);
+		exit(0);
+	}else if(info.score > 0 && info.score > 2290){
+		drop_flag = 1;
+	}else if(info.score > 0 && info.score < 1800){
+		drop_flag = 0;
+	}
+	if(drop_flag){
+		printf("Score too HIGH (%d), dropping now\n", info.score);
+		return;
+	}
 	if(info.battle_time == 0){
+		printf("score:%d\n", info.score);
 		info.battle_time = info.cur_time;
 	}
 	isQuick = info.cur_time-info.battle_time>55;
