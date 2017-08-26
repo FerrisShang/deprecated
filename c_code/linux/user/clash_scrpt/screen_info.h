@@ -29,10 +29,11 @@ static void *adb_press(void*p)
 	system(b);
 	usleep(1200000);
 	key_pending--;
+	return NULL;
 }
 #define ADB_PRESS(x,y) do{\
 	pthread_t th; \
-	int pos = (x << 16) + y; \
+	int pos = ((x) << 16) + y; \
 	pthread_create(&th, NULL, adb_press, (void*)(size_t)pos); \
 	pthread_detach(th); \
 	usleep((250+rand()%50)*1000); \

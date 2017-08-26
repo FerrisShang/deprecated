@@ -62,6 +62,7 @@ int main(int argc, char *argv[])
 			}
 		}
 		if(page_rec == PAGE_BATTLE){
+			get_1920_1080_score(screen);
 			if(argc == 1) {
 				battle_proc(screen);
 			}else if(argc == 2){

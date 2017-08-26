@@ -213,9 +213,9 @@ int* get_cards(struct screen *screen, int abs_flag)
 }
 void num_map(char (*num)[64],int x,int y,struct screen *screen, int sx,int sy)
 {
-#define IS_NUM(c) (c.r>200&&c.g>200&&c.b>200)
+#define IS_NUM_COL(c) (c.r>200&&c.g>200&&c.b>200)
 	if(x<0 || y<0 || x>63 || y>63 || num[y][x] != 0) { return; }
-	if(IS_NUM(screen->data[sy][sx])){
+	if(IS_NUM_COL(screen->data[sy][sx])){
 		num[y][x] = 1;
 	}else{
 		num[y][x] = -1;
@@ -235,7 +235,7 @@ static int get_1920_1080_num(struct screen *screen, int pos_x, int pos_y)
 	char num[64][64] = {{0}};
 	char n[32][24] = {{0}};
 	num_map(num,nx,ny,screen,x,y);
-	int i,j, t, b, l, r;
+	int i,j, t, l;
 
 	for(i=0;i<64;i++){
 		for(j=0;j<64;j++){
@@ -255,8 +255,8 @@ mark_left:
 		}
 	}
 mark_done:
-	for(i=t;i<t+32;i++){
-		for(j=l;j<l+24;j++){
+	for(i=t;i<t+32&&i<64;i++){
+		for(j=l;j<l+24&&j<64;j++){
 			if(num[i][j] == 1){ n[i-t][j-l] = num[i][j];}
 		}
 	}
@@ -290,4 +290,72 @@ mark_done:
 		}
 	}
 	return rec+1;
+}
+
+static void score_map(char score[30][100],int x1,int y1,struct screen *screen,int x2,int y2)
+{
+#define IS_SCORE_COL(c) (c.r>200&&c.g>200&&c.b>200)
+	if(x1<0 || y1<0 || x1>=100 || y1>=30 || score[y1][x1] != 0) { return; }
+	if(IS_SCORE_COL(screen->data[y2][x2])){
+		score[y1][x1] = 1;
+	}else{
+		score[y1][x1] = -1;
+		return;
+	}
+	score_map(score,x1,y1+1,screen,x2,y2+1);
+	score_map(score,x1,y1-1,screen,x2,y2-1);
+	score_map(score,x1+1,y1,screen,x2+1,y2);
+	score_map(score,x1-1,y1,screen,x2-1,y2);
+}
+static int get_score_num(char score[30][100],int l,int t, int w,int h)
+{
+	for(int i=t;i<t+h;i++){
+		for(int j=l;j<l+w;j++){
+			if(score[i][j] == 1){ printf("1"); }else{ printf("0"); }
+		}
+		printf("\n");
+	}
+	printf("\n");
+	return 0;
+}
+int get_1920_1080_score(struct screen *screen)
+{
+#define SC_POS_X_S 99
+#define SC_POS_X_E 198
+#define SC_POS_OFFSET (192+1+5)
+#define SC_POS_Y   (SC_POS_OFFSET+30/2)
+#define SC_HEIGHT  (24)
+	int i, j;
+	char sc[30][100] = {{0}};
+	for(i=SC_POS_X_S;i<SC_POS_X_E;i++){
+		if(IS_SCORE_COL(screen->data[SC_POS_Y][i])){
+			score_map(sc, i-SC_POS_X_S, SC_POS_Y-SC_POS_OFFSET, screen, i, SC_POS_Y);
+		}
+	}
+	int num_idx = 0, found, left = 0,right, n[4];
+	while(num_idx < 4){
+		found = 0;
+		for(i=left;i<100;i++){
+			for(j=0;j<30;j++){ if(sc[j][i] == 1){ found = 1; break;} }
+			if(found) break;
+		}
+		if(!found){break;}else{
+			left = i;
+			for(i=left;i<100;i++){
+				found = 0;
+				for(j=0;j<30;j++){ if(sc[j][i] == 1){ found = 1; break;} }
+				if(found==0) break;
+			}
+			if(i == 100) break;
+			right = i;
+		}
+		n[num_idx] = get_score_num(sc, left, 0, right-left, SC_HEIGHT);
+		num_idx++;
+		left = right+1;
+	}
+	if(num_idx == 4){
+		return n[0]*1000+n[1]*100+n[2]*10+n[3]*1;
+	}else{
+		return -1;
+	}
 }
