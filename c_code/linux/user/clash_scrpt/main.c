@@ -7,27 +7,30 @@
 #define LOCAL_SH " /tmp/sh.tmp "
 #define LOCAL_SC "/tmp/sc.tmp"
 #define GET_SCREEN() system(ADB_GET_SC ">" LOCAL_SC);
+#define RAND_IDX() (rand()%4)
 
-static int sync_flag, cnt, nclock, leaveClock, card[4], sync_flag_idx ;
+enum {
+	SYNC_NONE,
+	SYNC_FOUND,
+	SYNC_ATTACK,
+};
+struct info {
+	int sync_flag;
+	int ex_cnt;
+	int cur_time;
+	int battle_time;
+	int card[4];
+} info;
+
+int page_rec;
 
 void battle_proc(struct screen *screen);
-struct {
-	int page;
-}data = {-1};
-void clearall(void)
-{
-	int i;
-	for(i=0;i<4;i++){
-		card[i] = -1;
-	}
-	sync_flag = 0;
-}
+
 int main(int argc, char *argv[])
 {
 	struct screen *screen;
 	system("echo " "\""SC_PICK_SH"\"" ">"LOCAL_SH);
 	system(ADB_PUSH  LOCAL_SH  SH_PPATH);
-	clearall();
 	while(1){
 		GET_SCREEN();
 		screen = get_screen_data(LOCAL_SC);
@@ -36,10 +39,12 @@ int main(int argc, char *argv[])
 			return -1;
 		}
 		int p = get_page(screen);
-		if(p != data.page){
-			data.page = p;
-			switch(data.page){
+		if(p != page_rec){
+			printf("page_rec : %d\n", p);
+			page_rec = p;
+			switch(page_rec){
 				case PAGE_HOME :
+					memset(&info, 0, sizeof(struct info));
 					ADB_PRESS(B_ENTRY_POSX, B_ENTRY_POSY);
 					break;
 				case PAGE_LEVEL_CHANGE :
@@ -56,7 +61,7 @@ int main(int argc, char *argv[])
 					break;
 			}
 		}
-		if(data.page == PAGE_BATTLE){
+		if(page_rec == PAGE_BATTLE){
 			if(argc == 1) {
 				battle_proc(screen);
 			}else if(argc == 2){
@@ -72,126 +77,106 @@ int main(int argc, char *argv[])
 			}else{
 				// Do nothing..
 			}
-		}else if(data.page == PAGE_UNKNOWN){
+		}else if(page_rec == PAGE_UNKNOWN){
 			ADB_PRESS(540, 1919);
-		}else{
-			if(nclock-leaveClock>3){
-				leaveClock = time(NULL);
-				clearall();
-			}
 		}
 	}
 }
 void battle_proc(struct screen *screen)
 {
-	int i;
-	nclock = time(NULL);
-	cnt = get_ex_cnt(screen);
-	int *c = get_cards(screen);
-	if(sync_flag<=10){
-		int flag = 0;
-		for(i=0;i<4;i++){
-			if(card[i] == 4){
-					flag++;
-			}
-		}
-		if(flag > 1){
-			for(i=0;i<4;i++){
-				if(card[i] == 4){
-					card[i] = -1;
-				}
-			}
-		}
-		flag = 0;
-		for(i=0;i<4;i++){
-			if(card[i] == 3){
-					flag++;
-			}
-		}
-		if(flag > 1){
-			for(i=0;i<4;i++){
-				if(card[i] == 3){
-					card[i] = -1;
-				}
-			}
-		}
-		for(i=0;i<4;i++){
-			if(card[i] < 0 && cnt > 2 && c[i]>0 && c[i]<=4){
-				card[i] = c[i];
-			}
-			if(card[i] < 0 && cnt > 3 && c[i]==0){
-				card[i] = 4;
-			}
-		}
-		if((card[0]==3||card[1]==3||card[2]==3||card[3]==3)&&
-				(card[0]==4||card[1]==4||card[2]==4||card[3]==4)){
-			if(cnt >= 9){
+	static int card_select_idx;
+	static int attack_step;
+	int i, isQuick;
+	info.cur_time = time(NULL);
+	if(info.battle_time == 0){
+		info.battle_time = info.cur_time;
+	}
+	isQuick = info.cur_time-info.battle_time>55;
+	info.ex_cnt = get_ex_cnt(screen);
+	int *c = get_cards(screen, 1);
+	for(i=0;i<4;i++){
+		info.card[i] = c[i];
+	}
+	printf("sync=%d | ex:%d | c:%d %d %d %d | key(%d)\n",
+			info.sync_flag, info.ex_cnt, c[0], c[1], c[2], c[3], key_pending);
+	if(key_pending > 0){
+		return;
+	}
+	if(info.sync_flag == SYNC_NONE){
+		if((info.card[0]==3||info.card[1]==3||info.card[2]==3||info.card[3]==3)&&
+				(info.card[0]==4||info.card[1]==4||info.card[2]==4||info.card[3]==4)){
+			if(info.ex_cnt >= 9){
 				for(i=0;i<4;i++){
-					if(sync_flag < 5){
-						if(card[i] == 3){
-							sync_flag = 5;
+					if(info.sync_flag < 5){
+						if(info.card[i] == 3){
+							info.sync_flag = SYNC_FOUND;
 							ADB_PRESS(C_BASE_POSX+i*C_WIDTH_POS, C_BASE_POSY);
 							ADB_PRESS(490, 1440);
-							sync_flag_idx = i;
-							break;
-						}
-					}else{
-						if(card[i] == 4){
-							sync_flag = 100;
-							ADB_PRESS(C_BASE_POSX+i*C_WIDTH_POS, C_BASE_POSY);
-							ADB_PRESS(490, 1000);
 							break;
 						}
 					}
 				}
 			}
 		}else{
-			if(cnt >= 6){
+			if(info.ex_cnt >= 6){
 				for(i=0;i<4;i++){
-					if(card[i] < 3 && card[i] > 0){
+					if(info.card[i] < 3 && info.card[i] > 0){
 						ADB_PRESS(C_BASE_POSX+i*C_WIDTH_POS, C_BASE_POSY);
 						ADB_PRESS(583, 1429);
-						card[i] = -1;
+						info.card[i] = -1;
 						break;
 					}
 				}
 			}
 		}
-	}else{
-		switch((sync_flag-100) % 5){
+	}else if(info.sync_flag == SYNC_FOUND){
+		if(info.ex_cnt >= 9){
+			for(i=0;i<4;i++){
+				if(info.card[i] == 4){
+					info.sync_flag = SYNC_ATTACK;
+					attack_step = 0;
+					ADB_PRESS(C_BASE_POSX+i*C_WIDTH_POS, C_BASE_POSY);
+					ADB_PRESS(490, 1050);
+					break;
+				}
+			}
+		}
+	}else{ // info.sync_flag == SYNC_ATTACK
+		switch((attack_step) % 5){
 			case 0:
-				if(cnt >= 2){
-					ADB_PRESS(C_BASE_POSX+sync_flag_idx*C_WIDTH_POS, C_BASE_POSY);
-					ADB_PRESS(250, 900);
-					sync_flag++;
+				if(info.ex_cnt >= 2){
+					ADB_PRESS(C_BASE_POSX+RAND_IDX()*C_WIDTH_POS, C_BASE_POSY);
+					ADB_PRESS(250, 900+200*isQuick);
+					attack_step++;
 				}
 				break;
 			case 1:
-				if(cnt >= 2){
-					ADB_PRESS(C_BASE_POSX+sync_flag_idx*C_WIDTH_POS, C_BASE_POSY);
-					ADB_PRESS(250, 900);
-					sync_flag++;
+				if(info.ex_cnt >= 2){
+					ADB_PRESS(C_BASE_POSX+RAND_IDX()*C_WIDTH_POS, C_BASE_POSY);
+					ADB_PRESS(250, 900+50*isQuick);
+					attack_step++;
 				}
 				break;
 			case 2:
-				if(cnt >= 2){
-					ADB_PRESS(C_BASE_POSX+sync_flag_idx*C_WIDTH_POS, C_BASE_POSY);
-					ADB_PRESS(250, 900);
-					sync_flag++;
+				if(info.ex_cnt >= 2){
+					card_select_idx = RAND_IDX();
+					ADB_PRESS(C_BASE_POSX+card_select_idx*C_WIDTH_POS, C_BASE_POSY);
+					ADB_PRESS(250, 700);
+					attack_step++;
 				}
 				break;
 			case 3:
-				if(cnt >= 8){
-					ADB_PRESS(C_BASE_POSX+sync_flag_idx*C_WIDTH_POS, C_BASE_POSY);
+				if(info.ex_cnt >= 8){
+					ADB_PRESS(C_BASE_POSX+card_select_idx*C_WIDTH_POS, C_BASE_POSY);
 					ADB_PRESS(490, 1440);
-					sync_flag++;
+					attack_step++;
 				}
 				break;
 			case 4:
-				if(cnt >= 8){
-					ADB_PRESS(C_BASE_POSX+sync_flag_idx*C_WIDTH_POS, C_BASE_POSY);
-					ADB_PRESS(490, 1000);
-					sync_flag++;
+				if(info.ex_cnt >= 8){
+					ADB_PRESS(C_BASE_POSX+card_select_idx*C_WIDTH_POS, C_BASE_POSY);
+					ADB_PRESS(490, 1000+210*isQuick);
+					attack_step++;
 					sleep(1);
 				}
 				break;

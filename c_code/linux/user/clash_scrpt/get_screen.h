@@ -26,6 +26,6 @@ struct screen {
 struct screen* get_screen_data(char *path);
 int get_page(struct screen *screen);
 int get_ex_cnt(struct screen *screen);
-int* get_cards(struct screen *screen);
+int* get_cards(struct screen *screen, int abs_flag);
 
 #endif /* __GET_SCREEN_H__ */

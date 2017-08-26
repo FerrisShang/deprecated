@@ -176,8 +176,8 @@ int get_ex_cnt(struct screen *screen)
 	}
 }
 
-static int get_num(struct screen *screen, int pos_x, int pos_y);
-int* get_cards(struct screen *screen)
+static int get_1920_1080_num(struct screen *screen, int pos_x, int pos_y);
+int* get_cards(struct screen *screen, int abs_flag)
 {
 #define POS_X_1 354
 #define POS_X_2 558
@@ -205,7 +205,8 @@ int* get_cards(struct screen *screen)
 		else if(flg1<EMPTY_LEVEL){ cards[i] = 1; }
 		else { cards[i] = 0; }
 		if(cards[i]!=0){
-			cards[i] *= get_num(screen, pos[i], cards[i]==1?USE_EX_Y_POS:SE_EX_Y_POS);
+			cards[i] *= get_1920_1080_num(screen, pos[i], cards[i]==1?USE_EX_Y_POS:SE_EX_Y_POS);
+			if(abs_flag){ cards[i] = cards[i]<0?-cards[i]:cards[i]; }
 		}
 	}
 	return cards;
@@ -226,7 +227,7 @@ void num_map(char (*num)[64],int x,int y,struct screen *screen, int sx,int sy)
 	num_map(num,x+1,y,screen,sx+1,sy);
 	num_map(num,x-1,y,screen,sx-1,sy);
 }
-static int get_num(struct screen *screen, int pos_x, int pos_y)
+static int get_1920_1080_num(struct screen *screen, int pos_x, int pos_y)
 {
 	int x = pos_x - 18;
 	int y = pos_y + 18;

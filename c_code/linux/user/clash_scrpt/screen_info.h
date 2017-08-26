@@ -12,10 +12,30 @@
 #define ADB_GET_SC ADB_SHELL "\"screencap "SC_PPATH"; " \
 					" sh "SH_PPATH" > /dev/null 2>&1; " \
 					" cat "PT_PPATH"\""
+
+#include "pthread.h"
+#include "unistd.h"
+int key_pending;
+static void *adb_press(void*p)
+{
+	int x,y,*pos = p;
+	char b[100];
+	x = ((size_t)pos >> 16) & 0xFFFF;
+	y = ((size_t)pos >>  0) & 0xFFFF;
+	x += rand()%2-1;
+	y += rand()%2-1;
+	sprintf(b, ADB_SHELL "\"input tap %d %d \"", x, y);
+	key_pending++;
+	system(b);
+	usleep(1200000);
+	key_pending--;
+}
 #define ADB_PRESS(x,y) do{\
-	char b[100]; \
-	sprintf(b, ADB_SHELL "\"input tap %d %d \"", x, y); \
-	system(b); \
+	pthread_t th; \
+	int pos = (x << 16) + y; \
+	pthread_create(&th, NULL, adb_press, (void*)(size_t)pos); \
+	pthread_detach(th); \
+	usleep((250+rand()%50)*1000); \
 }while(0)
 
 #if defined SIZE_1920_1080
@@ -26,7 +46,9 @@
 	 "dd if=/sdcard/sc.tmp of=/sdcard/pt.tmp " \
 		  "bs=829440 count=1 seek=0 skip=9;\n" \
 	 "dd if=/sdcard/sc.tmp of=/sdcard/pt.tmp " \
-		  "bs=4320 count=1 seek=192 skip=1199;\n"
+		  "bs=4320 count=1 seek=192 skip=1199;\n" \
+	 "dd if=/sdcard/sc.tmp of=/sdcard/pt.tmp " \
+		  "bs=4320 count=30 seek=193 skip=120;\n"
 
 #define B_ENTRY_POSX   450
 #define B_ENTRY_POSY   1200

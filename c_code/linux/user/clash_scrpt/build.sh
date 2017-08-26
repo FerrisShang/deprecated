@@ -1,1 +1,1 @@
-gcc *.c -fsanitize=address -fuse-ld=gold -g
+gcc *.c -pthread -fsanitize=address -fuse-ld=gold -g
