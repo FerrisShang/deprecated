@@ -51,14 +51,28 @@ struct info {
 	int score;
 } info;
 
-int page_rec;
 int drop_flag;
+int score_exit = 1600;
+int score_drop = 2300;
+int score_attack = 1800;
 
 void battle_proc(struct screen *screen);
 
 int main(int argc, char *argv[])
 {
+	static int page_rec;
 	struct screen *screen;
+	if(argc == 2){
+		score_exit = atoi(argv[1]);
+	}else if(argc == 4){
+		score_exit = atoi(argv[1]);
+		score_drop = atoi(argv[2]);
+		score_attack = atoi(argv[3]);
+		if(score_drop-score_attack<30 || score_attack-score_exit<30){
+			printf("Usage: APP [exit score] [drop score] [attack score]\n");
+			return 0;
+		}
+	}
 	system("echo " "\""SC_PICK_SH"\"" ">"LOCAL_SH);
 	system(ADB_PUSH  LOCAL_SH  SH_PPATH);
 	while(1){
@@ -97,21 +111,7 @@ int main(int argc, char *argv[])
 			}
 		}
 		if(page_rec == PAGE_BATTLE){
-			if(argc == 1) {
-				battle_proc(screen);
-			}else if(argc == 2){
-				if(argv[1][0]&1){
-					if(!(time(NULL) & (1<<10))){
-						battle_proc(screen);
-					}
-				}else{
-					if((time(NULL) & (1<<10))){
-						battle_proc(screen);
-					}
-				}
-			}else{
-				// Do nothing..
-			}
+			battle_proc(screen);
 		}else if(page_rec == PAGE_UNKNOWN){
 			ADB_PRESS(540, 1919);
 		}
@@ -124,17 +124,13 @@ void battle_proc(struct screen *screen)
 	int i, isQuick;
 	info.cur_time = time(NULL);
 	info.score = get_1920_1080_score(screen);
-	if(info.score > 0 && info.score < 1600){
+	if(info.score > 0 && info.score < score_exit){
 		printf("Score too low (%d), exit\n", info.score);
 		exit(0);
-	}else if(info.score > 0 && info.score > 2290){
+	}else if(info.score > 0 && info.score > score_drop){
 		drop_flag = 1;
-	}else if(info.score > 0 && info.score < 1800){
+	}else if(info.score > 0 && info.score < score_attack){
 		drop_flag = 0;
-	}
-	if(drop_flag){
-		printf("Score too HIGH (%d), dropping now\n", info.score);
-		return;
 	}
 	if(info.battle_time == 0){
 		printf("score:%d\n", info.score);
@@ -146,8 +142,12 @@ void battle_proc(struct screen *screen)
 	for(i=0;i<4;i++){
 		info.card[i] = c[i];
 	}
-	printf("sync=%d | ex:%d | c:%d %d %d %d | key(%d)\n",
-			info.sync_flag, info.ex_cnt, c[0], c[1], c[2], c[3], key_pending);
+	printf("score:%d|sync=%d(%d)|isDrop(%d)|ex:%2d|c:%d %d %d %d|key(%d)\n",
+			info.score, info.sync_flag, attack_step, drop_flag, info.ex_cnt,
+			c[0], c[1], c[2], c[3], key_pending);
+	if(drop_flag){
+		return;
+	}
 	if(key_pending > 0){
 		return;
 	}
@@ -191,7 +191,8 @@ void battle_proc(struct screen *screen)
 			}
 		}
 	}else{ // info.sync_flag == SYNC_ATTACK
-		switch((attack_step) % 5){
+		attack_step = (attack_step) % 5;
+		switch(attack_step){
 			case 0:
 				if(info.ex_cnt >= 2){
 					ADB_PRESS(C_BASE_POSX+RAND_IDX()*C_WIDTH_POS, C_BASE_POSY);
