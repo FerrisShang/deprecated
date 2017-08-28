@@ -6,10 +6,6 @@
 #include "pthread.h"
 #include "unistd.h"
 #include "get_screen.h"
-#define LOCAL_SH " /tmp/sh.tmp "
-#define LOCAL_SC "/tmp/sc.tmp"
-
-#define GET_SCREEN() system(ADB_GET_SC ">" LOCAL_SC);
 #define RAND_IDX() (rand()%4)
 
 int key_pending;
@@ -33,7 +29,7 @@ static void *adb_press(void*p)
 	int pos = ((x) << 16) + y; \
 	pthread_create(&th, NULL, adb_press, (void*)(size_t)pos); \
 	pthread_detach(th); \
-	usleep((250+rand()%50)*1000); \
+	usleep((750+rand()%50)*1000); \
 }while(0)
 
 
@@ -44,7 +40,7 @@ enum {
 };
 struct info {
 	int sync_flag;
-	int ex_cnt;
+	float ex_cnt;
 	int cur_time;
 	int battle_time;
 	int card[4];
@@ -121,6 +117,7 @@ void battle_proc(struct screen *screen)
 {
 	static int card_select_idx;
 	static int attack_step;
+	static int screen_idx;
 	int i, isQuick;
 	info.cur_time = time(NULL);
 	info.score = get_1920_1080_score(screen);
@@ -142,7 +139,12 @@ void battle_proc(struct screen *screen)
 	for(i=0;i<4;i++){
 		info.card[i] = c[i];
 	}
-	printf("score:%d|sync=%d(%d)|isDrop(%d)|ex:%2d|c:%d %d %d %d|key(%d)\n",
+	if(screen_idx != screen->idx){
+		screen_idx = screen->idx;
+	}else{
+		return;
+	}
+	printf("score:%d|sync=%d(%d)|isDrop(%d)|ex:%4.1f|c:%d %d %d %d|key(%d)\n",
 			info.score, info.sync_flag, attack_step, drop_flag, info.ex_cnt,
 			c[0], c[1], c[2], c[3], key_pending);
 	if(drop_flag){
@@ -154,9 +156,9 @@ void battle_proc(struct screen *screen)
 	if(info.sync_flag == SYNC_NONE){
 		if((info.card[0]==3||info.card[1]==3||info.card[2]==3||info.card[3]==3)&&
 				(info.card[0]==4||info.card[1]==4||info.card[2]==4||info.card[3]==4)){
-			if(info.ex_cnt >= 9){
+			if(info.ex_cnt > 8.4){
 				for(i=0;i<4;i++){
-					if(info.sync_flag < 5){
+					if(info.sync_flag == SYNC_NONE){
 						if(info.card[i] == 3){
 							info.sync_flag = SYNC_FOUND;
 							ADB_PRESS(C_BASE_POSX+i*C_WIDTH_POS, C_BASE_POSY);
@@ -167,7 +169,7 @@ void battle_proc(struct screen *screen)
 				}
 			}
 		}else{
-			if(info.ex_cnt >= 6){
+			if(info.ex_cnt >= 8.0){
 				for(i=0;i<4;i++){
 					if(info.card[i] < 3 && info.card[i] > 0){
 						ADB_PRESS(C_BASE_POSX+i*C_WIDTH_POS, C_BASE_POSY);
@@ -179,7 +181,7 @@ void battle_proc(struct screen *screen)
 			}
 		}
 	}else if(info.sync_flag == SYNC_FOUND){
-		if(info.ex_cnt >= 9){
+		if(info.ex_cnt > 8.4){
 			for(i=0;i<4;i++){
 				if(info.card[i] == 4){
 					info.sync_flag = SYNC_ATTACK;
@@ -194,21 +196,21 @@ void battle_proc(struct screen *screen)
 		attack_step = (attack_step) % 5;
 		switch(attack_step){
 			case 0:
-				if(info.ex_cnt >= 2){
+				if(info.ex_cnt > 1.9-isQuick*.5){
 					ADB_PRESS(C_BASE_POSX+RAND_IDX()*C_WIDTH_POS, C_BASE_POSY);
 					ADB_PRESS(250, 900+200*isQuick);
 					attack_step++;
 				}
 				break;
 			case 1:
-				if(info.ex_cnt >= 2){
+				if(info.ex_cnt > 1.9-isQuick*.5){
 					ADB_PRESS(C_BASE_POSX+RAND_IDX()*C_WIDTH_POS, C_BASE_POSY);
 					ADB_PRESS(250, 900+50*isQuick);
 					attack_step++;
 				}
 				break;
 			case 2:
-				if(info.ex_cnt >= 2){
+				if(info.ex_cnt > 1.9-isQuick*.5){
 					card_select_idx = RAND_IDX();
 					ADB_PRESS(C_BASE_POSX+card_select_idx*C_WIDTH_POS, C_BASE_POSY);
 					ADB_PRESS(250, 700);
@@ -216,14 +218,14 @@ void battle_proc(struct screen *screen)
 				}
 				break;
 			case 3:
-				if(info.ex_cnt >= 8){
+				if(info.ex_cnt > 8.4-isQuick*.8){
 					ADB_PRESS(C_BASE_POSX+card_select_idx*C_WIDTH_POS, C_BASE_POSY);
-					ADB_PRESS(490, 1440);
+					ADB_PRESS(490, 1440-200*isQuick);
 					attack_step++;
 				}
 				break;
 			case 4:
-				if(info.ex_cnt >= 8){
+				if(info.ex_cnt > 8.4-isQuick*.8){
 					ADB_PRESS(C_BASE_POSX+card_select_idx*C_WIDTH_POS, C_BASE_POSY);
 					ADB_PRESS(490, 1000+210*isQuick);
 					attack_step++;

@@ -1,17 +1,96 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <pthread.h>
 #include <sys/stat.h>
 #include "get_screen.h"
 
 #define MAX_BUF_SIZE (4<<20)
 static struct screen screen;
-static char *file_org_buf;
-static char *file_new_buf;
+
+static struct screen_info {
+	pthread_mutex_t mutex;
+	char *buf;
+	int size;
+	int idx;
+}screen_info;
 
 static int get_file_size(const char *path);
 
+static void *th_get_screen(void *arg)
+{
+	static char *file_org_buf;
+	static char *file_new_buf;
+	FILE *fp;
+	char *p,*q;
+	int size, i;
+	screen_info.buf = malloc(MAX_BUF_SIZE);
+	if(!screen_info.buf){
+		printf("Not enough memory\n");
+		return NULL;
+	}
+	if(file_org_buf == 0){
+		file_org_buf = malloc(MAX_BUF_SIZE);
+		file_new_buf = malloc(MAX_BUF_SIZE);
+		if(!file_org_buf || !file_new_buf){
+			printf("malloc error\n");
+			return NULL;
+		}
+	}
+	pthread_mutex_init(&screen_info.mutex, NULL);
+	while(1){
+		system(ADB_GET_SC ">" LOCAL_SC);
+		size = get_file_size(LOCAL_SC);
+		if(size <= 0){
+			printf("get screenshot %s failed\n", LOCAL_SC);
+			return NULL;
+		}
+		fp = fopen(LOCAL_SC, "rb");
+		if(fp != NULL){
+			fread(file_org_buf, size, 1, fp);
+			fclose(fp);
+		}else{
+			printf("read sc file failed\n");
+			return NULL;
+		}
+		p = file_new_buf;
+		q = file_org_buf;
+		for(i=0;i<size-1;i++){
+			if(*q == 0x0D && *(q+1) == 0x0A){
+				q++;
+				continue;
+			}
+			*p = *q;
+			p++;
+			q++;
+		}
+		*p = *q; //last byte
+		p++;
+
+		pthread_mutex_lock(&screen_info.mutex);
+		screen_info.idx++;
+		screen_info.size = p - file_new_buf;
+		memcpy(screen_info.buf, file_new_buf, screen_info.size);
+		pthread_mutex_unlock(&screen_info.mutex);
+	}
+}
+
+void GET_SCREEN(void)
+{
+	static pthread_t th;
+	if(th == 0){
+		pthread_create(&th, NULL, th_get_screen, NULL);
+		sleep(1);
+	}else{
+		usleep(150000);
+	}
+}
+#if 0
 struct screen* get_screen_data(char *path)
 {
+	static char *file_org_buf;
+	static char *file_new_buf;
 	FILE *fp;
 	char *p,*q;
 	int size, i;
@@ -53,6 +132,25 @@ struct screen* get_screen_data(char *path)
 	screen.data = (struct rgba(*)[WIDTH])file_new_buf;
 	return &screen;
 }
+#else
+struct screen* get_screen_data(char *path)
+{
+	if(!screen.data){
+		screen.data = malloc(MAX_BUF_SIZE);
+		if(!screen.data){
+			printf("malloc error\n");
+			return NULL;
+		}
+	}
+	pthread_mutex_lock(&screen_info.mutex);
+	screen.size = screen_info.size;
+	memcpy(screen.data, screen_info.buf, screen_info.size);
+	screen.idx = screen_info.idx;
+	pthread_mutex_unlock(&screen_info.mutex);
+	return &screen;
+}
+
+#endif
 
 static int get_file_size(const char *path)
 {
@@ -159,7 +257,7 @@ int get_page(struct screen *screen)
 	//		screen->data[192][10].b);
 	return PAGE_UNKNOWN;
 }
-int get_ex_cnt(struct screen *screen)
+float get_ex_cnt(struct screen *screen)
 {
 #define START_POS 295
 #define EX_WIDTH   75
@@ -172,7 +270,7 @@ int get_ex_cnt(struct screen *screen)
 	if(end < START_POS || end == 0){
 		return 0;
 	}else{
-		return (end-START_POS+EX_WIDTH/2)/EX_WIDTH;
+		return (float)(end-START_POS)/(float)EX_WIDTH;
 	}
 }
 
