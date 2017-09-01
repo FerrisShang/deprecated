@@ -47,30 +47,47 @@ struct info {
 	int score;
 } info;
 
-int drop_flag;
-int score_exit = 1600;
-int score_drop = 2300;
-int score_attack = 1800;
+struct score {
+	int exit;
+	int drop;
+	int attack;
+	int last;
+	int drop_flag;
+	int battle_cnt;
+} score = {
+	.exit = 1600,
+	.drop = 2150,
+	.attack = 1740,
+};
 
 void battle_proc(struct screen *screen);
 
+static void reset_app(void)
+{
+	system(ADB_SHELL PHONE_HOME);
+	system(ADB_SHELL PHONE_UNLOCK);
+	system(ADB_SHELL START_APP);
+	sleep(4);
+}
 int main(int argc, char *argv[])
 {
 	static int page_rec;
+	static int key_rec;
 	struct screen *screen;
 	if(argc == 2){
-		score_exit = atoi(argv[1]);
+		score.exit = atoi(argv[1]);
 	}else if(argc == 4){
-		score_exit = atoi(argv[1]);
-		score_drop = atoi(argv[2]);
-		score_attack = atoi(argv[3]);
-		if(score_drop-score_attack<30 || score_attack-score_exit<30){
+		score.exit = atoi(argv[1]);
+		score.drop = atoi(argv[2]);
+		score.attack = atoi(argv[3]);
+		if(score.drop-score.attack<30 || score.attack-score.exit<30){
 			printf("Usage: APP [exit score] [drop score] [attack score]\n");
 			return 0;
 		}
 	}
 	system("echo " "\""SC_PICK_SH"\"" ">"LOCAL_SH);
 	system(ADB_PUSH  LOCAL_SH  SH_PPATH);
+	reset_app();
 	while(1){
 		GET_SCREEN();
 		screen = get_screen_data(LOCAL_SC);
@@ -82,34 +99,37 @@ int main(int argc, char *argv[])
 		if(p != page_rec){
 			printf("page_rec : %d\n", p);
 			page_rec = p;
-			switch(page_rec){
-				case PAGE_HOME :
-					memset(&info, 0, sizeof(struct info));
-					ADB_PRESS(B_ENTRY_POSX, B_ENTRY_POSY);
-					sleep(1);
-					break;
-				case PAGE_LEVEL_CHANGE :
-					ADB_PRESS(B_LEVEL_POSX, B_LEVEL_POSY);
-					sleep(1);
-					break;
-				case PAGE_ENTRY_CONFIRM :
-					ADB_PRESS(B_CONFIRM_POSX, B_CONFIRM_POSY);
-					sleep(1);
-					break;
-				case PAGE_BATTLE_DONE :
-					ADB_PRESS(B_NONE_POSX, B_EXIT_BT_POSY);
-					sleep(1);
-					break;
-				case PAGE_UNKNOWN:
-					ADB_PRESS(B_NONE_POSY, B_EXIT_BT_POSY);
-					sleep(1);
-					break;
-			}
+			key_rec = 0;
+		}else{
+			key_rec++;
 		}
-		if(page_rec == PAGE_BATTLE){
-			battle_proc(screen);
-		}else if(page_rec == PAGE_UNKNOWN){
-			ADB_PRESS(540, 1919);
+		switch(page_rec){
+#define KEY_REPRESS 5
+			case PAGE_HOME :
+				memset(&info, 0, sizeof(struct info));
+				if(!(key_rec%KEY_REPRESS)){ ADB_PRESS(B_ENTRY_POSX, B_ENTRY_POSY); }
+				sleep(1);
+				break;
+			case PAGE_LEVEL_CHANGE :
+				if(!(key_rec%KEY_REPRESS)){ ADB_PRESS(B_LEVEL_POSX, B_LEVEL_POSY); }
+				sleep(1);
+				break;
+			case PAGE_ENTRY_CONFIRM :
+				if(!(key_rec%KEY_REPRESS)){ ADB_PRESS(B_CONFIRM_POSX, B_CONFIRM_POSY); }
+				sleep(1);
+				break;
+			case PAGE_BATTLE_DONE :
+				if(!(key_rec%KEY_REPRESS)){ ADB_PRESS(B_NONE_POSX, B_EXIT_BT_POSY); }
+				sleep(1);
+				break;
+			case PAGE_BATTLE:
+				battle_proc(screen);
+				sleep(1);
+				break;
+			case PAGE_UNKNOWN:
+				ADB_PRESS(540, 1750);
+				sleep(1);
+				break;
 		}
 	}
 }
@@ -121,17 +141,19 @@ void battle_proc(struct screen *screen)
 	int i, isQuick;
 	info.cur_time = time(NULL);
 	info.score = get_1920_1080_score(screen);
-	if(info.score > 0 && info.score < score_exit){
+	if(info.score > 0 && info.score < score.exit){
 		printf("Score too low (%d), exit\n", info.score);
 		exit(0);
-	}else if(info.score > 0 && info.score > score_drop){
-		drop_flag = 1;
-	}else if(info.score > 0 && info.score < score_attack){
-		drop_flag = 0;
+	}else if(info.score > 0 && info.score > score.drop){
+		score.drop_flag = 1;
+	}else if(info.score > 0 && info.score < score.attack){
+		score.drop_flag = 0;
 	}
 	if(info.battle_time == 0){
-		printf("score:%d\n", info.score);
 		info.battle_time = info.cur_time;
+		score.battle_cnt++;
+		score.last = info.score;
+		printf("score:%d,total:%d\n", info.score, score.battle_cnt);
 	}
 	isQuick = info.cur_time-info.battle_time>55;
 	info.ex_cnt = get_ex_cnt(screen);
@@ -145,9 +167,13 @@ void battle_proc(struct screen *screen)
 		return;
 	}
 	printf("score:%d|sync=%d(%d)|isDrop(%d)|ex:%4.1f|c:%d %d %d %d|key(%d)\n",
-			info.score, info.sync_flag, attack_step, drop_flag, info.ex_cnt,
+			info.score, info.sync_flag, attack_step, score.drop_flag, info.ex_cnt,
 			c[0], c[1], c[2], c[3], key_pending);
-	if(drop_flag){
+	if(score.drop_flag){
+		system(ADB_SHELL KILL_APP);
+		system(ADB_SHELL PHONE_POWER);
+		sleep(150);
+		reset_app();
 		return;
 	}
 	if(key_pending > 0){

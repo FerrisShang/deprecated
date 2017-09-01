@@ -4,6 +4,11 @@
 #include "screen_info.h"
 #define LOCAL_SH " /tmp/sh.tmp "
 #define LOCAL_SC "/tmp/sc.tmp"
+#define KILL_APP "am force-stop com.tencent.tmgp.supercell.clashroyale "
+#define PHONE_HOME " input keyevent 3 "
+#define PHONE_UNLOCK " input keyevent 82 "
+#define START_APP  " am start -n com.tencent.tmgp.supercell.clashroyale/.GameAppTencent "
+#define PHONE_POWER " input keyevent 26 "
 
 enum {
 	PAGE_UNKNOWN,
