@@ -18,6 +18,8 @@ enum {
 	PAGE_LOADING,
 	PAGE_BATTLE_DONE,
 	PAGE_BATTLE,
+	PAGE_LOGIN_1,
+	PAGE_LOGIN_2,
 };
 struct rgba {
 	unsigned char r;

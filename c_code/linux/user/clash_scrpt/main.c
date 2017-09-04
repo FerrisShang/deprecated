@@ -127,7 +127,20 @@ int main(int argc, char *argv[])
 				sleep(1);
 				break;
 			case PAGE_UNKNOWN:
-				ADB_PRESS(540, 1750);
+				if(key_rec > 300){
+					system(ADB_SHELL KILL_APP);
+					reset_app();
+				}else{
+					ADB_PRESS(540, 1750);
+					sleep(1);
+				}
+				break;
+			case PAGE_LOGIN_1:
+				ADB_PRESS(855, 1765);
+				sleep(1);
+				break;
+			case PAGE_LOGIN_2:
+				ADB_PRESS(540, 1470);
 				sleep(1);
 				break;
 		}

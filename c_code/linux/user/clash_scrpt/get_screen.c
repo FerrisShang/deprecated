@@ -175,6 +175,10 @@ int get_page(struct screen *screen)
 #define IS_COL_EX(c) (c.r>120&&c.g<50&&c.b>120)
 #define IS_COL_LOADING(c) (c.r==25&&c.g==117&&c.b==222)
 #define IS_COL_LOADING_BK(c) (c.r==33&&c.g==36&&c.b==33)
+#define IS_COL_WECHAT(c) (c.r>20&&c.r<100&&c.g>195&&c.b>30&&c.b<110)
+#define IS_COL_QQ(c) (c.r>40&&c.r<120&&c.g>140&&c.g<220&&c.b>210)
+#define IS_COL_WHITE(c) (c.r>230&&c.g>230&&c.b>230)
+#define PRINT_COL(c) {printf("[%3d %3d %3d]\n", c.r,c.g,c.b);}
 	if(IS_COL_LEV_CHG_BK(screen->data[150][10])){
 		exit_flag = 0;
 		for(i=0;i<60;i++){
@@ -252,9 +256,33 @@ int get_page(struct screen *screen)
 		}
 		if(!exit_flag){ return PAGE_LOADING; }
 	}
-	//printf("xx : %d %d %d\n", screen->data[192][10].r,
-	//		screen->data[192][10].g,
-	//		screen->data[192][10].b);
+	if(IS_COL_QQ(screen->data[62][800])){
+		exit_flag = 0;
+		for(i=200;i<400;i++){
+			if(!(IS_COL_WECHAT(screen->data[62][i]))){
+				exit_flag = 1;
+				break;
+			}
+		}
+		for(i=678;i<963;i++){
+			if(!(IS_COL_QQ(screen->data[62][i]))){
+				exit_flag = 1;
+				break;
+			}
+		}
+		if(!exit_flag){ return PAGE_LOGIN_1; }
+	}
+	if(IS_COL_WHITE(screen->data[0][540])){
+		exit_flag = 0;
+		for(i=80;i<1000;i++){
+			if(!(IS_COL_WHITE(screen->data[0][i]))){
+				exit_flag = 1;
+				break;
+			}
+		}
+		if(!exit_flag){ return PAGE_LOGIN_2; }
+	}
+	//PRINT_COL(screen->data[0][540]);
 	return PAGE_UNKNOWN;
 }
 float get_ex_cnt(struct screen *screen)
