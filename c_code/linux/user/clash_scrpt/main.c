@@ -127,13 +127,8 @@ int main(int argc, char *argv[])
 				sleep(1);
 				break;
 			case PAGE_UNKNOWN:
-				if(key_rec > 300){
-					system(ADB_SHELL KILL_APP);
-					reset_app();
-				}else{
-					ADB_PRESS(540, 1750);
-					sleep(1);
-				}
+				ADB_PRESS(540, 1750);
+				sleep(1);
 				break;
 			case PAGE_LOGIN_1:
 				ADB_PRESS(855, 1765);
@@ -143,6 +138,11 @@ int main(int argc, char *argv[])
 				ADB_PRESS(540, 1470);
 				sleep(1);
 				break;
+		}
+		if(key_rec > 600){
+			key_rec = 0;
+			system(ADB_SHELL KILL_APP);
+			reset_app();
 		}
 	}
 }
@@ -168,7 +168,7 @@ void battle_proc(struct screen *screen)
 		score.last = info.score;
 		printf("score:%d,total:%d\n", info.score, score.battle_cnt);
 	}
-	isQuick = info.cur_time-info.battle_time>55;
+	isQuick = info.cur_time-info.battle_time>60+50;
 	info.ex_cnt = get_ex_cnt(screen);
 	int *c = get_cards(screen, 1);
 	for(i=0;i<4;i++){
