@@ -195,7 +195,7 @@ void battle_proc(struct screen *screen)
 	if(info.sync_flag == SYNC_NONE){
 		if((info.card[0]==3||info.card[1]==3||info.card[2]==3||info.card[3]==3)&&
 				(info.card[0]==4||info.card[1]==4||info.card[2]==4||info.card[3]==4)){
-			if(info.ex_cnt > 8.4){
+			if(info.ex_cnt > 8.0){
 				for(i=0;i<4;i++){
 					if(info.sync_flag == SYNC_NONE){
 						if(info.card[i] == 3){
@@ -220,13 +220,13 @@ void battle_proc(struct screen *screen)
 			}
 		}
 	}else if(info.sync_flag == SYNC_FOUND){
-		if(info.ex_cnt > 8.4){
+		if(info.ex_cnt > 8.0){
 			for(i=0;i<4;i++){
 				if(info.card[i] == 4){
 					info.sync_flag = SYNC_ATTACK;
 					attack_step = 0;
 					ADB_PRESS(C_BASE_POSX+i*C_WIDTH_POS, C_BASE_POSY);
-					ADB_PRESS(490, 1050);
+					ADB_PRESS(490, 1080);
 					break;
 				}
 			}
@@ -235,21 +235,21 @@ void battle_proc(struct screen *screen)
 		attack_step = (attack_step) % 5;
 		switch(attack_step){
 			case 0:
-				if(info.ex_cnt > 1.9-isQuick*.5){
+				if(info.ex_cnt > 1.9-isQuick*1){
 					ADB_PRESS(C_BASE_POSX+RAND_IDX()*C_WIDTH_POS, C_BASE_POSY);
 					ADB_PRESS(250, 900+200*isQuick);
 					attack_step++;
 				}
 				break;
 			case 1:
-				if(info.ex_cnt > 1.9-isQuick*.5){
+				if(info.ex_cnt > 1.9-isQuick*1){
 					ADB_PRESS(C_BASE_POSX+RAND_IDX()*C_WIDTH_POS, C_BASE_POSY);
 					ADB_PRESS(250, 900+50*isQuick);
 					attack_step++;
 				}
 				break;
 			case 2:
-				if(info.ex_cnt > 1.9-isQuick*.5){
+				if(info.ex_cnt > 1.9-isQuick*1){
 					card_select_idx = RAND_IDX();
 					ADB_PRESS(C_BASE_POSX+card_select_idx*C_WIDTH_POS, C_BASE_POSY);
 					ADB_PRESS(250, 700);
@@ -257,16 +257,16 @@ void battle_proc(struct screen *screen)
 				}
 				break;
 			case 3:
-				if(info.ex_cnt > 8.4-isQuick*.8){
+				if(info.ex_cnt > 8.0-isQuick*1){
 					ADB_PRESS(C_BASE_POSX+card_select_idx*C_WIDTH_POS, C_BASE_POSY);
 					ADB_PRESS(490, 1440-200*isQuick);
 					attack_step++;
 				}
 				break;
 			case 4:
-				if(info.ex_cnt > 8.4-isQuick*.8){
+				if(info.ex_cnt > 8.0-isQuick*1){
 					ADB_PRESS(C_BASE_POSX+card_select_idx*C_WIDTH_POS, C_BASE_POSY);
-					ADB_PRESS(490, 1000+210*isQuick);
+					ADB_PRESS(490, 1080);
 					attack_step++;
 					sleep(1);
 				}
