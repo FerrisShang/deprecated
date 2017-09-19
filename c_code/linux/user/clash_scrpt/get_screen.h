@@ -2,8 +2,13 @@
 #define __GET_SCREEN_H__
 
 #include "screen_info.h"
+#if defined(__WIN32__)
+#define LOCAL_SH " d:\\tmp\\sh.tmp "
+#define LOCAL_SC "d:\\tmp\\sc.tmp"
+#else
 #define LOCAL_SH " /tmp/sh.tmp "
 #define LOCAL_SC "/tmp/sc.tmp"
+#endif
 #define KILL_APP "am force-stop com.tencent.tmgp.supercell.clashroyale "
 #define PHONE_HOME " input keyevent 3 "
 #define PHONE_UNLOCK " input keyevent 82 "

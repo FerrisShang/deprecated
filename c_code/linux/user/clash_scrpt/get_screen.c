@@ -67,7 +67,23 @@ static void *th_get_screen(void *arg)
 		}
 		*p = *q; //last byte
 		p++;
-
+#if defined(__WIN32__)
+		size = p - file_new_buf;
+		memcpy(file_org_buf, file_new_buf, size);
+		p = file_new_buf;
+		q = file_org_buf;
+		for(i=0;i<size-1;i++){
+			if(*q == 0x0D && *(q+1) == 0x0A){
+				q++;
+				continue;
+			}
+			*p = *q;
+			p++;
+			q++;
+		}
+		*p = *q; //last byte
+		p++;
+#endif
 		pthread_mutex_lock(&screen_info.mutex);
 		screen_info.idx++;
 		screen_info.size = p - file_new_buf;
@@ -216,7 +232,7 @@ int get_page(struct screen *screen)
 		if(exit_flag == 0){
 			int tmp = 0;
 			for(i=150;i<WIDTH-150;i++){
-				if(IS_COL_HOME_BK(screen->data[192][i])){
+				if(IS_COL_HOME_OB(screen->data[192][i])){
 					tmp++;
 				}
 			}

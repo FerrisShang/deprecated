@@ -7,8 +7,13 @@
 #define PT_PPATH " /sdcard/pt.tmp "
 #define SH_PPATH " /sdcard/tmp.sh "
 #define ADB_DEVICE " -s 04aafe300025fb47 "
+#if defined(__WIN32__)
+#define ADB_SHELL  " D:\\adb\\adb.exe shell "
+#define ADB_PUSH   " D:\\adb\\adb.exe push  "
+#else
 #define ADB_SHELL  " adb "ADB_DEVICE" shell "
 #define ADB_PUSH   " adb "ADB_DEVICE" push  "
+#endif
 #define ADB_GET_SC ADB_SHELL "\"screencap "SC_PPATH"; " \
 					" sh "SH_PPATH" > /dev/null 2>&1; " \
 					" cat "PT_PPATH"\""

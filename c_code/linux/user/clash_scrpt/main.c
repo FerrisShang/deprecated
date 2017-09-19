@@ -62,6 +62,7 @@ struct score {
 
 void battle_proc(struct screen *screen);
 
+#if !defined(__WIN32__)
 static void reset_app(void)
 {
 	system(ADB_SHELL PHONE_HOME);
@@ -69,6 +70,7 @@ static void reset_app(void)
 	system(ADB_SHELL START_APP);
 	sleep(4);
 }
+#endif
 int main(int argc, char *argv[])
 {
 	static int page_rec;
@@ -85,9 +87,11 @@ int main(int argc, char *argv[])
 			return 0;
 		}
 	}
+#if !defined(__WIN32__)
 	system("echo " "\""SC_PICK_SH"\"" ">"LOCAL_SH);
 	system(ADB_PUSH  LOCAL_SH  SH_PPATH);
 	reset_app();
+#endif
 	while(1){
 		GET_SCREEN();
 		screen = get_screen_data(LOCAL_SC);
@@ -124,7 +128,11 @@ int main(int argc, char *argv[])
 				break;
 			case PAGE_BATTLE:
 				battle_proc(screen);
+#if defined(__WIN32__)
+				sleep(3);
+#else
 				sleep(1);
+#endif
 				break;
 			case PAGE_UNKNOWN:
 				ADB_PRESS(540, 1750);
@@ -139,11 +147,13 @@ int main(int argc, char *argv[])
 				sleep(1);
 				break;
 		}
+#if !defined(__WIN32__)
 		if(key_rec > 600){
 			key_rec = 0;
 			system(ADB_SHELL KILL_APP);
 			reset_app();
 		}
+#endif
 	}
 }
 void battle_proc(struct screen *screen)
@@ -183,10 +193,12 @@ void battle_proc(struct screen *screen)
 			info.score, info.sync_flag, attack_step, score.drop_flag, info.ex_cnt,
 			c[0], c[1], c[2], c[3], key_pending);
 	if(score.drop_flag){
+#if !defined(__WIN32__)
 		system(ADB_SHELL KILL_APP);
 		system(ADB_SHELL PHONE_POWER);
 		sleep(150);
 		reset_app();
+#endif
 		return;
 	}
 	if(key_pending > 0){
@@ -268,7 +280,9 @@ void battle_proc(struct screen *screen)
 					ADB_PRESS(C_BASE_POSX+card_select_idx*C_WIDTH_POS, C_BASE_POSY);
 					ADB_PRESS(490, 1080);
 					attack_step++;
+#if !defined(__WIN32__)
 					sleep(1);
+#endif
 				}
 				break;
 		}
